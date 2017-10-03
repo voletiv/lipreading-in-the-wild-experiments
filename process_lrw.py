@@ -1,8 +1,8 @@
-import cv2
+import dlib
 import glob
 # stackoverflow.com/questions/29718238/how-to-read-mp4-video-to-be-processed-by-scikit-image
 import imageio
-import matplotlib
+# import matplotlib
 # matplotlib.use('agg')     # Use this for remote terminals
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +10,7 @@ import os
 import tqdm
 
 from matplotlib.patches import Rectangle
-import dlib
+from skimage.transform import resize
 
 # Facial landmark detection
 # http://dlib.net/face_landmark_detection.py.html
@@ -21,300 +21,290 @@ import dlib
 
 LRW_DATA_DIR = '/media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/'
 LRW_SAVE_DIR = '/home/voletiv/Datasets/LRW/lipread_mp4'
+SHAPE_PREDICTOR_PATH = 'shape-predictor/shape_predictor_68_face_landmarks.dat'
 
+FACIAL_LANDMARKS_IDXS = dict([
+    ("mouth", (48, 68)),
+    ("right_eyebrow", (17, 22)),
+    ("left_eyebrow", (22, 27)),
+    ("right_eye", (36, 42)),
+    ("left_eye", (42, 48)),
+    ("nose", (27, 35)),
+    ("jaw", (0, 17))
+])
+
+MOUTH_SHAPE_FROM = FACIAL_LANDMARKS_IDXS["mouth"][0]
+MOUTH_SHAPE_TO = FACIAL_LANDMARKS_IDXS["mouth"][1]
+
+# Examples
 videoFile = 'media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.mp4'
-frameFile = '/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001_01.jpg'
-
+wordFileName = '/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt'
 
 #############################################################
-# DETECT AND SAVE MOUTH REGIONS
+# EXTRACT FRAMES AND MOUTHS
 #############################################################
 
-detector = dlib.get_frontal_face_detector()
 
-
-# Convert dlib rectangle to bounding box (x, y, w, h)
-def rect_to_bb(rect):
-    if isinstance(rect, dlib.rectangle):
-        # take a bounding predicted by dlib and convert it
-        # to the format (x, y, w, h) as we would normally do
-        # with OpenCV
-        x = rect.left()
-        y = rect.top()
-        w = rect.right() - x
-        h = rect.bottom() - y
-    else:
-        x, y, w, h = rect
-    # return a tuple of (x, y, w, h)
-    return (x, y, w, h)
-
-
-# Find rectangle bounding face
-def findFaceRect(frame, mode='dlib'):
-    # Detect face using dlib detector
-    faceRect = detector(frame, 1)
-    # If at least 1 face is found
-    if len(faceRect) > 0:
-        return faceRect[0]
-    # If no face is found
-    else:
-        return ()
-
-
-# Gaussian kernel
-# https://stackoverflow.com/questions/17190649/how-to-obtain-a-gaussian-filter-in-python
-def matlab_style_gauss2D(shape=(3, 3), sigma=0.5):
-    """
-    2D gaussian mask - should give the same result as MATLAB's
-    fspecial('gaussian',[shape],[sigma])
-    """
-    m, n = [(ss - 1.) / 2. for ss in shape]
-    y, x = np.ogrid[-m:m + 1, -n:n + 1]
-    h = np.exp(-(x * x + y * y) / (2. * sigma * sigma))
-    h[h < np.finfo(h.dtype).eps * h.max()] = 0
-    sumh = h.sum()
-    if sumh != 0:
-        h /= sumh
-    return h
-
-
-# Find mean pixel value of mouth area in expanded face, assuming faceW = 128
-def findMouthMeanInFaceRect(face, wReduceFactor=0.6, wLeftOffsetFactor=0.0, hTopReduceFactor=0.5, hBottomOffsetFactor=0.15, showACh=False, aChThresh=0.9):
-    # Reduce frame width to find mouth in constrained area
-    (faceH, faceW, _) = face.shape
-    # plt.imshow(cv2.cvtColor(face, cv2.COLOR_BGR2RGB)); plt.show()
-    wDelta = wReduceFactor * faceW
-    newFaceW = faceW - int(wDelta) + int(wLeftOffsetFactor * faceW)
-    newFaceX = int(wDelta / 2)
-    hDelta = hTopReduceFactor * faceH
-    newFaceY = int(hTopReduceFactor * faceH)
-    newFaceH = faceH - int(hDelta) - int(hBottomOffsetFactor * faceH)
-    # Extract smaller face
-    smallFace = np.array(
-        face[newFaceY:newFaceY + newFaceH, newFaceX:newFaceX + newFaceW, :])
-    # plt.imshow(cv2.cvtColor(smallFace, cv2.COLOR_BGR2RGB)); plt.show()
-    # Convert face to LAB, extract A channel
-    aCh = cv2.cvtColor(smallFace, cv2.COLOR_BGR2Lab)[:, :, 1]
-    (aChW, aChH) = aCh.shape
-    # Element-wise multiply with gaussian kernel with center pixel at
-    # 30% height, and sigma 500
-    gaussKernel = matlab_style_gauss2D(
-        (aChW, 2 * 0.7 * aChH), sigma=500)[:, -aChH:]
-    aCh = np.multiply(aCh, gaussKernel)
-    # Rescale to [0, 1]
-    aCh = (aCh - aCh.min()) / (aCh.max() - aCh.min())
-    # Find mean of those pixels > 0.9
-    # plt.imshow(aCh > 0.9, cmap='gray'); plt.show()
-    if showACh:
-        plt.imshow(aCh, cmap='gray')
-        plt.show()
-    # Here, the X & Y axes of np array are the Y & X of Rectangle respectively
-    mouthY, mouthX = np.where(aCh > aChThresh)
-    mouthXMean = mouthX.mean()
-    mouthYMean = mouthY.mean()
-    # plt.imshow(cv2.cvtColor(smallFace, cv2.COLOR_BGR2RGB)); ca = plt.gca(); ca.add_patch(Rectangle((mouthXMean - 2, mouthYMean - 2), 4, 4, edgecolor='g', facecolor='g')); plt.show()
-    # plt.imshow(cv2.cvtColor(face, cv2.COLOR_BGR2RGB)); ca = plt.gca(); ca.add_patch(Rectangle((newFaceX + mouthXMean - 2, newFaceY + mouthYMean - 2), 4, 4, edgecolor='g', facecolor='g')); plt.show()
-    return (newFaceX + mouthXMean, newFaceY + mouthYMean, aCh)
-
-
-# Extract mouth image
-def extractMouthImage(frame, showACh=False, aChThresh=0.9, mode='dlib', mouthW=112):
-    # plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)); plt.show()
-    # Find rectangle bounding face
-    faceRect = findFaceRect(frame, mode=mode)
-    if faceRect != ():
-        faceX, faceY, faceW, faceH = rect_to_bb(faceRect)
-    # If a face is not found, return empty
-    else:
-        return faceRect
-    # plt.imshow(frame); ca = plt.gca(); ca.add_patch(Rectangle((faceX, faceY), faceW, faceH, edgecolor='r', fill=False)); plt.show()
-    # plt.imshow(frame[faceY:faceY + faceH, faceX:faceX + faceW]); plt.show()
-    # Return just the face
-    face = frame[faceY:faceY + faceH, faceX:faceX + faceW]
-    # plt.imshow(face); plt.show()
-    # Find mean pixel value of mouth area - pixel value is
-    # plottable on face, not frame
-    mouthXMean, mouthYMean, aCh = findMouthMeanInFaceRect(
-        face, wReduceFactor=0.6, hTopReduceFactor=0.5, hBottomOffsetFactor=0.1, showACh=showACh, aChThresh=aChThresh)
-    # plt.imshow(face); ca = plt.gca(); ca.add_patch(Rectangle((mouthXMean-2, mouthYMean-2), 4, 4, edgecolor='g', facecolor='g')); plt.show()
-    # plt.imshow(aCh, cmap='gray'); plt.show()
-    # To make mouth mean plottable on frame
-    frameMouthYMean = mouthYMean + faceY
-    frameMouthXMean = mouthXMean + faceX
-    # plt.imshow(frame); ca = plt.gca(); ca.add_patch(Rectangle((frameMouthXMean-2, frameMouthYMean-2), 4, 4, edgecolor='g', facecolor='g')); plt.show()
-    # In case mouthYMean cannot cover 56 pixels of mouth around it
-    if (int(frameMouthYMean + mouthW / 2) > frame.shape[0]):
-        frameMouthYMean = frame.shape[0] - mouthW / 2
-    # plt.imshow(face); ca = plt.gca(); ca.add_patch(Rectangle((mouthXMean-2, mouthYMean-2), 4, 4, edgecolor='g', facecolor='g')); plt.show()
-    # Extract mouth as a colour 112x112 region around the mean
-    mouth = frame[int(frameMouthYMean - mouthW / 2):int(frameMouthYMean + mouthW / 2),
-                  int(frameMouthXMean - mouthW / 2):int(frameMouthXMean + mouthW / 2), :]
-    # plt.imshow(mouth, cmap='gray'); plt.show()
-    # # Minimize contrast
-    # mouth = (mouth - mouth.min()) / (mouth.max() - mouth.min())
-    return mouth, face, aCh
-
-
-def extract_frames_and_mouths(videoFile):
-    video = imageio.get_reader(videoFile, 'ffmpeg')
-    # For each frame
-    for f, frame in enumerate(video):
-        # Not the name of file to be saved
-        frame_name = os.path.join(LRW_SAVE_DIR, "/".join(videoFile.split(
-            "/")[-3:]).split('.')[0] + "_{0:02d}".format(f + 1) + ".jpg")
-        # Save if file doesn't exist
-        if not os.path.isfile(frame_name):
-            imageio.imwrite(frame_name, frame)
-        # Convert Image array to np array
-        frame = np.array(frame)
-        # Extract the mouth
-        mouth, face, aCh = extractMouthImage(
-            frame, showACh=showACh, aChThresh=aChThresh, mode=mode, mouthW=mouthW)
-        # plt.imshow(mouth, cmap='gray'); plt.show()
-        # plt.imshow(face); plt.show()
-        # plt.imshow(aCh, cmap='gray'); plt.show()
-        # If a mouth has been found
-        if mouth != ():
-            # Write the name
-            mouth_name = os.path.join(LRW_SAVE_DIR, "/".join(videoFile.split("/")[-3:]).split(
-                '.')[0] + "_{0:02d}_mouth".format(f + 1) + ".jpg")
-            # print("Saving mouth to:", mouth_name)
-            # imwrite
-            isWritten = imageio.imwrite(mouth_name, mouth)
-    return 1
-
-# Extract And Save Mouth Images
-extract, startDir, showACh, aChThresh, mode, mouthW = False, 's25', False, 0.9, 'dlib', 112
-
-
-def extractAndSaveMouthImages(rootDir=LRW_DATA_DIR,
-                              extract=False,
-                              startDir='train/ABOUT_00035',
-                              showACh=False,
-                              aChThresh=0.9,
-                              mode='dlib',
-                              mouthW=112):
+def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
+                                                startExtracting=False,
+                                                startDir='train/ABOUT_00035',
+                                                extractFrames=False,
+                                                detectAndSaveMouths=False,
+                                                writeFrameImages=False,
+                                                dontWriteFrameIfExists=True,
+                                                dontWriteMouthIfExists=True,
+                                                mouthW=112):
     # For each word
     for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(rootDir, '*/')))):
         print(wordDir)
+
         # train, val or test
         for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
             print(setDir)
-            wordVids = sorted(glob.glob(os.path.join(setDir, '*.mp4')))
+
+            # Read all .txt file names (since .txt are saved in both
+            # LRW_DATA_DIR and LRW_SAVE_DIR)
+            wordFileNames = sorted(glob.glob(os.path.join(setDir, '*.txt')))
+
             # For each video
-            for videoFile in tqdm.tqdm(wordVids):
+            for wordFileName in tqdm.tqdm(wordFileNames):
+
                 # Don't extract until all previously extract_return are passed
-                if startDir in videoFile:
-                    extract = True
-                if extract:
-                    # Extract
-                    def extract_please(videoFile):
-                        try:
-                            extract_return = extract_frames_and_mouths(
-                                videoFile)
-                            return extract_return
-                        except OSError:
-                            print("Trying again...")
-                            extract_return = extract_please(videoFile)
-                            return extract_return
-                        except KeyboardInterrupt:
-                            print("Ctrl+C was pressed!")
-                            return -1
-                    extract_return = extract_please(videoFile)
-                    if extract_return == -1:
-                        return
+                if startDir in wordFileName:
+                    startExtracting = True
 
-
-#############################################################
-# CONVERT VIDEOS TO IMAGES
-# SAVE IMAGES IN INDIVIDUAL FOLDERS BELONGING TO EACH VIDEO
-#############################################################
-
-
-# Extract all video into frames
-def extract_frames_and_mouths_from_all_videos(rootDir=LRW_DATA_DIR,
-                                              extract=False,
-                                              startDir='val/ACROSS_00001',
-                                              extract_frame=True,
-                                              extract_mouth=True):
-    # For each word in LRW
-    for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(rootDir, '*/')))):
-        print(wordDir)
-        # train, val or test
-        for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
-            print(setDir)
-            wordVids = sorted(glob.glob(os.path.join(setDir, '*.mp4')))
-            # For each video
-            for videoFile in tqdm.tqdm(wordVids):
-                # Don't extract until all previously extract_return are passed
-                if startDir in videoFile:
-                    extract = True
                 # Extract
-                if extract:
+                if startExtracting:
+                    if detectAndSaveMouths:
+                        detector = dlib.get_frontal_face_detector()
+                        predictor = dlib.shape_predictor(SHAPE_PREDICTOR_PATH)
+
                     # Handling OSError
-                    def extract_please(videoFile):
+                    def please_extract(videoFile):
                         try:
-                            if extract_frame and not extract_mouth:
-                                extract_return = extract_frames_and_save(
-                                    videoFile, write=True)
-                            elif extract_frame and extract_mouth:
-                            return extract_return
+                            # Extract frames and mouths
+                            return extract_and_save_frames_and_mouths(wordFileName,
+                                                                      extractFrames,
+                                                                      detectAndSaveMouths,
+                                                                      writeFrameImages,
+                                                                      dontWriteFrameIfExists,
+                                                                      dontWriteMouthIfExists,
+                                                                      detector,
+                                                                      predictor,
+                                                                      mouthW)
                         except OSError:
                             print("Trying again...")
-                            extract_return = extract_please(videoFile)
-                            return extract_return
+                            return please_extract(videoFile)
                         except KeyboardInterrupt:
                             print("Ctrl+C was pressed!")
                             return -1
+
                     # Extracting
-                    extract_return = extract_please(videoFile)
-                    if extract_return == -1:
+                    extractReturn = please_extract(videoFile)
+                    if extractReturn == -1:
                         return
 
 
-def extract_and_save_frames_and_mouths(videoFile):
-    # Capture the video
-    video = extract_frames_and_save(videoFile, write=False)
+def extract_and_save_frames_and_mouths(
+        wordFileName='/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt',
+        extractFrames=False,
+        detectAndSaveMouths=False,
+        writeFrameImages=False,
+        dontWriteFrameIfExists=True,
+        dontWriteMouthIfExists=True,
+        detector=None,
+        predictor=None,
+        mouthW=112):
+    # extractFrames and detectAndSaveMouths => Read frames from mp4 video and detect mouths
+    # (not extractFrames) and detectAndSaveMouths => Read frames from jpeg images and detect mouths
+    # extractFrames and (not detectAndSaveMouths) => Read frames from mp4 video
+    # (to maybe save them)
+
+    # If something needs to be done:
+    if extractFrames or detectAndSaveMouths:
+
+        # If extract frames from mp4 video
+        if extractFrames:
+            videoFrames = extract_frames_from_video(wordFileName)
+
+        # Else, read frame names in folder
+        elif detectAndSaveMouths:
+            videoFrames = read_jpeg_frames_from_dir(wordFileName)
+
+        # For each frame
+        for f, frame in enumerate(videoFrames):
+
+            # Write the frame image (from video)
+            if extractFrames and writeFrameImages:
+                write_lrw_image(wordFileName, f, frame, mouth=False,
+                                dontWriteIfExists=dontWriteFrameIfExists)
+
+            # Detect mouths in frames
+            if detectAndSaveMouths:
+
+                if detector is None or predictor is None:
+                    print("Please specify dlib detector/predictor!!")
+                    return -1
+
+                # Detect and save mouth in frame
+                mouthImage = detect_mouth_in_frame(frame, detector, predictor)
+
+                # Save mouth image
+                write_lrw_image(wordFileName, f, mouthImage, mouth=True,
+                                dontWriteIfExists=dontWriteMouthIfExists)
+
+    return 1
 
 
-# Extract video into frames
-def extract_frames_and_mouths_and_save(videoFile, extract_mouth=True, write=False):
-    # Capture the video
-    video = imageio.get_reader(videoFile, 'ffmpeg')
-    # Iterate over the frames
-    for f, frame in enumerate(video):
-        # Write frame
-        if write:
-            frame_name = os.path.join(LRW_SAVE_DIR, "/".join(videoFile.split(
-                "/")[-3:]).split('.')[0] + "_{0:02d}".format(f + 1) + ".jpg")
-            # If it doesn't exist already
-            if not os.path.isfile(frame_name):
-                imageio.imwrite(frame_name, frame)
-        # Extract mouth
-        if extract_mouth:
+def extract_frames_from_video(wordFileName):
+    videoFileName = '.'.join(wordFileName.split('.')[:-1]) + '.mp4'
+    videoFrames = imageio.get_reader(videoFileName, 'ffmpeg')
+    return videoFrames
 
+
+def read_jpeg_frames_from_dir(wordFileName):
+    # Frame names end with numbers from 00 to 30, so [0-3][0-9]
+    videoFrameNames = sorted(
+        glob.glob('.'.join(wordFileName.split('.')[:-1]) + '_[0-3][0-9].jpg'))
+    # Read all frame images
+    videoFrames = []
+    for frameName in videoFrameNames:
+        videoFrames.append(imageio.imread(frameName))
     # Return
-    return video
-
-detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor(predictor_path)
-
-# Extract mouth from frame
-def extract_mouth_from_frame(frame):
-    # Detect faces
-    dets = detector(frame, 1)
-    shape = predictor(img, d)
+    return videoFrames
 
 
-    #############################################################
-    # PROCESS
-    #############################################################
+def write_lrw_image(wordFileName, f, image, mouth=False, dontWriteIfExists=True):
+    # Note the name of file to be saved
+    if not mouth:
+        imageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
+            "/")[-3:]).split('.')[0] + "_{0:02d}".format(f + 1) + ".jpg")
+    else:
+        imageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
+            "/")[-3:]).split('.')[0] + "_{0:02d}_mouth".format(f + 1) + ".jpg")
+    # print(imageName)
 
-    # Copy directory structure from LRW_DATA_DIR to LRW_SAVE_DIR (in bash)
-    # cd $LRW_DATA_DIR && find . type -d -exec mkdir -p -- $LRW_SAVE_DIR{} \;
+    # Save if file doesn't exist
+    if dontWriteIfExists:
+        if not os.path.isfile(imageName):
+            imageio.imwrite(imageName, image)
+    else:
+        imageio.imwrite(imageName, image)
 
-    # Copy the txt files from LRW_DATA_DIR to LRW_SAVE_DIR (in bash)
-    # cd $LRW_DATA_DIR && find . -name \*.txt -exec cp -parents {}
-    # $LRW_SAVE_DIR \;
 
-    # Extract frames
+def detect_mouth_in_frame(frame, detector, predictor):
+    # Shape Coords: ------> x (cols)
+    #               |
+    #               |
+    #               v
+    #               y
+    #             (rows)
+
+    # Detect face
+    face = detector(frame, 1)[0]
+
+    # Predict facial landmarks
+    shape = predictor(frame, face)
+
+    # # Show landmarks and face
+    # win = dlib.image_window()
+    # win.set_image(frame)
+    # win.add_overlay(shape)
+    # win.add_overlay(face)
+
+    # Note all mouth landmark coordinates
+    mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
+                            for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
+
+    # Mouth Rect: x, y, w, h
+    mouthRect = (np.min(mouthCoords[:, 0]), np.min(mouthCoords[:, 1]),
+                 np.max(mouthCoords[:, 0]) - np.min(mouthCoords[:, 0]),
+                 np.max(mouthCoords[:, 1]) - np.min(mouthCoords[:, 1]))
+
+    # Make mouthRect square
+    mouthRect = make_rect_shape_square(mouthRect)
+
+    # Expand mouthRect square
+    expandedMouthRect = expand_rect(
+        mouthRect, scale=(0.6 * face.width() / mouthRect[2]))
+
+    # Resize to 120x120
+    resizedMouthImage = np.round(resize(frame[expandedMouthRect[1]:expandedMouthRect[1] + expandedMouthRect[3],
+                                              expandedMouthRect[0]:expandedMouthRect[0] + expandedMouthRect[2]],
+                                        (120, 120), preserve_range=True)).astype('uint8')
+
+    # Return mouth
+    return resizedMouthImage
+
+
+def make_rect_shape_square(rect):
+    # Rect: (x, y, w, h)
+    # If width > height
+    if rect[2] > rect[3]:
+        rect = (rect[0], int(rect[1] + rect[3] / 2 - rect[2] / 2),
+                rect[2], rect[2])
+    # Else (height > width)
+    else:
+        rect = (int(rect[0] + rect[2] / 2 - rect[3] / 2), rect[1],
+                rect[3], rect[3])
+    # Return
+    return rect
+
+
+def expand_rect(rect, scale=1.5):
+    # Rect: (x, y, w, h)
+    w = int(rect[2] * scale)
+    h = int(rect[3] * scale)
+    x = rect[0] - int((w - rect[2]) / 2)
+    y = rect[1] - int((h - rect[3]) / 2)
+    return (x, y, w, h)
+
+
+def test_mouth_detection(word="ABOUT", set="train", number=1, frameNumber=1,
+                         scaleFactor=.5, showMouthOnFrame=True, showResizedMouth=True):
+    wordFileName = os.path.join(
+        LRW_SAVE_DIR, word, set, word + '_{0:05d}'.format(number) + '.txt')
+
+    frame = read_jpeg_frames_from_dir(wordFileName)[frameNumber]
+    face = detector(frame, 1)[0]
+    shape = predictor(frame, face)
+
+    mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
+                            for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
+    mouthRect = (np.min(mouthCoords[:, 0]), np.min(mouthCoords[:, 1]),
+                 np.max(mouthCoords[:, 0]) - np.min(mouthCoords[:, 0]),
+                 np.max(mouthCoords[:, 1]) - np.min(mouthCoords[:, 1]))
+    mouthRect = make_rect_shape_square(mouthRect)
+
+    scale = scaleFactor * face.width() / mouthRect[2]
+    # print("scale =", scale)
+    croppedScale = 112 / 120 * scale
+
+    expandedMouthRect = expand_rect(mouthRect, scale=scale)
+    expandedCroppedMouthRect = expand_rect(mouthRect, scale=croppedScale)
+
+    if showMouthOnFrame:
+        plt.subplot(121)
+        plt.imshow(frame)
+        ca = plt.gca()
+        ca.add_patch(Rectangle((expandedMouthRect[0], expandedMouthRect[1]),
+                               expandedMouthRect[2], expandedMouthRect[3],
+                               edgecolor='r', fill=False))
+        ca.add_patch(Rectangle((expandedCroppedMouthRect[0],
+                                expandedCroppedMouthRect[1]),
+                               expandedCroppedMouthRect[2],
+                               expandedCroppedMouthRect[3],
+                               edgecolor='g', fill=False))
+
+    if showResizedMouth:
+        resizedMouthImage \
+            = np.round(resize(frame[expandedMouthRect[1]:expandedMouthRect[1] + expandedMouthRect[3],
+                                    expandedMouthRect[0]:expandedMouthRect[0] + expandedMouthRect[2]],
+                              (120, 120), preserve_range=True)).astype('uint8')
+        plt.subplot(122)
+        plt.imshow(resizedMouthImage)
+
+    if showMouthOnFrame or showResizedMouth:
+        plt.show()
+
+    return wordFileName, resizedMouthImage
