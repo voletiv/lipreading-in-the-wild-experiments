@@ -99,3 +99,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# .dat - to ignore shape_predictor file
+*.dat
