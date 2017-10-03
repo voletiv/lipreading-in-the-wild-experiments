@@ -130,6 +130,7 @@ def extract_and_save_frames_and_mouths(
         # Else, read frame names in folder
         elif detectAndSaveMouths:
             videoFrames = read_jpeg_frames_from_dir(wordFileName)
+            face = dlib.rectangle(30, 30, 220, 220)
 
         # For each frame
         for f, frame in enumerate(videoFrames):
@@ -147,7 +148,9 @@ def extract_and_save_frames_and_mouths(
                     return -1
 
                 # Detect and save mouth in frame
-                mouthImage = detect_mouth_in_frame(frame, detector, predictor)
+                mouthImage, face = detect_mouth_in_frame(frame, detector,
+                                                         predictor,
+                                                         prevFace=face)
 
                 # Save mouth image
                 write_lrw_image(wordFileName, f, mouthImage, mouth=True,
@@ -192,7 +195,8 @@ def write_lrw_image(wordFileName, f, image, mouth=False, dontWriteIfExists=True)
         imageio.imwrite(imageName, image)
 
 
-def detect_mouth_in_frame(frame, detector, predictor):
+def detect_mouth_in_frame(frame, detector, predictor,
+                          prevFace=dlib.rectangle(30, 30, 220, 220)):
     # Shape Coords: ------> x (cols)
     #               |
     #               |
@@ -201,7 +205,11 @@ def detect_mouth_in_frame(frame, detector, predictor):
     #             (rows)
 
     # Detect face
-    face = detector(frame, 1)[0]
+    face = detector(frame, 1)
+    if len(face) == 0:
+        face = prevFace
+    else:
+        face = face[0]
 
     # Predict facial landmarks
     shape = predictor(frame, face)
@@ -234,7 +242,7 @@ def detect_mouth_in_frame(frame, detector, predictor):
                                         (120, 120), preserve_range=True)).astype('uint8')
 
     # Return mouth
-    return resizedMouthImage
+    return resizedMouthImage, face
 
 
 def make_rect_shape_square(rect):
@@ -260,14 +268,24 @@ def expand_rect(rect, scale=1.5):
     return (x, y, w, h)
 
 
-def test_mouth_detection(word="ABOUT", set="train", number=1, frameNumber=1,
-                         scaleFactor=.5, showMouthOnFrame=True, showResizedMouth=True):
+def test_mouth_detection(detector=None, predictor=None,
+                         word="ABOUT", set="train", number=1, frameNumber=1,
+                         scaleFactor=.6, showMouthOnFrame=True, showResizedMouth=True):
+    if detector is None or predictor is None:
+        print("Please input detector and predictor!!")
+        return
+
     wordFileName = os.path.join(
         LRW_SAVE_DIR, word, set, word + '_{0:05d}'.format(number) + '.txt')
 
     frame = read_jpeg_frames_from_dir(wordFileName)[frameNumber]
     face = detector(frame, 1)[0]
     shape = predictor(frame, face)
+    # # Show landmarks and face
+    # win = dlib.image_window()
+    # win.set_image(frame)
+    # win.add_overlay(shape)
+    # win.add_overlay(face)
 
     mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
                             for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
