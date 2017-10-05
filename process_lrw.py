@@ -33,7 +33,7 @@ if 'voletiv' in os.getcwd():
     LRW_DATA_DIR = '/media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/'
     LRW_SAVE_DIR = '/home/voletiv/Datasets/LRW/lipread_mp4'
 
-elif 'fusor' in os.getcwd():
+elif 'voleti.vikram' in os.getcwd():
     # fusor
     LRW_DATA_DIR = '/shared/magnetar/datasets/LipReading/LRW/lipread_mp4/'
     LRW_SAVE_DIR = '/shared/fusor/home/voleti.vikram/LRW-mouths'
