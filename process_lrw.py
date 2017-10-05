@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import tqdm
+import warnings
 
 from matplotlib.patches import Rectangle
 
