@@ -13,16 +13,15 @@ import tqdm
 import warnings
 
 from matplotlib.patches import Rectangle
-
-# To ignore the deprecation warning from scikit-image
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=UserWarning)
-    from skimage.transform import resize
+from skimage.transform import resize
 
 # Facial landmark detection
 # http://dlib.net/face_landmark_detection.py.html
 
 print("Done importing stuff.")
+
+# # To ignore the deprecation warning from scikit-image
+# warnings.filterwarnings("ignore",category=UserWarning)
 
 #############################################################
 # PARAMS
@@ -95,7 +94,7 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
             # For each video
             for wordFileName in tqdm.tqdm(wordFileNames):
 
-                # Don't extract until all startSetWordNumber is reached
+                # Don't extract until startSetWordNumber is reached
                 if startSetWordNumber in wordFileName:
                     startExtracting = True
 

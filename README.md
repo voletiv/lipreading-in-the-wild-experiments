@@ -46,8 +46,7 @@ Each video _frame_ is a colour image (3 channels) 256x256 pixels in size.
 
 - Resize the mouth to 120x120 pixels
 	- Mouth is the portion of frame given by thhe expanded mouth bounding box	
-	- [SyncNet paper](https://www.robots.ox.ac.uk/~vgg/publications/2016/Chung16a/chung16a.pdf) resizes mouth to 111x111
-	- [LRW paper](https://www.robots.ox.ac.uk/~vgg/publications/2016/Chung16/chung16.pdf) resizes to 112x112
+	- [SyncNet paper](https://www.robots.ox.ac.uk/~vgg/publications/2016/Chung16a/chung16a.pdf) resizes mouth to 111x111, [LRW paper](https://www.robots.ox.ac.uk/~vgg/publications/2016/Chung16/chung16.pdf) resizes to 112x112
 	- I resize to 120x120 so that random cropping can be employed to extract 112x112-sized images
 
 - Save the resized mouth image
