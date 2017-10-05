@@ -27,9 +27,9 @@ print("Done importing stuff.")
 LRW_DATA_DIR = '/media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/'
 LRW_SAVE_DIR = '/home/voletiv/Datasets/LRW/lipread_mp4'
 
-# fusor
-LRW_DATA_DIR = '/shared/magnetar/datasets/LipReading/LRW/lipread_mp4/'
-LRW_SAVE_DIR = '/shared/fusor/home/voleti.vikram/LRW-mouths'
+# # fusor
+# LRW_DATA_DIR = '/shared/magnetar/datasets/LipReading/LRW/lipread_mp4/'
+# LRW_SAVE_DIR = '/shared/fusor/home/voleti.vikram/LRW-mouths'
 
 #############################################################
 # CONSTANTS

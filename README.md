@@ -2,17 +2,29 @@
 
 This repository contains my experiments with lip reading using deep learning in Keras. I am train and test on the [LRW dataset](http://www.robots.ox.ac.uk/~vgg/data/lip_reading/).
 
+## Requirements
+
+1. Required libraries by Python (I used Python3) are mentioned in the requirements.txt file.
+
+2. 'ffmpeg' is also required for the imageio module to read an mp4 file. Install it using:
+
+```sh
+sudo apt install ffmpeg
+```
+
+3. "shape_predictor_68_face_landmarks.dat" file is required inside the _shape-predictor_ directory. It is used for detecting facial landmarks. Instructions to download and place the file are available in the readme file in the _shape-predictor_ directory.
+
 ## Files
 
 The files contained are:
 
-1. process_lrw.py
+- process_lrw.py
 
 	- Code to automatically process the lRW dataset: extract and save frames from all mp4 videos, detect and save mouths from all frames
 
 	- There are options to extract/not extract frames from videos (if they are already extracted), detect/not detect mouth images, save/not save the images (frames or mouths)
 
-### Process to detect and save mouths:
+## Process to detect and save mouths:
 
 Each video _frame_ is a colour image (3 channels) 256x256 pixels in size.
 
