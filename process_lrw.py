@@ -23,8 +23,13 @@ print("Done importing stuff.")
 # PARAMS
 #############################################################
 
+# voletiv
 LRW_DATA_DIR = '/media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/'
 LRW_SAVE_DIR = '/home/voletiv/Datasets/LRW/lipread_mp4'
+
+# fusor
+LRW_DATA_DIR = '/shared/magnetar/datasets/LipReading/LRW/lipread_mp4/'
+LRW_SAVE_DIR = '/shared/fusor/home/voleti.vikram/LRW-mouths'
 
 #############################################################
 # CONSTANTS
@@ -117,7 +122,7 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
 #############################################################
 
 
-def test_mouth_detection(rootDir=LRW_SAVE_DIR, word="ABOUT", set="train", number=1, frameNumber=1,
+def test_mouth_detection_in_frame(rootDir=LRW_SAVE_DIR, word="ABOUT", set="train", number=1, frameNumber=1,
                          scaleFactor=.6, showMouthOnFrame=True, showResizedMouth=True,
                          detector=None, predictor=None,):
 
