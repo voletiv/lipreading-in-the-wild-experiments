@@ -1,6 +1,6 @@
 # lipreading-in-the-wild-experiments
 
-This repository contains my experiments with lip reading using deep learning in Keras. I am train and test on the [LRW dataset](http://www.robots.ox.ac.uk/~vgg/data/lip_reading/).
+This repository contains my experiments with lip reading using deep learning in Keras. I train and test on the [LRW dataset](http://www.robots.ox.ac.uk/~vgg/data/lip_reading/).
 
 ## Requirements
 
