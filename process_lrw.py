@@ -61,13 +61,18 @@ wordFileName = '/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.tx
 
 def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
                                                 startExtracting=False,
-                                                startDir='train/ABOUT_00035',
+                                                startSetWordNumber='train/ABOUT_00035',
                                                 extractFrames=False,
                                                 writeFrameImages=False,
                                                 detectAndSaveMouths=False,
                                                 dontWriteFrameIfExists=True,
                                                 dontWriteMouthIfExists=True,
-                                                mouthW=112):
+                                                endSetWordNumber=None):
+
+    # Load detector and predictor if mouth is to be detected
+    if detectAndSaveMouths:
+        detector, predictor = load_detector_and_predictor()
+
     # For each word
     for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(rootDir, '*/')))):
         print(wordDir)
@@ -83,14 +88,12 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
             # For each video
             for wordFileName in tqdm.tqdm(wordFileNames):
 
-                # Don't extract until all previously extract_return are passed
-                if startDir in wordFileName:
+                # Don't extract until all startSetWordNumber is reached
+                if startSetWordNumber in wordFileName:
                     startExtracting = True
 
                 # Extract
                 if startExtracting:
-                    if detectAndSaveMouths:
-                        detector, predictor = load_detector_and_predictor()
 
                     # Handling OSError
                     def please_extract(videoFile):
@@ -103,8 +106,7 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
                                                                       dontWriteFrameIfExists,
                                                                       dontWriteMouthIfExists,
                                                                       detector,
-                                                                      predictor,
-                                                                      mouthW)
+                                                                      predictor)
                         except OSError:
                             print("Trying again...")
                             return please_extract(videoFile)
@@ -116,6 +118,11 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
                     extractReturn = please_extract(videoFile)
                     if extractReturn == -1:
                         return
+
+                    # End
+                    if endSetWordNumber is not None:
+                        if endSetWordNumber in wordFileName:
+                            return
 
 #############################################################
 # RUN ON ONE IMAGE
@@ -201,8 +208,7 @@ def extract_and_save_frames_and_mouths(
         dontWriteFrameIfExists=True,
         dontWriteMouthIfExists=True,
         detector=None,
-        predictor=None,
-        mouthW=112):
+        predictor=None):
     # extractFrames and detectAndSaveMouths => Read frames from mp4 video and detect mouths
     # (not extractFrames) and detectAndSaveMouths => Read frames from jpeg images and detect mouths
     # extractFrames and (not detectAndSaveMouths) => Read frames from mp4 video
@@ -214,7 +220,6 @@ def extract_and_save_frames_and_mouths(
         # If extract frames from mp4 video
         if extractFrames:
             videoFrames = extract_frames_from_video(wordFileName)
-
         # Else, read frame names in directory
         elif detectAndSaveMouths:
             videoFrames = read_jpeg_frames_from_dir(wordFileName)
