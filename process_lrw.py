@@ -12,7 +12,11 @@ import os
 import tqdm
 
 from matplotlib.patches import Rectangle
-from skimage.transform import resize
+
+# To ignore the deprecation warning from scikit-image
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=UserWarning)
+    from skimage.transform import resize
 
 # Facial landmark detection
 # http://dlib.net/face_landmark_detection.py.html
