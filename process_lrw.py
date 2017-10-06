@@ -277,7 +277,7 @@ def extract_and_save_frames_and_mouths(
                                                          prevFace=face)
 
                 # Save mouth image
-                imageio.imwrite(mouthImageName, image)
+                imageio.imwrite(mouthImageName, mouthImage)
 
     return 1
 
