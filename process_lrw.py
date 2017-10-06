@@ -304,6 +304,9 @@ def extract_and_save_frames_and_mouths(
                     imageio.imwrite(frameImageName, frame)
                     if verbose:
                         print("Frame image", frameImageName, "written")
+                else:
+                    if verbose:
+                        print("Frame image", frameImageName, "exists, so not written")
             else:
                 imageio.imwrite(frameImageName, frame)
                 if verbose:
