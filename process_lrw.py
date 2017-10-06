@@ -67,7 +67,7 @@ wordFileName = '/shared/magnetar/datasets/LipReading/LRW/lipread_mp4/ABOUT/test/
 # EXTRACT AUDIO, FRAMES, AND MOUTHS
 #############################################################
 
-# process_lrw(rootDir=LRW_DATA_DIR, startExtracting=False,startSetWordNumber='val/ABOUT_00035',endSetWordNumber='val/ABOUT_00038',extractAudioFromMp4=True,dontWriteAudioIfExists=True,extractFramesFromMp4=False,writeFrameImages=False,dontWriteFrameIfExists=True,detectAndSaveMouths=False,dontWriteMouthIfExists=True)
+# process_lrw(rootDir=LRW_DATA_DIR, startExtracting=False,startSetWordNumber='train/ALWAYS_00001',endSetWordNumber=None,extractAudioFromMp4=True,dontWriteAudioIfExists=True,extractFramesFromMp4=True,writeFrameImages=True,dontWriteFrameIfExists=True,detectAndSaveMouths=True,dontWriteMouthIfExists=True)
 
 
 # extract_and_save_audio_frames_and_mouths_from_dir
@@ -81,7 +81,8 @@ def process_lrw(rootDir=LRW_DATA_DIR,
                 writeFrameImages=False,
                 dontWriteFrameIfExists=True,
                 detectAndSaveMouths=False,
-                dontWriteMouthIfExists=True):
+                dontWriteMouthIfExists=True,
+                verbose=False):
 
     # If something needs to be done:
     if extractAudioFromMp4 is False and \
@@ -93,6 +94,8 @@ def process_lrw(rootDir=LRW_DATA_DIR,
     # Load detector and predictor if mouth is to be detected
     if detectAndSaveMouths:
         detector, predictor = load_detector_and_predictor()
+        if verbose:
+            print("Detector and Predictor loaded.")
     else:
         detector = None
         predictor = None
@@ -129,6 +132,9 @@ def process_lrw(rootDir=LRW_DATA_DIR,
                     if extractAudioFromMp4:
                         try:
                             extractReturn = extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists)
+                            if verbose and extractReturn == 0:
+                                print("Audio file written.")
+
                         except KeyboardInterrupt:
                             print("Ctrl+C was pressed!")
                             return
@@ -147,7 +153,8 @@ def process_lrw(rootDir=LRW_DATA_DIR,
                                                                       dontWriteFrameIfExists,
                                                                       dontWriteMouthIfExists,
                                                                       detector,
-                                                                      predictor)
+                                                                      predictor,
+                                                                      verbose)
                         except OSError:
                             print("Trying again...")
                             return please_extract(videoFile)
@@ -259,7 +266,8 @@ def extract_and_save_frames_and_mouths(
         dontWriteFrameIfExists=True,
         dontWriteMouthIfExists=True,
         detector=None,
-        predictor=None):
+        predictor=None,
+        verbose=False):
     # extractFramesFromMp4 and detectAndSaveMouths => Read frames from mp4 video and detect mouths
     # (not extractFramesFromMp4) and detectAndSaveMouths => Read frames from jpeg images and detect mouths
     # extractFramesFromMp4 and (not detectAndSaveMouths) => Read frames from mp4 video
@@ -268,10 +276,15 @@ def extract_and_save_frames_and_mouths(
     # If extract frames from mp4 video
     if extractFramesFromMp4:
         videoFrames = extract_frames_from_video(wordFileName)
+        if verbose:
+            print("Frames extracted from video")
+    
     # Else, read frame names in directory
     elif detectAndSaveMouths:
         videoFrames = read_jpeg_frames_from_dir(wordFileName)
-    
+        if verbose:
+            print("Frames read from jpeg images")
+
     # Default face bounding box
     if detectAndSaveMouths:
         face = dlib.rectangle(30, 30, 220, 220)
@@ -289,8 +302,12 @@ def extract_and_save_frames_and_mouths(
             if dontWriteFrameIfExists:
                 if not os.path.isfile(frameImageName):
                     imageio.imwrite(frameImageName, frame)
+                    if verbose:
+                        print("Frame image", frameImageName, "written")
             else:
                 imageio.imwrite(frameImageName, frame)
+                if verbose:
+                    print("Frame image", frameImageName, "written")
 
         # Detect mouths in frames
         if detectAndSaveMouths:
@@ -303,6 +320,8 @@ def extract_and_save_frames_and_mouths(
             # If file is not supposed to be written if it exists
             if dontWriteMouthIfExists:
                 if os.path.isfile(mouthImageName):
+                    if verbose:
+                        print("Mouth image", frameImageName, "exists, so not detected")
                     continue
 
             if detector is None or predictor is None:
@@ -316,6 +335,8 @@ def extract_and_save_frames_and_mouths(
 
             # Save mouth image
             imageio.imwrite(mouthImageName, mouthImage)
+            if verbose:
+                print("Mouth image", mouthImageName, "written")
 
     return 1
 
