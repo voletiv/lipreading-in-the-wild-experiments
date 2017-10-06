@@ -67,7 +67,7 @@ wordFileName = '/shared/magnetar/datasets/LipReading/LRW/lipread_mp4/ABOUT/test/
 # EXTRACT AUDIO, FRAMES, AND MOUTHS
 #############################################################
 
-# process_lrw(rootDir=LRW_DATA_DIR, startExtracting=False,startSetWordNumber='train/ALWAYS_00001',endSetWordNumber=None,extractAudioFromMp4=True,dontWriteAudioIfExists=True,extractFramesFromMp4=True,writeFrameImages=True,dontWriteFrameIfExists=True,detectAndSaveMouths=True,dontWriteMouthIfExists=True)
+# process_lrw(rootDir=LRW_DATA_DIR, startExtracting=False,startSetWordNumber='train/ALWAYS_00001',endSetWordNumber=None,extractAudioFromMp4=True,dontWriteAudioIfExists=True,extractFramesFromMp4=True,writeFrameImages=True,dontWriteFrameIfExists=True,detectAndSaveMouths=True,dontWriteMouthIfExists=True,verbose=False)
 
 
 # extract_and_save_audio_frames_and_mouths_from_dir
@@ -321,7 +321,7 @@ def extract_and_save_frames_and_mouths(
             if dontWriteMouthIfExists:
                 if os.path.isfile(mouthImageName):
                     if verbose:
-                        print("Mouth image", frameImageName, "exists, so not detected")
+                        print("Mouth image", mouthImageName, "exists, so not detected")
                     continue
 
             if detector is None or predictor is None:
