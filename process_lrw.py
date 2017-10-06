@@ -103,6 +103,7 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
 
                 # Extract
                 if startExtracting:
+                    print(wordFileName)
 
                     # Handling OSError
                     def please_extract(videoFile):
@@ -276,7 +277,7 @@ def extract_and_save_frames_and_mouths(
                                                          prevFace=face)
 
                 # Save mouth image
-                imageio.imwrite(imageName, image)
+                imageio.imwrite(mouthImageName, image)
 
     return 1
 
