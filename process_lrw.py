@@ -67,7 +67,7 @@ wordFileName = '/shared/magnetar/datasets/LipReading/LRW/lipread_mp4/ABOUT/test/
 # EXTRACT AUDIO, FRAMES, AND MOUTHS
 #############################################################
 
-# process_lrw(rootDir=LRW_DATA_DIR, startExtracting=False,startSetWordNumber='test/ALWAYS_00001',endSetWordNumber=None,extractAudioFromMp4=True,dontWriteAudioIfExists=True,extractFramesFromMp4=True,writeFrameImages=True,dontWriteFrameIfExists=True,detectAndSaveMouths=True,dontWriteMouthIfExists=True,verbose=False)
+# process_lrw(rootDir=LRW_DATA_DIR, startExtracting=False,startSetWordNumber='train/ALWAYS_00057',endSetWordNumber=None,extractAudioFromMp4=True,dontWriteAudioIfExists=True,extractFramesFromMp4=True,writeFrameImages=True,dontWriteFrameIfExists=True,detectAndSaveMouths=True,dontWriteMouthIfExists=True,verbose=False)
 
 
 # extract_and_save_audio_frames_and_mouths_from_dir
@@ -131,7 +131,8 @@ def process_lrw(rootDir=LRW_DATA_DIR,
                     # Extract audio
                     if extractAudioFromMp4:
                         try:
-                            extractReturn = extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists)
+                            extractReturn = extract_audio_from_mp4(wordFileName,
+                                dontWriteAudioIfExists, verbose)
                             if verbose and extractReturn == 0:
                                 print("Audio file written.")
 
@@ -172,9 +173,11 @@ def process_lrw(rootDir=LRW_DATA_DIR,
 #############################################################
 
 
-def test_mouth_detection_in_frame(rootDir=LRW_SAVE_DIR, word="ABOUT", set="train", number=1, frameNumber=1,
-                         scaleFactor=.6, showMouthOnFrame=True, showResizedMouth=True,
-                         detector=None, predictor=None,):
+def test_mouth_detection_in_frame(rootDir=LRW_SAVE_DIR, word="ABOUT",
+                                  set="train", number=1, frameNumber=1,
+                                  scaleFactor=.6, showMouthOnFrame=True,
+                                  showResizedMouth=True, detector=None,
+                                  predictor=None,):
 
     if detector is None or predictor is None:
         detector, predictor = load_detector_and_predictor()
@@ -243,10 +246,11 @@ def load_detector_and_predictor():
     return detector, predictor
 
 
-def extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists):
+def extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists, verbose):
     # Names
     videoFileName = '.'.join(wordFileName.split('.')[:-1]) + '.mp4'
-    audioFileName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split("/")[-3:]).split('.')[0] + ".aac")
+    audioFileName = os.path.join(LRW_SAVE_DIR,
+        "/".join(wordFileName.split("/")[-3:]).split('.')[0] + ".aac")
     
     # Don't write if .aac file exists
     if dontWriteAudioIfExists:
@@ -262,7 +266,8 @@ def extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists):
         overwriteCommand = '-y'
     
     # Command
-    command = ["ffmpeg", "-loglevel", "error", "-i", videoFileName, "-vn", overwriteCommand, "-acodec", "copy", audioFileName]
+    command = ["ffmpeg", "-loglevel", "error", "-i", videoFileName, "-vn",
+               overwriteCommand, "-acodec", "copy", audioFileName]
 
     # subprocess.call returns 0 on successful run
     return subprocess.call(command)
