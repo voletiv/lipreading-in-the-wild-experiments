@@ -78,7 +78,10 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
     # Load detector and predictor if mouth is to be detected
     if detectAndSaveMouths:
         detector, predictor = load_detector_and_predictor()
-
+    else:
+        detector = None
+        predictor = None
+    
     # For each word
     for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(rootDir, '*/')))):
         print(wordDir)
