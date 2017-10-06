@@ -68,7 +68,7 @@ wordFileName = '/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.tx
 def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
                                                 startExtracting=False,
                                                 startSetWordNumber='train/ABOUT_00035',
-                                                extractFrames=False,
+                                                extractFramesFromMp4=False,
                                                 writeFrameImages=False,
                                                 detectAndSaveMouths=False,
                                                 dontWriteFrameIfExists=True,
@@ -81,7 +81,7 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
     else:
         detector = None
         predictor = None
-    
+
     # For each word
     for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(rootDir, '*/')))):
         print(wordDir)
@@ -109,7 +109,7 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
                         try:
                             # Extract frames and mouths
                             return extract_and_save_frames_and_mouths(wordFileName,
-                                                                      extractFrames,
+                                                                      extractFramesFromMp4,
                                                                       detectAndSaveMouths,
                                                                       writeFrameImages,
                                                                       dontWriteFrameIfExists,
@@ -211,23 +211,23 @@ def load_detector_and_predictor():
 
 def extract_and_save_frames_and_mouths(
         wordFileName='/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt',
-        extractFrames=False,
-        detectAndSaveMouths=False,
+        extractFramesFromMp4=False,
         writeFrameImages=False,
+        detectAndSaveMouths=False,
         dontWriteFrameIfExists=True,
         dontWriteMouthIfExists=True,
         detector=None,
         predictor=None):
-    # extractFrames and detectAndSaveMouths => Read frames from mp4 video and detect mouths
-    # (not extractFrames) and detectAndSaveMouths => Read frames from jpeg images and detect mouths
-    # extractFrames and (not detectAndSaveMouths) => Read frames from mp4 video
+    # extractFramesFromMp4 and detectAndSaveMouths => Read frames from mp4 video and detect mouths
+    # (not extractFramesFromMp4) and detectAndSaveMouths => Read frames from jpeg images and detect mouths
+    # extractFramesFromMp4 and (not detectAndSaveMouths) => Read frames from mp4 video
     # (to maybe save them)
 
     # If something needs to be done:
-    if extractFrames or detectAndSaveMouths:
+    if extractFramesFromMp4 or detectAndSaveMouths:
 
         # If extract frames from mp4 video
-        if extractFrames:
+        if extractFramesFromMp4:
             videoFrames = extract_frames_from_video(wordFileName)
         # Else, read frame names in directory
         elif detectAndSaveMouths:
@@ -241,12 +241,30 @@ def extract_and_save_frames_and_mouths(
         for f, frame in enumerate(videoFrames):
 
             # Write the frame image (from video)
-            if extractFrames and writeFrameImages:
-                write_lrw_image(wordFileName, f, frame, mouth=False,
-                                dontWriteIfExists=dontWriteFrameIfExists)
+            if extractFramesFromMp4 and writeFrameImages:
+
+                frameImageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
+                    "/")[-3:]).split('.')[0] + "_{0:02d}".format(f + 1) + ".jpg")
+                
+                # If file is not supposed to be written if it exists
+                if dontWriteFrameIfExists:
+                    if not os.path.isfile(frameImageName):
+                        imageio.imwrite(frameImageName, frame)
+                else:
+                    imageio.imwrite(frameImageName, frame)
 
             # Detect mouths in frames
             if detectAndSaveMouths:
+                
+                # Image Name
+                mouthImageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
+                                              "/")[-3:]).split('.')[0] + \
+                                              "_{0:02d}_mouth".format(f + 1) + ".jpg")
+                
+                # If file is not supposed to be written if it exists
+                if dontWriteMouthIfExists:
+                    if os.path.isfile(imageName):
+                        continue
 
                 if detector is None or predictor is None:
                     print("Please specify dlib detector/predictor!!")
@@ -258,8 +276,7 @@ def extract_and_save_frames_and_mouths(
                                                          prevFace=face)
 
                 # Save mouth image
-                write_lrw_image(wordFileName, f, mouthImage, mouth=True,
-                                dontWriteIfExists=dontWriteMouthIfExists)
+                imageio.imwrite(imageName, image)
 
     return 1
 
@@ -280,24 +297,6 @@ def read_jpeg_frames_from_dir(wordFileName):
         videoFrames.append(imageio.imread(frameName))
     # Return
     return videoFrames
-
-
-def write_lrw_image(wordFileName, f, image, mouth=False, dontWriteIfExists=True):
-    # Note the name of file to be saved
-    if not mouth:
-        imageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
-            "/")[-3:]).split('.')[0] + "_{0:02d}".format(f + 1) + ".jpg")
-    else:
-        imageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
-            "/")[-3:]).split('.')[0] + "_{0:02d}_mouth".format(f + 1) + ".jpg")
-    # print(imageName)
-
-    # Save if file doesn't exist
-    if dontWriteIfExists:
-        if not os.path.isfile(imageName):
-            imageio.imwrite(imageName, image)
-    else:
-        imageio.imwrite(imageName, image)
 
 
 def detect_mouth_in_frame(frame, detector, predictor,
