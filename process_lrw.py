@@ -291,7 +291,9 @@ def extract_frames_from_video(wordFileName):
 def read_jpeg_frames_from_dir(wordFileName):
     # Frame names end with numbers from 00 to 30, so [0-3][0-9]
     videoFrameNames = sorted(
-        glob.glob('.'.join(wordFileName.split('.')[:-1]) + '_[0-3][0-9].jpg'))
+        glob.glob(os.path.join(LRW_SAVE_DIR,
+                               "/".join(wordFileName.split("/")[-3:]).split('.')[0] + \
+                               '_[0-3][0-9].jpg')))
     # Read all frame images
     videoFrames = []
     for frameName in videoFrameNames:
