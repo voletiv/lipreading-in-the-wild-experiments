@@ -127,7 +127,11 @@ def process_lrw(rootDir=LRW_DATA_DIR,
 
                     # Extract audio
                     if extractAudioFromMp4:
-                        extractReturn = extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists)
+                        try:
+                            extractReturn = extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists)
+                        except KeyboardInterrupt:
+                            print("Ctrl+C was pressed!")
+                            return
 
                     if extractFramesFromMp4 is False and detectAndSaveMouths is False:
                         continue
