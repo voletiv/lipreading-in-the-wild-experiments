@@ -67,7 +67,7 @@ wordFileName = '/shared/magnetar/datasets/LipReading/LRW/lipread_mp4/ABOUT/test/
 # EXTRACT AUDIO, FRAMES, AND MOUTHS
 #############################################################
 
-# process_lrw(rootDir=LRW_DATA_DIR, startExtracting=False,startSetWordNumber='train/ALWAYS_00001',endSetWordNumber=None,extractAudioFromMp4=True,dontWriteAudioIfExists=True,extractFramesFromMp4=True,writeFrameImages=True,dontWriteFrameIfExists=True,detectAndSaveMouths=True,dontWriteMouthIfExists=True,verbose=False)
+# process_lrw(rootDir=LRW_DATA_DIR, startExtracting=False,startSetWordNumber='test/ALWAYS_00001',endSetWordNumber=None,extractAudioFromMp4=True,dontWriteAudioIfExists=True,extractFramesFromMp4=True,writeFrameImages=True,dontWriteFrameIfExists=True,detectAndSaveMouths=True,dontWriteMouthIfExists=True,verbose=False)
 
 
 # extract_and_save_audio_frames_and_mouths_from_dir
@@ -247,15 +247,25 @@ def extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists):
     # Names
     videoFileName = '.'.join(wordFileName.split('.')[:-1]) + '.mp4'
     audioFileName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split("/")[-3:]).split('.')[0] + ".aac")
-    # To overwrite or not to overwrite
+    
+    # Don't write if .aac file exists
+    if dontWriteAudioIfExists:
+        if os.path.isfile(audioFileName):
+            if verbose:
+                print("Audio file", audioFileName, "exists, so not written")
+            return 0
+    
+    # Just in case, to overwrite or not to overwrite
     if dontWriteAudioIfExists:
         overwriteCommand = '-n'
     else:
         overwriteCommand = '-y'
+    
     # Command
     command = ["ffmpeg", "-loglevel", "error", "-i", videoFileName, "-vn", overwriteCommand, "-acodec", "copy", audioFileName]
-    return subprocess.call(command)
 
+    # subprocess.call returns 0 on successful run
+    return subprocess.call(command)
 
 
 def extract_and_save_frames_and_mouths(
