@@ -9,6 +9,7 @@ import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import subprocess
 import tqdm
 import warnings
 
@@ -59,21 +60,35 @@ MOUTH_SHAPE_TO = FACIAL_LANDMARKS_IDXS["mouth"][1]
 # Examples
 videoFile = 'media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.mp4'
 wordFileName = '/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt'
+wordFileName = '/media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt'
+wordFileName = '/shared/magnetar/datasets/LipReading/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt'
 
 #############################################################
-# EXTRACT FRAMES AND MOUTHS
+# EXTRACT AUDIO, FRAMES, AND MOUTHS
 #############################################################
 
+# process_lrw(rootDir=LRW_DATA_DIR, startExtracting=False,startSetWordNumber='val/ABOUT_00035',endSetWordNumber='val/ABOUT_00038',extractAudioFromMp4=True,dontWriteAudioIfExists=True,extractFramesFromMp4=False,writeFrameImages=False,dontWriteFrameIfExists=True,detectAndSaveMouths=False,dontWriteMouthIfExists=True)
 
-def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
-                                                startExtracting=False,
-                                                startSetWordNumber='train/ABOUT_00035',
-                                                extractFramesFromMp4=False,
-                                                writeFrameImages=False,
-                                                detectAndSaveMouths=False,
-                                                dontWriteFrameIfExists=True,
-                                                dontWriteMouthIfExists=True,
-                                                endSetWordNumber=None):
+
+# extract_and_save_audio_frames_and_mouths_from_dir
+def process_lrw(rootDir=LRW_DATA_DIR,
+                startExtracting=False,
+                startSetWordNumber='train/ABOUT_00035',
+                endSetWordNumber=None,
+                extractAudioFromMp4=False,
+                dontWriteAudioIfExists=True,
+                extractFramesFromMp4=False,
+                writeFrameImages=False,
+                dontWriteFrameIfExists=True,
+                detectAndSaveMouths=False,
+                dontWriteMouthIfExists=True):
+
+    # If something needs to be done:
+    if extractAudioFromMp4 is False and \
+            extractFramesFromMp4 is False and \
+            detectAndSaveMouths is False:
+        print("Nothing to be done!!\nAll extractAudioFromMp4, extractFramesFromMp4, detectAndSaveMouths are False!")
+        return
 
     # Load detector and predictor if mouth is to be detected
     if detectAndSaveMouths:
@@ -105,7 +120,19 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
                 if startExtracting:
                     print(wordFileName)
 
-                    # Handling OSError
+                    # If endSetWordNumber is reached, end
+                    if endSetWordNumber is not None:
+                        if endSetWordNumber in wordFileName:
+                            return
+
+                    # Extract audio
+                    if extractAudioFromMp4:
+                        extractReturn = extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists)
+
+                    if extractFramesFromMp4 is False and detectAndSaveMouths is False:
+                        continue
+
+                    # Handling OSError in extracting frames and mouths
                     def please_extract(videoFile):
                         try:
                             # Extract frames and mouths
@@ -128,11 +155,6 @@ def extract_and_save_frames_and_mouths_from_dir(rootDir=LRW_DATA_DIR,
                     extractReturn = please_extract(videoFile)
                     if extractReturn == -1:
                         return
-
-                    # End
-                    if endSetWordNumber is not None:
-                        if endSetWordNumber in wordFileName:
-                            return
 
 #############################################################
 # RUN ON ONE IMAGE
@@ -210,6 +232,21 @@ def load_detector_and_predictor():
     return detector, predictor
 
 
+def extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists):
+    # Names
+    videoFileName = '.'.join(wordFileName.split('.')[:-1]) + '.mp4'
+    audioFileName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split("/")[-3:]).split('.')[0] + ".aac")
+    # To overwrite or not to overwrite
+    if dontWriteAudioIfExists:
+        overwriteCommand = '-n'
+    else:
+        overwriteCommand = '-y'
+    # Command
+    command = ["ffmpeg", "-loglevel", "error", "-i", videoFileName, "-vn", overwriteCommand, "-acodec", "copy", audioFileName]
+    return subprocess.call(command)
+
+
+
 def extract_and_save_frames_and_mouths(
         wordFileName='/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt',
         extractFramesFromMp4=False,
@@ -224,60 +261,57 @@ def extract_and_save_frames_and_mouths(
     # extractFramesFromMp4 and (not detectAndSaveMouths) => Read frames from mp4 video
     # (to maybe save them)
 
-    # If something needs to be done:
-    if extractFramesFromMp4 or detectAndSaveMouths:
+    # If extract frames from mp4 video
+    if extractFramesFromMp4:
+        videoFrames = extract_frames_from_video(wordFileName)
+    # Else, read frame names in directory
+    elif detectAndSaveMouths:
+        videoFrames = read_jpeg_frames_from_dir(wordFileName)
+    
+    # Default face bounding box
+    if detectAndSaveMouths:
+        face = dlib.rectangle(30, 30, 220, 220)
 
-        # If extract frames from mp4 video
-        if extractFramesFromMp4:
-            videoFrames = extract_frames_from_video(wordFileName)
-        # Else, read frame names in directory
-        elif detectAndSaveMouths:
-            videoFrames = read_jpeg_frames_from_dir(wordFileName)
-        
-        # Default face bounding box
-        if detectAndSaveMouths:
-            face = dlib.rectangle(30, 30, 220, 220)
+    # For each frame
+    for f, frame in enumerate(videoFrames):
 
-        # For each frame
-        for f, frame in enumerate(videoFrames):
+        # Write the frame image (from video)
+        if extractFramesFromMp4 and writeFrameImages:
 
-            # Write the frame image (from video)
-            if extractFramesFromMp4 and writeFrameImages:
-
-                frameImageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
-                    "/")[-3:]).split('.')[0] + "_{0:02d}".format(f + 1) + ".jpg")
-                
-                # If file is not supposed to be written if it exists
-                if dontWriteFrameIfExists:
-                    if not os.path.isfile(frameImageName):
-                        imageio.imwrite(frameImageName, frame)
-                else:
+            frameImageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
+                "/")[-3:]).split('.')[0] + "_{0:02d}".format(f + 1) + ".jpg")
+            
+            # If file is not supposed to be written if it exists
+            if dontWriteFrameIfExists:
+                if not os.path.isfile(frameImageName):
                     imageio.imwrite(frameImageName, frame)
+            else:
+                imageio.imwrite(frameImageName, frame)
 
-            # Detect mouths in frames
-            if detectAndSaveMouths:
-                
-                # Image Name
-                mouthImageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
-                                              "/")[-3:]).split('.')[0] + \
-                                              "_{0:02d}_mouth".format(f + 1) + ".jpg")
-                
-                # If file is not supposed to be written if it exists
-                if dontWriteMouthIfExists:
-                    if os.path.isfile(mouthImageName):
-                        continue
+        # Detect mouths in frames
+        if detectAndSaveMouths:
+            
+            # Image Name
+            mouthImageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
+                                          "/")[-3:]).split('.')[0] + \
+                                          "_{0:02d}_mouth".format(f + 1) + ".jpg")
+            
+            # If file is not supposed to be written if it exists
+            if dontWriteMouthIfExists:
+                if os.path.isfile(mouthImageName):
+                    continue
 
-                if detector is None or predictor is None:
-                    print("Please specify dlib detector/predictor!!")
-                    return -1
+            if detector is None or predictor is None:
+                print("Please specify dlib detector/predictor!!")
+                return -1
 
-                # Detect and save mouth in frame
-                mouthImage, face = detect_mouth_in_frame(frame, detector,
-                                                         predictor,
-                                                         prevFace=face)
+            # Detect and save mouth in frame
+            mouthImage, face = detect_mouth_in_frame(frame, detector,
+                                                     predictor,
+                                                     prevFace=face)
 
-                # Save mouth image
-                imageio.imwrite(mouthImageName, mouthImage)
+            # Save mouth image
+            imageio.imwrite(mouthImageName, mouthImage)
 
     return 1
 
