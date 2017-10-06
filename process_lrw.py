@@ -264,7 +264,7 @@ def extract_and_save_frames_and_mouths(
                 
                 # If file is not supposed to be written if it exists
                 if dontWriteMouthIfExists:
-                    if os.path.isfile(imageName):
+                    if os.path.isfile(mouthImageName):
                         continue
 
                 if detector is None or predictor is None:
