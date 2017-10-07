@@ -20,9 +20,45 @@ The files contained are:
 
 - process_lrw.py
 
-	- Code to automatically process the lRW dataset: extract and save frames from all mp4 videos, detect and save mouths from all frames
+	- Code to automatically process the LRW dataset.
 
-	- There are options to extract/not extract frames from videos (if they are already extracted), detect/not detect mouth images, save/not save the images (frames or mouths)
+	- There are options to copy (or) not copy the .txt files containing metadata, extract (or) not extract the audio aac from the video, extract (or) not extract frames from video (if they are already extracted), detect (or) not detect mouth images, save (or) not save the images (frames or mouths):
+
+		- dataDir: the directory with the dataset,
+
+		- saveDir: to the directory the files need to be saved in,
+
+		- startExtracting (bool): start (or) don't start extracting right away, i.e. wait until the "startSetWordNumber" is reached,
+
+		- startSetWordNumber: the set {test, train, val}, Word {ABOUT, ...}, Number {0..50 for test, val; 0..1000 for train} to start processing from; for eg. 'test/ABOUT_00001'
+
+		- endSetWordNumber: the set {test, train, val}, Word {ABOUT, ...}, Number {0..50 for test, val; 0..1000 for train} before which to end processing; for eg. 'val/ABOUT_00050'
+
+		- copyTxtFile (bool): copy (or) don't copy the .txt files containing metadata,
+
+		- extractAudioFromMp4 (bool): extract (or) don't extract audio,
+
+		- dontWriteAudioIfExists (bool): don't write (or) write the audio file if (or) even if it has already been written,
+
+		- extractFramesFromMp4 (bool): extract frames from mp4 videos, or read the frame images in saveDir,
+
+		- writeFrameImages (bool): save the frames extracted,
+
+		- dontWriteFrameIfExists (bool): don't write/write the frame images file if/even if they have already been written,
+
+		- detectAndSaveMouths (bool): detect and save mouths from all frames,
+
+		- dontWriteMouthIfExists (bool): don't write (or) write the mouth images file if (or) even if they have already been written,
+
+		- verbose (bool): print debugging logs
+
+- process_lrw_functions.py
+
+	- All functions related to process_lrw
+
+- process_lrw_params.py
+
+	- All parameters related to process_lrw
 
 ## Process to detect and save mouths:
 
