@@ -6,7 +6,8 @@ from process_lrw_params import *
 
 
 # extract_and_save_audio_frames_and_mouths_from_dir
-def process_lrw(rootDir=LRW_DATA_DIR,
+def process_lrw(dataDir=LRW_DATA_DIR,
+                saveDir=LRW_SAVE_DIR,
                 startExtracting=False,
                 startSetWordNumber='train/ABOUT_00035',
                 endSetWordNumber=None,
@@ -45,7 +46,7 @@ def process_lrw(rootDir=LRW_DATA_DIR,
         predictor = None
 
     # For each word
-    for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(rootDir, '*/')))):
+    for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
         print(wordDir)
 
         # train, val or test
@@ -76,7 +77,7 @@ def process_lrw(rootDir=LRW_DATA_DIR,
                 # Copy .txt file containing word duration info
                 if copyTxtFile:
                     try:
-                        copy_txt_file(wordFileName, verbose)
+                        copy_txt_file(saveDir, wordFileName, verbose)
                     except ValueError as err:
                         print(err)
                     except KeyboardInterrupt:
@@ -86,7 +87,7 @@ def process_lrw(rootDir=LRW_DATA_DIR,
                 # Extract audio
                 if extractAudioFromMp4:
                     try:
-                        extract_audio_from_mp4(wordFileName=wordFileName,
+                        extract_audio_from_mp4(saveDir, wordFileName=wordFileName,
                             dontWriteAudioIfExists=dontWriteAudioIfExists, verbose=verbose)
                     except ValueError as err:
                         print(err)
@@ -133,8 +134,8 @@ def process_lrw(rootDir=LRW_DATA_DIR,
 #############################################################
 
 
-def test_mouth_detection_in_frame(rootDir=LRW_SAVE_DIR, word="ABOUT",
-                                  set="train", number=1, frameNumber=1,
+def test_mouth_detection_in_frame(dataDir=LRW_SAVE_DIR, saveDir=LRW_SAVE_DIR,
+                                  word="ABOUT", set="train", number=1, frameNumber=1,
                                   scaleFactor=.6, showMouthOnFrame=True,
                                   showResizedMouth=True, detector=None,
                                   predictor=None, verbose=False):
@@ -150,7 +151,7 @@ def test_mouth_detection_in_frame(rootDir=LRW_SAVE_DIR, word="ABOUT",
     wordFileName = os.path.join(
         rootDir, word, set, word + '_{0:05d}'.format(number) + '.txt')
 
-    frame = read_jpeg_frames_from_dir(wordFileName)[frameNumber]
+    frame = read_jpeg_frames_from_dir(saveDir, wordFileName)[frameNumber]
     try:
         face = detector(frame, 1)[0]
     except IndexError:
@@ -220,10 +221,10 @@ def load_detector_and_predictor(verbose=False):
             SHAPE_PREDICTOR_PATH, "(load_detector_and_predictor)")
 
 
-def copy_txt_file(wordFileName, verbose=False):
+def copy_txt_file(saveDir, wordFileName, verbose=False):
     # Names
     fromFileName = wordFileName
-    toFileName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split("/")[-3:]))
+    toFileName = os.path.join(saveDir, "/".join(wordFileName.split("/")[-3:]))
     try:
         shutil.copyfile(fromFileName, toFileName)
         if verbose:
@@ -235,10 +236,10 @@ def copy_txt_file(wordFileName, verbose=False):
             " to " + toFileName + " (copy_txt_file)")
 
 
-def extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists, verbose=False):
+def extract_audio_from_mp4(saveDir, wordFileName, dontWriteAudioIfExists, verbose=False):
     # Names
     videoFileName = '.'.join(wordFileName.split('.')[:-1]) + '.mp4'
-    audioFileName = os.path.join(LRW_SAVE_DIR,
+    audioFileName = os.path.join(saveDir,
         "/".join(wordFileName.split("/")[-3:]).split('.')[0] + ".aac")
     
     # Don't write if .aac file exists
@@ -276,7 +277,7 @@ def extract_audio_from_mp4(wordFileName, dontWriteAudioIfExists, verbose=False):
             print("Audio file written:", audioFileName, "(extract_audio_from_mp4)")
 
 
-def extract_and_save_frames_and_mouths(
+def extract_and_save_frames_and_mouths(saveDir=LRW_SAVE_DIR,
         wordFileName='/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt',
         extractFramesFromMp4=False,
         writeFrameImages=False,
@@ -298,7 +299,7 @@ def extract_and_save_frames_and_mouths(
 
     # Else, read frame names in directory
     elif detectAndSaveMouths:
-        videoFrames = read_jpeg_frames_from_dir(wordFileName, verbose)
+        videoFrames = read_jpeg_frames_from_dir(saveDir, wordFileName, verbose)
 
     # Default face bounding box
     if detectAndSaveMouths:
@@ -310,12 +311,12 @@ def extract_and_save_frames_and_mouths(
 
         # Write the frame image (from video)
         if extractFramesFromMp4 and writeFrameImages:
-            write_frame_image(wordFileName, f, frame, dontWriteFrameIfExists,
+            write_frame_image(saveDir, wordFileName, f, frame, dontWriteFrameIfExists,
                 verbose)
 
         # Detect mouths in frames
         if detectAndSaveMouths:
-            face = detect_mouth_and_write(wordFileName, f, frame, detector, predictor,
+            face = detect_mouth_and_write(saveDir, wordFileName, f, frame, detector, predictor,
                 dontWriteMouthIfExists, prevFace=face, verbose=verbose)
 
     return 0
@@ -331,31 +332,32 @@ def extract_frames_from_video(wordFileName, verbose=False):
     return videoFrames
 
 
-def read_jpeg_frames_from_dir(wordFileName, verbose=False):
+def read_jpeg_frames_from_dir(saveDir, wordFileName, verbose=False):
     
     # Frame names end with numbers from 00 to 30, so [0-3][0-9]
     videoFrameNames = sorted(
-        glob.glob(os.path.join(LRW_SAVE_DIR,
+        glob.glob(os.path.join(saveDir,
                                "/".join(wordFileName.split("/")[-3:]).split('.')[0] + \
                                '_[0-3][0-9].jpg')))
 
-    videoFrames = []
     # Read all frame images
+    videoFrames = []
     for frameName in videoFrameNames:
         videoFrames.append(imageio.imread(frameName))
 
     if verbose:
-            print("Frames read from jpeg images:", wordFileName, "(read_jpeg_frames_from_dir)")
+            print("Frames read from jpeg images:", wordFileName,
+                "(read_jpeg_frames_from_dir)")
 
     # Return
     return videoFrames
 
 
-def write_frame_image(wordFileName, f, frame, dontWriteFrameIfExists=True,
+def write_frame_image(saveDir, wordFileName, f, frame, dontWriteFrameIfExists=True,
         verbose=False):
 
     # Name
-    frameImageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
+    frameImageName = os.path.join(saveDir, "/".join(wordFileName.split(
         "/")[-3:]).split('.')[0] + "_{0:02d}".format(f + 1) + ".jpg")
 
     # If file is not supposed to be written if it exists
@@ -363,7 +365,8 @@ def write_frame_image(wordFileName, f, frame, dontWriteFrameIfExists=True,
         # Check if file exists
         if os.path.isfile(frameImageName):
             if verbose:
-                print("Frame image exists, so not written:", frameImageName, "(write_frame_image)")
+                print("Frame image exists, so not written:", frameImageName,
+                    "(write_frame_image)")
             # Return if file exists
             return
 
@@ -374,12 +377,12 @@ def write_frame_image(wordFileName, f, frame, dontWriteFrameIfExists=True,
         print("Frame image written:", frameImageName, "(write_frame_image)")
 
 
-def detect_mouth_and_write(wordFileName, f, frame, detector, predictor,
+def detect_mouth_and_write(saveDir, wordFileName, f, frame, detector, predictor,
         dontWriteMouthIfExists=True, prevFace=dlib.rectangle(30, 30, 220, 220),
         verbose=False):
 
     # Image Name
-    mouthImageName = os.path.join(LRW_SAVE_DIR, "/".join(wordFileName.split(
+    mouthImageName = os.path.join(saveDir, "/".join(wordFileName.split(
                                   "/")[-3:]).split('.')[0] + \
                                   "_{0:02d}_mouth".format(f + 1) + ".jpg")
 
