@@ -39,7 +39,7 @@ def process_lrw(dataDir=LRW_DATA_DIR,
             return
         # Ctrl+C
         except KeyboardInterrupt:
-            print("Ctrl+C was pressed!")
+            print("\n\nCtrl+C was pressed!\n\n")
             return
     else:
         detector = None
@@ -95,8 +95,8 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                         print("\n\nCtrl+C was pressed!\n\n")
                         return
 
-                # If frame doesn't need ot be extracted from mp4 video,
-                # or mouth doesn't need to be detected, continue
+                # If frames don't need ot be extracted from mp4 video,
+                # and mouths don't need to be detected, continue
                 if extractFramesFromMp4 is False and detectAndSaveMouths is False:
                     continue
 
@@ -128,80 +128,6 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                 # If Ctrl+C was pressed
                 if extractReturn == 1:
                     return
-
-#############################################################
-# RUN ON ONE IMAGE
-#############################################################
-
-
-def test_mouth_detection_in_frame(dataDir=LRW_SAVE_DIR, saveDir=LRW_SAVE_DIR,
-                                  word="ABOUT", set="train", number=1, frameNumber=1,
-                                  scaleFactor=.6, showMouthOnFrame=True,
-                                  showResizedMouth=True, detector=None,
-                                  predictor=None, verbose=False):
-
-    if detector is None or predictor is None:
-        try:
-            detector, predictor = load_detector_and_predictor(verbose)
-        except ValueError as err:
-            print(err)
-            return
-
-    # Make wordFileName
-    wordFileName = os.path.join(
-        rootDir, word, set, word + '_{0:05d}'.format(number) + '.txt')
-
-    frame = read_jpeg_frames_from_dir(saveDir, wordFileName)[frameNumber]
-    try:
-        face = detector(frame, 1)[0]
-    except IndexError:
-        shape = predictor(frame, face)
-
-    # # Show landmarks and face
-    # win = dlib.image_window()
-    # win.set_image(frame)
-    # win.add_overlay(shape)
-    # win.add_overlay(face)
-
-    mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
-                            for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
-    mouthRect = (np.min(mouthCoords[:, 0]), np.min(mouthCoords[:, 1]),
-                 np.max(mouthCoords[:, 0]) - np.min(mouthCoords[:, 0]),
-                 np.max(mouthCoords[:, 1]) - np.min(mouthCoords[:, 1]))
-    mouthRect = make_rect_shape_square(mouthRect)
-
-    scale = scaleFactor * face.width() / mouthRect[2]
-    # print("scale =", scale)
-    croppedScale = 112 / 120 * scale
-
-    expandedMouthRect = expand_rect(mouthRect, scale=scale)
-    expandedCroppedMouthRect = expand_rect(mouthRect, scale=croppedScale)
-
-    if showMouthOnFrame:
-        plt.subplot(121)
-        plt.imshow(frame)
-        ca = plt.gca()
-        ca.add_patch(Rectangle((expandedMouthRect[0], expandedMouthRect[1]),
-                               expandedMouthRect[2], expandedMouthRect[3],
-                               edgecolor='r', fill=False))
-        ca.add_patch(Rectangle((expandedCroppedMouthRect[0],
-                                expandedCroppedMouthRect[1]),
-                               expandedCroppedMouthRect[2],
-                               expandedCroppedMouthRect[3],
-                               edgecolor='g', fill=False))
-
-    if showResizedMouth:
-        resizedMouthImage \
-            = np.round(resize(frame[expandedMouthRect[1]:expandedMouthRect[1] + expandedMouthRect[3],
-                                    expandedMouthRect[0]:expandedMouthRect[0] + expandedMouthRect[2]],
-                              (120, 120), preserve_range=True)).astype('uint8')
-        plt.subplot(122)
-        plt.imshow(resizedMouthImage)
-
-    if showMouthOnFrame or showResizedMouth:
-        plt.show()
-
-    return wordFileName, resizedMouthImage
 
 #############################################################
 # DEPENDENT FUNCTIONS
@@ -479,4 +405,78 @@ def expand_rect(rect, scale=1.5):
     x = rect[0] - int((w - rect[2]) / 2)
     y = rect[1] - int((h - rect[3]) / 2)
     return (x, y, w, h)
+
+#############################################################
+# RUN ON ONE IMAGE
+#############################################################
+
+
+def test_mouth_detection_in_frame(dataDir=LRW_SAVE_DIR, saveDir=LRW_SAVE_DIR,
+                                  word="ABOUT", set="train", number=1, frameNumber=1,
+                                  scaleFactor=.6, showMouthOnFrame=True,
+                                  showResizedMouth=True, detector=None,
+                                  predictor=None, verbose=False):
+
+    if detector is None or predictor is None:
+        try:
+            detector, predictor = load_detector_and_predictor(verbose)
+        except ValueError as err:
+            print(err)
+            return
+
+    # Make wordFileName
+    wordFileName = os.path.join(
+        rootDir, word, set, word + '_{0:05d}'.format(number) + '.txt')
+
+    frame = read_jpeg_frames_from_dir(saveDir, wordFileName)[frameNumber]
+    try:
+        face = detector(frame, 1)[0]
+    except IndexError:
+        shape = predictor(frame, face)
+
+    # # Show landmarks and face
+    # win = dlib.image_window()
+    # win.set_image(frame)
+    # win.add_overlay(shape)
+    # win.add_overlay(face)
+
+    mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
+                            for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
+    mouthRect = (np.min(mouthCoords[:, 0]), np.min(mouthCoords[:, 1]),
+                 np.max(mouthCoords[:, 0]) - np.min(mouthCoords[:, 0]),
+                 np.max(mouthCoords[:, 1]) - np.min(mouthCoords[:, 1]))
+    mouthRect = make_rect_shape_square(mouthRect)
+
+    scale = scaleFactor * face.width() / mouthRect[2]
+    # print("scale =", scale)
+    croppedScale = 112 / 120 * scale
+
+    expandedMouthRect = expand_rect(mouthRect, scale=scale)
+    expandedCroppedMouthRect = expand_rect(mouthRect, scale=croppedScale)
+
+    if showMouthOnFrame:
+        plt.subplot(121)
+        plt.imshow(frame)
+        ca = plt.gca()
+        ca.add_patch(Rectangle((expandedMouthRect[0], expandedMouthRect[1]),
+                               expandedMouthRect[2], expandedMouthRect[3],
+                               edgecolor='r', fill=False))
+        ca.add_patch(Rectangle((expandedCroppedMouthRect[0],
+                                expandedCroppedMouthRect[1]),
+                               expandedCroppedMouthRect[2],
+                               expandedCroppedMouthRect[3],
+                               edgecolor='g', fill=False))
+
+    if showResizedMouth:
+        resizedMouthImage \
+            = np.round(resize(frame[expandedMouthRect[1]:expandedMouthRect[1] + expandedMouthRect[3],
+                                    expandedMouthRect[0]:expandedMouthRect[0] + expandedMouthRect[2]],
+                              (120, 120), preserve_range=True)).astype('uint8')
+        plt.subplot(122)
+        plt.imshow(resizedMouthImage)
+
+    if showMouthOnFrame or showResizedMouth:
+        plt.show()
+
+    return wordFileName, resizedMouthImage
 
