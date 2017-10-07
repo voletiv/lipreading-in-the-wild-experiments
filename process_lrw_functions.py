@@ -393,7 +393,7 @@ def detect_mouth_and_write(saveDir, wordFileName, f, frame, detector, predictor,
             if verbose:
                 print("Mouth image", mouthImageName, "exists, so not detected. (detect_mouth_and_write)")
             # Return if file exists
-            return face
+            return prevFace
 
     # Detect and save mouth in frame
     mouthImage, face = detect_mouth_in_frame(frame, detector, predictor,
