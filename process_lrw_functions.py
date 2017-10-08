@@ -492,16 +492,13 @@ def expand_rect(rect, scale=1.5):
 # #############################################################
 
 
-def reprocess_videos_with_multiple_faces():
-    # 0
+def reprocess_videos_with_multiple_faces(startExtracting=False,
+        startSetWordNumber='test/AFTERNOON_00001',
+        endSetWordNumber = 'test/ALWAYS_00001'):
+    # Init
     dataDir = LRW_DATA_DIR
     saveDir = LRW_SAVE_DIR
     detector, predictor = load_detector_and_predictor()
-
-    # Init
-    startSetWordNumber = 'test/AFTERNOON_00001'
-    endSetWordNumber = 'test/ALWAYS_00001'
-    startExtracting = False
 
     # LOOP
     for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
