@@ -31,11 +31,26 @@ def process_lrw(dataDir=LRW_DATA_DIR,
 
     # If dataDir is not valid
     if not os.path.isdir(dataDir):
-        print("\n\nERROR: dataDir is not a valid directory! Input dataDir:", dataDir, "\n\n")
+        print("\n\nERROR: dataDir is not a valid directory:", dataDir, "\n\n")
         return
 
-    if not os.path.isdir(saveDir):
-        print("\n\nERROR: saveDir is not a valid directory! Input saveDir:", saveDir, "\n\n")
+    # If saveDir is not valid,
+    # there is a check under setDir to create directories if they don't exist
+
+    # If startSetWordNumber is not valid
+    if startExtracting is False:
+        if not os.path.isfile(os.path.join(dataDir,
+                startSetWordNumber.split('/')[1].split('_')[0],
+                startSetWordNumber) + '.txt'):
+            print("\n\nERROR: startSetWordNumber not valid:", startSetWordNumber, '\n\n')
+        return
+
+    # If endSetWordNumber is not valid
+    if endSetWordNumber is not None:
+        if not os.path.isfile(os.path.join(dataDir,
+                endSetWordNumber.split('/')[1].split('_')[0],
+                endSetWordNumber) + '.txt'):
+            print("\n\nERROR: endSetWordNumber not valid:", endSetWordNumber, '\n\n')
         return
 
     # If mouth is to be detected, Load detector and predictor
@@ -54,6 +69,7 @@ def process_lrw(dataDir=LRW_DATA_DIR,
         detector = None
         predictor = None
 
+    # LOOP THROUGH ALL DIRECTORIES IN LRW DATASET
     # For each word
     for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
         print(wordDir)
@@ -62,6 +78,11 @@ def process_lrw(dataDir=LRW_DATA_DIR,
         for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
             print(setDir)
 
+            # Create directory in saveDir if it doesn't exist
+            setSaveDir = os.path.join(saveDir, '/'.join(os.path.normpath(setDir).split('/')[-2:]))
+            if not os.path.isdir(setSaveDir):
+                os.makedirs(setSaveDir)
+
             # Read all .txt file names (since .txt are saved in both
             # LRW_DATA_DIR and LRW_SAVE_DIR)
             wordFileNames = sorted(glob.glob(os.path.join(setDir, '*.txt')))
@@ -69,10 +90,11 @@ def process_lrw(dataDir=LRW_DATA_DIR,
             # For each video
             for wordFileName in tqdm.tqdm(wordFileNames):
 
-                # Don't extract until startSetWordNumber is reached
+                # Check if the directory to start at has been reached
                 if startSetWordNumber in wordFileName:
                     startExtracting = True
 
+                # Don't extract until startSetWordNumber is reached
                 if not startExtracting:
                     continue
 
@@ -104,7 +126,7 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                         print("\n\nCtrl+C was pressed!\n\n")
                         return
 
-                # If frames don't need ot be extracted from mp4 video,
+                # If frames don't need to be extracted from mp4 video,
                 # and mouths don't need to be detected, continue
                 if extractFramesFromMp4 is False and detectAndSaveMouths is False:
                     continue
@@ -244,7 +266,7 @@ def extract_and_save_frames_and_mouths(saveDir=LRW_SAVE_DIR,
         # Else, read frame names in directory
         elif detectAndSaveMouths:
             videoFrames = read_jpeg_frames_from_dir(saveDir, wordFileName, verbose)
-    # If mp4 or jpeg files to read are missing
+    # If mp4 or jpeg files to read are missing, cascade ValueError up
     except ValueError as err:
         raise ValueError(err)
 
@@ -281,6 +303,7 @@ def extract_frames_from_video(wordFileName, verbose=False):
         raise ValueError("\n\nERROR: Video file not found:" + videoFileName + \
             "(extract_frames_from_video)\n\n")
 
+    # Read video frames
     videoFrames = imageio.get_reader(videoFileName, 'ffmpeg')
 
     if verbose:
@@ -297,9 +320,11 @@ def read_jpeg_frames_from_dir(saveDir, wordFileName, verbose=False):
     videoFrameNamesFormat = os.path.join(saveDir,
                                "/".join(wordFileName.split("/")[-3:]).split('.')[0] + \
                                '_[0-3][0-9].jpg')
+
+    # Read video frame names
     videoFrameNames = sorted(glob.glob(videoFrameNamesFormat))
 
-    # If no frames are read
+    # If <30 frames are read
     if len(videoFrameNames) < 30:
         raise ValueError("\n\nERROR: 30 frames not found in" + \
             videoFrameNamesFormat + " format. (read_jpeg_frames_from_dir)\n\n")
@@ -362,7 +387,7 @@ def detect_mouth_and_write(saveDir, wordFileName, f, frame, detector, predictor,
 
     # Detect and save mouth in frame
     mouthImage, face = detect_mouth_in_frame(frame, detector, predictor,
-                                             prevFace=prevFace)
+                                             prevFace=prevFace, verbose=verbose)
 
     # Save mouth image
     imageio.imwrite(mouthImageName, mouthImage)
@@ -375,7 +400,8 @@ def detect_mouth_and_write(saveDir, wordFileName, f, frame, detector, predictor,
 
 
 def detect_mouth_in_frame(frame, detector, predictor,
-                          prevFace=dlib.rectangle(30, 30, 220, 220)):
+                          prevFace=dlib.rectangle(30, 30, 220, 220),
+                          verbose=False):
     # Shape Coords: ------> x (cols)
     #               |
     #               |
@@ -388,7 +414,9 @@ def detect_mouth_in_frame(frame, detector, predictor,
 
     # If no faces are detected
     if len(faces) == 0:
-        face = [prevFace]
+        if verbose:
+            print("No faces detected, using prevFace", prevFace, "(detect_mouth_in_frame)")
+        faces = [prevFace]
 
     # Iterate over the faces, find the correct one by checking mouth mean
     for face in faces:
@@ -457,46 +485,60 @@ def expand_rect(rect, scale=1.5):
 
 
 # #############################################################
-# # FIND MOUTH MEANS, AND IMAGES WITH MULTIPLE FACES
+# # REPROCESS IMAGES WITH MULTIPLE FACES
+# # Find mouth means
 # #############################################################
 
-# # extract_and_save_audio_frames_and_mouths_from_dir
 # dataDir = LRW_DATA_DIR
 # saveDir = LRW_SAVE_DIR
 # detector, predictor = load_detector_and_predictor()
 
-# myMean = []
-
-# startSetWordNumber='train/ACROSS_00447'
-# startExtracting=False
-# # For each word
+# startSetWordNumber = 'train/ACCORDING_00963'
+# endSetWordNumber = 'test/ALWAYS_00001'
+# startExtracting = False
 # for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
 #     print(wordDir)
-#     # train, val or test
 #     for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
 #         print(setDir)
-#         # Read all .txt file names (since .txt are saved in both
-#         # LRW_DATA_DIR and LRW_SAVE_DIR)
 #         wordFileNames = sorted(glob.glob(os.path.join(setDir, '*.txt')))
-#         # For each video
 #         for wordFileName in tqdm.tqdm(wordFileNames):
 #             if startSetWordNumber in wordFileName:
 #                 startExtracting = True
-#             if startExtracting:
-#                 print(wordFileName)
-#                 frameName = os.path.join(saveDir, "/".join(wordFileName.split("/")[-3:]).split('.')[0] + '_01.jpg')
+#             if not startExtracting:
+#                 continue
+#             if endSetWordNumber is not None:
+#                 if endSetWordNumber in wordFileName:
+#                     raise KeyboardInterrupt
+#             print(wordFileName)
+#             reprocess = False
+#             for i in range(1, 31):
+#                 frameName = os.path.join(saveDir, "/".join(wordFileName.split("/")[-3:]).split('.')[0] + '_{0:02d}.jpg'.format(i))
 #                 frame = imageio.imread(frameName)
 #                 faces = detector(frame, 1)
+#                 if len(faces) > 1:
+#                     reprocess = True
+#                     break
+#             if reprocess:
+#                 print()
+#                 oneStartSetWordNumber = '/'.join(wordFileName.split('/')[-2:]).split('.')[-2]
+#                 oneEndSetWordNumber = oneStartSetWordNumber.split('_')[0] + "_{0:05d}".format(int(oneStartSetWordNumber.split('_')[1]) + 1)
+#                 print("\n", len(faces), "found in", frameName, "\n", oneStartSetWordNumber, oneEndSetWordNumber, "\n")
+#                 if not os.path.isfile(os.path.join('/'.join(wordFileName.split('/')[:-2]), oneEndSetWordNumber) + '.txt'):
+#                     print("\n\noneEndSetWordNumber", oneEndSetWordNumber, "does not exist!\n\n")
+#                     raise KeyboardInterrupt
+#                 process_lrw(dataDir=LRW_DATA_DIR, saveDir=LRW_SAVE_DIR, startExtracting=False, startSetWordNumber=oneStartSetWordNumber, endSetWordNumber=oneEndSetWordNumber, copyTxtFile=False, extractAudioFromMp4=False, dontWriteAudioIfExists=False, extractFramesFromMp4=False, writeFrameImages=False, dontWriteFrameIfExists=True, detectAndSaveMouths=True, dontWriteMouthIfExists=False, verbose=True)
 
-#                 shape = predictor(frame, face)
-#                 mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
-#                     for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
-#                 myMean.append(np.mean(mouthCoords, axis=0))
 
 #                 print(len(faces))
 #                 if len(faces) > 1:
 #                     raise KeyboardInterrupt
 #                 del faces
+
+
+#                 shape = predictor(frame, face)
+#                 mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
+#                     for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
+#                 myMean.append(np.mean(mouthCoords, axis=0))
 
 # win = dlib.image_window()
 # for i in range(1, 31):
