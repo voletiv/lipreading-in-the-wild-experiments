@@ -34,8 +34,10 @@ def process_lrw(dataDir=LRW_DATA_DIR,
         print("\n\nERROR: dataDir is not a valid directory:", dataDir, "\n\n")
         return
 
-    # If saveDir is not valid,
-    # there is a check under setDir to create directories if they don't exist
+    # If saveDir is not valid
+    if not os.path.isdir(saveDir):
+        print("\n\nERROR: saveDir is not a valid directory:", saveDir, "\n\n")
+        return
 
     # If startSetWordNumber is not valid
     if startExtracting is False:
@@ -493,7 +495,7 @@ def expand_rect(rect, scale=1.5):
 # saveDir = LRW_SAVE_DIR
 # detector, predictor = load_detector_and_predictor()
 
-# startSetWordNumber = 'train/ACCORDING_00963'
+# startSetWordNumber = 'test/AFTERNOON_00001'
 # endSetWordNumber = 'test/ALWAYS_00001'
 # startExtracting = False
 # for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
