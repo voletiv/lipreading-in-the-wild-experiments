@@ -45,7 +45,7 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                 startSetWordNumber.split('/')[1].split('_')[0],
                 startSetWordNumber) + '.txt'):
             print("\n\nERROR: startSetWordNumber not valid:", startSetWordNumber, '\n\n')
-        return
+            return
 
     # If endSetWordNumber is not valid
     if endSetWordNumber is not None:
@@ -53,7 +53,7 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                 endSetWordNumber.split('/')[1].split('_')[0],
                 endSetWordNumber) + '.txt'):
             print("\n\nERROR: endSetWordNumber not valid:", endSetWordNumber, '\n\n')
-        return
+            return
 
     # If mouth is to be detected, Load detector and predictor
     if detectAndSaveMouths:
