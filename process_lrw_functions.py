@@ -491,56 +491,77 @@ def expand_rect(rect, scale=1.5):
 # # Find mouth means
 # #############################################################
 
-# dataDir = LRW_DATA_DIR
-# saveDir = LRW_SAVE_DIR
-# detector, predictor = load_detector_and_predictor()
 
-# startSetWordNumber = 'test/AFTERNOON_00001'
-# endSetWordNumber = 'test/ALWAYS_00001'
-# startExtracting = False
-# for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
-#     print(wordDir)
-#     for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
-#         print(setDir)
-#         wordFileNames = sorted(glob.glob(os.path.join(setDir, '*.txt')))
-#         for wordFileName in tqdm.tqdm(wordFileNames):
-#             if startSetWordNumber in wordFileName:
-#                 startExtracting = True
-#             if not startExtracting:
-#                 continue
-#             if endSetWordNumber is not None:
-#                 if endSetWordNumber in wordFileName:
-#                     raise KeyboardInterrupt
-#             print(wordFileName)
-#             reprocess = False
-#             for i in range(1, 31):
-#                 frameName = os.path.join(saveDir, "/".join(wordFileName.split("/")[-3:]).split('.')[0] + '_{0:02d}.jpg'.format(i))
-#                 frame = imageio.imread(frameName)
-#                 faces = detector(frame, 1)
-#                 if len(faces) > 1:
-#                     reprocess = True
-#                     break
-#             if reprocess:
-#                 print()
-#                 oneStartSetWordNumber = '/'.join(wordFileName.split('/')[-2:]).split('.')[-2]
-#                 oneEndSetWordNumber = oneStartSetWordNumber.split('_')[0] + "_{0:05d}".format(int(oneStartSetWordNumber.split('_')[1]) + 1)
-#                 print("\n", len(faces), "found in", frameName, "\n", oneStartSetWordNumber, oneEndSetWordNumber, "\n")
-#                 if not os.path.isfile(os.path.join('/'.join(wordFileName.split('/')[:-2]), oneEndSetWordNumber) + '.txt'):
-#                     print("\n\noneEndSetWordNumber", oneEndSetWordNumber, "does not exist!\n\n")
-#                     raise KeyboardInterrupt
-#                 process_lrw(dataDir=LRW_DATA_DIR, saveDir=LRW_SAVE_DIR, startExtracting=False, startSetWordNumber=oneStartSetWordNumber, endSetWordNumber=oneEndSetWordNumber, copyTxtFile=False, extractAudioFromMp4=False, dontWriteAudioIfExists=False, extractFramesFromMp4=False, writeFrameImages=False, dontWriteFrameIfExists=True, detectAndSaveMouths=True, dontWriteMouthIfExists=False, verbose=True)
+def reprocess_videos_with_multiple_faces():
+    # 0
+    dataDir = LRW_DATA_DIR
+    saveDir = LRW_SAVE_DIR
+    detector, predictor = load_detector_and_predictor()
 
+    # Init
+    startSetWordNumber = 'test/AFTERNOON_00001'
+    endSetWordNumber = 'test/ALWAYS_00001'
+    startExtracting = False
 
-#                 print(len(faces))
-#                 if len(faces) > 1:
-#                     raise KeyboardInterrupt
-#                 del faces
+    # LOOP
+    for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
+        print(wordDir)
 
+        for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
+            print(setDir)
+            wordFileNames = sorted(glob.glob(os.path.join(setDir, '*.txt')))
 
-#                 shape = predictor(frame, face)
-#                 mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
-#                     for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
-#                 myMean.append(np.mean(mouthCoords, axis=0))
+            for wordFileName in tqdm.tqdm(wordFileNames):
+
+                if startSetWordNumber in wordFileName:
+                    startExtracting = True
+                if not startExtracting:
+                    continue
+                if endSetWordNumber is not None:
+                    if endSetWordNumber in wordFileName:
+                        return
+
+                print(wordFileName)
+
+                # Check if there are multiple faces in any of the frames of this video
+                reprocess = False
+                for i in range(1, 31):
+                    frameName = os.path.join(saveDir, "/".join(wordFileName.split("/")[-3:]).split('.')[0] + '_{0:02d}.jpg'.format(i))
+                    frame = imageio.imread(frameName)
+                    faces = detector(frame, 1)
+                    # If there are multiple faces
+                    if len(faces) > 1:
+                        # Set for reprocessing
+                        reprocess = True
+                        break
+
+                # Reprocess
+                if reprocess:
+                    oneStartSetWordNumber = '/'.join(wordFileName.split('/')[-2:]).split('.')[-2]
+                    oneEndSetWordNumber = oneStartSetWordNumber.split('_')[0] + "_{0:05d}".format(int(oneStartSetWordNumber.split('_')[1]) + 1)
+                    print("\n", len(faces), "found in", frameName, "\n", oneStartSetWordNumber, oneEndSetWordNumber, "\n")
+                    if not os.path.isfile(os.path.join('/'.join(wordFileName.split('/')[:-2]), oneEndSetWordNumber) + '.txt'):
+                        print("\n\noneEndSetWordNumber", oneEndSetWordNumber, "does not exist!\n\n")
+                        return
+                    process_lrw(dataDir=LRW_DATA_DIR,
+                        saveDir=LRW_SAVE_DIR,
+                        startExtracting=False,
+                        startSetWordNumber=oneStartSetWordNumber,
+                        endSetWordNumber=oneEndSetWordNumber,
+                        copyTxtFile=False,
+                        extractAudioFromMp4=False,
+                        dontWriteAudioIfExists=False,
+                        extractFramesFromMp4=False,
+                        writeFrameImages=False,
+                        dontWriteFrameIfExists=True,
+                        detectAndSaveMouths=True,
+                        dontWriteMouthIfExists=False,
+                        verbose=True)
+
+# shape = predictor(frame, face)
+# mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
+#     for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
+# myMean.append(np.mean(mouthCoords, axis=0))
 
 # win = dlib.image_window()
 # for i in range(1, 31):
