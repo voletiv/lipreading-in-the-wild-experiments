@@ -26,7 +26,16 @@ def process_lrw(dataDir=LRW_DATA_DIR,
             extractAudioFromMp4 is False and \
             extractFramesFromMp4 is False and \
             detectAndSaveMouths is False:
-        print("Nothing to be done!!\nAll coptTxtFile, extractAudioFromMp4, extractFramesFromMp4, detectAndSaveMouths are False!")
+        print("\n\nNothing to be done!!\nAll coptTxtFile, extractAudioFromMp4, extractFramesFromMp4, detectAndSaveMouths are False!\n\n")
+        return
+
+    # If dataDir is not valid
+    if not os.path.isdir(dataDir):
+        print("\n\nERROR: dataDir is not a valid directory! Input dataDir:", dataDir, "\n\n")
+        return
+
+    if not os.path.isdir(saveDir):
+        print("\n\nERROR: saveDir is not a valid directory! Input saveDir:", saveDir, "\n\n")
         return
 
     # If mouth is to be detected, Load detector and predictor
@@ -87,7 +96,7 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                 # Extract audio
                 if extractAudioFromMp4:
                     try:
-                        extract_audio_from_mp4(saveDir, wordFileName=wordFileName,
+                        extract_audio_from_mp4(saveDir=saveDir, wordFileName=wordFileName,
                             dontWriteAudioIfExists=dontWriteAudioIfExists, verbose=verbose)
                     except ValueError as err:
                         print(err)
@@ -100,11 +109,13 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                 if extractFramesFromMp4 is False and detectAndSaveMouths is False:
                     continue
 
-                # Handling Memory I/O Error (OSError) in extracting frames and mouths
+                # Handling Memory I/O Error (OSError) in reading videos or
+                # frames, or if files to be read are not present
                 def please_extract(videoFile):
                     try:
                         # Extract frames and mouths
-                        return extract_and_save_frames_and_mouths(wordFileName=wordFileName,
+                        return extract_and_save_frames_and_mouths(saveDir=saveDir,
+                                                                  wordFileName=wordFileName,
                                                                   extractFramesFromMp4=extractFramesFromMp4,
                                                                   writeFrameImages=writeFrameImages,
                                                                   detectAndSaveMouths=detectAndSaveMouths,
@@ -113,10 +124,17 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                                                                   detector=detector,
                                                                   predictor=predictor,
                                                                   verbose=verbose)
+
                     # Memory I/O error
                     except OSError:
                         print("Trying again...")
                         return please_extract(videoFile)
+
+                    # File non-existence error
+                    except ValueError as err:
+                        print(err)
+                        return 1
+
                     # Ctrl+C
                     except KeyboardInterrupt:
                         print("\n\nCtrl+C was pressed!\n\n")
@@ -143,8 +161,8 @@ def load_detector_and_predictor(verbose=False):
         return detector, predictor
     # If error in SHAPE_PREDICTOR_PATH
     except RuntimeError:
-        raise ValueError("ERROR: Wrong Shape Predictor .dat file path - " + \
-            SHAPE_PREDICTOR_PATH, "(load_detector_and_predictor)")
+        raise ValueError("\n\nERROR: Wrong Shape Predictor .dat file path - " + \
+            SHAPE_PREDICTOR_PATH, "(load_detector_and_predictor)\n\n")
 
 
 def copy_txt_file(saveDir, wordFileName, verbose=False):
@@ -158,8 +176,8 @@ def copy_txt_file(saveDir, wordFileName, verbose=False):
                 "(copy_txt_file)")
         return 0
     except:
-        raise ValueError("ERROR: shutil failed to copy " + fromFileName + \
-            " to " + toFileName + " (copy_txt_file)")
+        raise ValueError("\n\nERROR: shutil failed to copy " + fromFileName + \
+            " to " + toFileName + " (copy_txt_file)\n\n")
 
 
 def extract_audio_from_mp4(saveDir, wordFileName, dontWriteAudioIfExists, verbose=False):
@@ -196,7 +214,7 @@ def extract_audio_from_mp4(saveDir, wordFileName, dontWriteAudioIfExists, verbos
 
     # If audio file could not be written by subprocess
     if commandReturn != 0:
-        raise ValueError("ERROR: Audio file " + audioFileName + " NOT WRITEN!! (extract_audio_from_mp4)")
+        raise ValueError("\n\nERROR: Audio file " + audioFileName + " NOT WRITEN!! (extract_audio_from_mp4)\n\n")
 
     if verbose:
         if commandReturn == 0:
@@ -219,13 +237,16 @@ def extract_and_save_frames_and_mouths(saveDir=LRW_SAVE_DIR,
     # extractFramesFromMp4 and (not detectAndSaveMouths) => Read frames from mp4 video
     # (to maybe save them)
 
-    # If extract frames from mp4 video
-    if extractFramesFromMp4:
-        videoFrames = extract_frames_from_video(wordFileName, verbose)
-
-    # Else, read frame names in directory
-    elif detectAndSaveMouths:
-        videoFrames = read_jpeg_frames_from_dir(saveDir, wordFileName, verbose)
+    try:
+        # If extract frames from mp4 video
+        if extractFramesFromMp4:
+            videoFrames = extract_frames_from_video(wordFileName, verbose)
+        # Else, read frame names in directory
+        elif detectAndSaveMouths:
+            videoFrames = read_jpeg_frames_from_dir(saveDir, wordFileName, verbose)
+    # If mp4 or jpeg files to read are missing
+    except ValueError as err:
+        raise ValueError(err)
 
     # Default face bounding box
     if detectAndSaveMouths:
@@ -237,23 +258,35 @@ def extract_and_save_frames_and_mouths(saveDir=LRW_SAVE_DIR,
 
         # Write the frame image (from video)
         if extractFramesFromMp4 and writeFrameImages:
-            write_frame_image(saveDir, wordFileName, f, frame, dontWriteFrameIfExists,
-                verbose)
+            write_frame_image(saveDir=saveDir, wordFileName=wordFileName, f=f,
+                frame=frame, dontWriteFrameIfExists=dontWriteFrameIfExists,
+                verbose=verbose)
 
         # Detect mouths in frames
         if detectAndSaveMouths:
-            face = detect_mouth_and_write(saveDir, wordFileName, f, frame, detector, predictor,
-                dontWriteMouthIfExists, prevFace=face, verbose=verbose)
+            face = detect_mouth_and_write(saveDir=saveDir, wordFileName=wordFileName,
+                f=f, frame=frame, detector=detector, predictor=predictor,
+                dontWriteMouthIfExists=dontWriteMouthIfExists, prevFace=face,
+                verbose=verbose)
 
     return 0
 
 
 def extract_frames_from_video(wordFileName, verbose=False):
+    # Video file name
     videoFileName = '.'.join(wordFileName.split('.')[:-1]) + '.mp4'
+
+    # Handle file not found
+    if not os.path.isfile(videoFileName):
+        raise ValueError("\n\nERROR: Video file not found:" + videoFileName + \
+            "(extract_frames_from_video)\n\n")
+
     videoFrames = imageio.get_reader(videoFileName, 'ffmpeg')
+
     if verbose:
             print("Frames extracted from video:", videoFileName,
                 "(extract_frames_from_video)")
+
     # Return
     return videoFrames
 
@@ -261,10 +294,15 @@ def extract_frames_from_video(wordFileName, verbose=False):
 def read_jpeg_frames_from_dir(saveDir, wordFileName, verbose=False):
     
     # Frame names end with numbers from 00 to 30, so [0-3][0-9]
-    videoFrameNames = sorted(
-        glob.glob(os.path.join(saveDir,
+    videoFrameNamesFormat = os.path.join(saveDir,
                                "/".join(wordFileName.split("/")[-3:]).split('.')[0] + \
-                               '_[0-3][0-9].jpg')))
+                               '_[0-3][0-9].jpg')
+    videoFrameNames = sorted(glob.glob(videoFrameNamesFormat))
+
+    # If no frames are read
+    if len(videoFrameNames) < 30:
+        raise ValueError("\n\nERROR: 30 frames not found in" + \
+            videoFrameNamesFormat + " format. (read_jpeg_frames_from_dir)\n\n")
 
     # Read all frame images
     videoFrames = []
@@ -317,7 +355,8 @@ def detect_mouth_and_write(saveDir, wordFileName, f, frame, detector, predictor,
         # Check if file exists
         if os.path.isfile(mouthImageName):
             if verbose:
-                print("Mouth image", mouthImageName, "exists, so not detected. (detect_mouth_and_write)")
+                print("Mouth image", mouthImageName,
+                    "exists, so not detected. (detect_mouth_and_write)")
             # Return if file exists
             return prevFace
 
@@ -344,24 +383,34 @@ def detect_mouth_in_frame(frame, detector, predictor,
     #               y
     #             (rows)
 
-    # Detect face
-    try:
-        face = detector(frame, 1)[0]
-    except IndexError:
-        face = prevFace
+    # Detect all faces
+    faces = detector(frame, 1)
 
-    # Predict facial landmarks
-    shape = predictor(frame, face)
+    # If no faces are detected
+    if len(faces) == 0:
+        face = [prevFace]
 
-    # # Show landmarks and face
-    # win = dlib.image_window()
-    # win.set_image(frame)
-    # win.add_overlay(shape)
-    # win.add_overlay(face)
+    # Iterate over the faces, find the correct one by checking mouth mean
+    for face in faces:
 
-    # Note all mouth landmark coordinates
-    mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
-                            for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
+        # Predict facial landmarks
+        shape = predictor(frame, face)
+
+        # # Show landmarks and face
+        # win = dlib.image_window()
+        # win.set_image(frame)
+        # win.add_overlay(shape)
+        # win.add_overlay(face)
+
+        # Note all mouth landmark coordinates
+        mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
+                                for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
+
+        # Check if correct face is selected by checking position of mouth mean
+        mouthMean = np.mean(mouthCoords, axis=0)
+        if mouthMean[0] > 110 and mouthMean[0] < 150 \
+                and mouthMean[1] > 140 and mouthMean[1] < 170:
+            break
 
     # Mouth Rect: x, y, w, h
     mouthRect = (np.min(mouthCoords[:, 0]), np.min(mouthCoords[:, 1]),
@@ -373,7 +422,7 @@ def detect_mouth_in_frame(frame, detector, predictor,
 
     # Expand mouthRect square
     expandedMouthRect = expand_rect(
-        mouthRect, scale=(0.6 * face.width() / mouthRect[2]))
+        mouthRect, scale=(MOUTH_TO_FACE_RATIO * face.width() / mouthRect[2]))
 
     # Resize to 120x120
     resizedMouthImage = np.round(resize(frame[expandedMouthRect[1]:expandedMouthRect[1] + expandedMouthRect[3],
@@ -406,6 +455,64 @@ def expand_rect(rect, scale=1.5):
     y = rect[1] - int((h - rect[3]) / 2)
     return (x, y, w, h)
 
+
+# #############################################################
+# # FIND MOUTH MEANS, AND IMAGES WITH MULTIPLE FACES
+# #############################################################
+
+# # extract_and_save_audio_frames_and_mouths_from_dir
+# dataDir = LRW_DATA_DIR
+# saveDir = LRW_SAVE_DIR
+# detector, predictor = load_detector_and_predictor()
+
+# myMean = []
+
+# startSetWordNumber='train/ACROSS_00447'
+# startExtracting=False
+# # For each word
+# for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
+#     print(wordDir)
+#     # train, val or test
+#     for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
+#         print(setDir)
+#         # Read all .txt file names (since .txt are saved in both
+#         # LRW_DATA_DIR and LRW_SAVE_DIR)
+#         wordFileNames = sorted(glob.glob(os.path.join(setDir, '*.txt')))
+#         # For each video
+#         for wordFileName in tqdm.tqdm(wordFileNames):
+#             if startSetWordNumber in wordFileName:
+#                 startExtracting = True
+#             if startExtracting:
+#                 print(wordFileName)
+#                 frameName = os.path.join(saveDir, "/".join(wordFileName.split("/")[-3:]).split('.')[0] + '_01.jpg')
+#                 frame = imageio.imread(frameName)
+#                 faces = detector(frame, 1)
+
+#                 shape = predictor(frame, face)
+#                 mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
+#                     for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
+#                 myMean.append(np.mean(mouthCoords, axis=0))
+
+#                 print(len(faces))
+#                 if len(faces) > 1:
+#                     raise KeyboardInterrupt
+#                 del faces
+
+# win = dlib.image_window()
+# for i in range(1, 31):
+#     frameName = os.path.join(saveDir, "/".join(wordFileName.split("/")[-3:]).split('.')[0] + '_{0:02d}.jpg'.format(i))
+#     frame = imageio.imread(frameName)
+#     faces = detector(frame, 1)
+#     face0 = faces[0]
+#     shape = predictor(frame, face0)
+#     win.clear_overlay()
+#     win.set_image(frame)
+#     win.add_overlay(face0)
+#     win.add_overlay(shape)
+#     time.sleep(.5)
+
+
+
 #############################################################
 # RUN ON ONE IMAGE
 #############################################################
@@ -413,7 +520,7 @@ def expand_rect(rect, scale=1.5):
 
 def test_mouth_detection_in_frame(dataDir=LRW_SAVE_DIR, saveDir=LRW_SAVE_DIR,
                                   word="ABOUT", set="train", number=1, frameNumber=1,
-                                  scaleFactor=.6, showMouthOnFrame=True,
+                                  scaleFactor=MOUTH_TO_FACE_RATIO, showMouthOnFrame=True,
                                   showResizedMouth=True, detector=None,
                                   predictor=None, verbose=False):
 
@@ -426,19 +533,21 @@ def test_mouth_detection_in_frame(dataDir=LRW_SAVE_DIR, saveDir=LRW_SAVE_DIR,
 
     # Make wordFileName
     wordFileName = os.path.join(
-        rootDir, word, set, word + '_{0:05d}'.format(number) + '.txt')
+        saveDir, word, set, word + '_{0:05d}'.format(number) + '.txt')
 
     frame = read_jpeg_frames_from_dir(saveDir, wordFileName)[frameNumber]
     try:
         face = detector(frame, 1)[0]
     except IndexError:
-        shape = predictor(frame, face)
+        face = dlib.rectangle(30, 30, 220, 220)
+    
+    shape = predictor(frame, face)
 
     # # Show landmarks and face
     # win = dlib.image_window()
     # win.set_image(frame)
-    # win.add_overlay(shape)
     # win.add_overlay(face)
+    # win.add_overlay(shape)
 
     mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
                             for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])

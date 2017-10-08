@@ -58,6 +58,8 @@ FACIAL_LANDMARKS_IDXS = dict([
 MOUTH_SHAPE_FROM = FACIAL_LANDMARKS_IDXS["mouth"][0]
 MOUTH_SHAPE_TO = FACIAL_LANDMARKS_IDXS["mouth"][1]
 
+MOUTH_TO_FACE_RATIO = 0.65
+
 # Examples
 videoFile = 'media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.mp4'
 wordFileName = '/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt'
