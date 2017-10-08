@@ -537,12 +537,22 @@ def reprocess_videos_with_multiple_faces():
 
                 # Reprocess
                 if reprocess:
+
+                    # Find setWordNumber for this and next video
                     oneStartSetWordNumber = '/'.join(wordFileName.split('/')[-2:]).split('.')[-2]
                     oneEndSetWordNumber = oneStartSetWordNumber.split('_')[0] + "_{0:05d}".format(int(oneStartSetWordNumber.split('_')[1]) + 1)
-                    print("\n", len(faces), "found in", frameName, "\n", oneStartSetWordNumber, oneEndSetWordNumber, "\n")
+
+                    # If last video in folder
                     if not os.path.isfile(os.path.join('/'.join(wordFileName.split('/')[:-2]), oneEndSetWordNumber) + '.txt'):
-                        print("\n\noneEndSetWordNumber", oneEndSetWordNumber, "does not exist!\n\n")
-                        return
+                        sets = ['test', 'train', 'val']
+                        newSet = sets[(sets.index(oneEndSetWordNumber.split('/')[0]) + 1) % 3]
+                        if newSet == 'test':
+                            newWord = LRW_VOCAB[LRW_VOCAB.index(oneEndSetWordNumber.split('/')[1].split('_')[0]) + 1]
+                        else:
+                            newWord = oneEndSetWordNumber.split('/')[1].split('_')[0]
+                        oneEndSetWordNumber = newSet + '/' + newWord + '_00001'
+
+                    print("\n", len(faces), "found in", frameName, "\n", oneStartSetWordNumber, oneEndSetWordNumber, "\n")
                     process_lrw(dataDir=LRW_DATA_DIR,
                         saveDir=LRW_SAVE_DIR,
                         startExtracting=False,

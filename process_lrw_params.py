@@ -60,6 +60,27 @@ MOUTH_SHAPE_TO = FACIAL_LANDMARKS_IDXS["mouth"][1]
 
 MOUTH_TO_FACE_RATIO = 0.65
 
+#############################################################
+# LOAD VOCAB LIST
+#############################################################
+
+
+def load_lrw_vocab_list(GRID_VOCAB_LIST_FILE):
+    lrw_vocab = []
+    with open(LRW_VOCAB_LIST_FILE) as f:
+        for line in f:
+            word = line.rstrip().split()[-1]
+            lrw_vocab.append(word)
+    return lrw_vocab
+
+LRW_VOCAB_LIST_FILE = 'lrw_vocabulary.txt'
+
+LRW_VOCAB = load_lrw_vocab_list(LRW_VOCAB_LIST_FILE)
+
+#############################################################
+# EXAMPLES
+#############################################################
+
 # Examples
 videoFile = 'media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.mp4'
 wordFileName = '/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt'
