@@ -464,8 +464,9 @@ def detect_mouth_in_frame(frame, detector, predictor,
     mouthRect = make_rect_shape_square(mouthRect)
 
     # Expand mouthRect square
-    expandedMouthRect = expand_rect(
-        mouthRect, scale=(MOUTH_TO_FACE_RATIO * face.width() / mouthRect[2]))
+    expandedMouthRect = expand_rect(mouthRect,
+        scale=(MOUTH_TO_FACE_RATIO * face.width() / mouthRect[2]),
+        frame_shape=(frame.shape[0], frame.shape[1]))
 
     # Resize to 120x120
     resizedMouthImage = np.round(resize(frame[expandedMouthRect[1]:expandedMouthRect[1] + expandedMouthRect[3],
@@ -490,7 +491,7 @@ def make_rect_shape_square(rect):
     return rect
 
 
-def expand_rect(rect, scale=1.5):
+def expand_rect(rect, scale=1.5, frame_shape=(256, 256)):
     # Rect: (x, y, w, h)
     w = int(rect[2] * scale)
     h = int(rect[3] * scale)
