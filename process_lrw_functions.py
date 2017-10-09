@@ -448,7 +448,7 @@ def detect_mouth_in_frame(frame, detector, predictor,
     # If only one face in frame
     else:
         # Note face
-        face = frame[0]
+        face = faces[0]
         # Predict facial landmarks
         shape = predictor(frame, face)
         # Note all mouth landmark coordinates
@@ -494,8 +494,8 @@ def expand_rect(rect, scale=1.5):
     # Rect: (x, y, w, h)
     w = int(rect[2] * scale)
     h = int(rect[3] * scale)
-    x = rect[0] - int((w - rect[2]) / 2)
-    y = rect[1] - int((h - rect[3]) / 2)
+    x = max(0, min(frame.shape[1] - w, rect[0] - int((w - rect[2]) / 2)))
+    y = max(0, min(frame.shape[0] - h, rect[1] - int((h - rect[3]) / 2)))
     return (x, y, w, h)
 
 
