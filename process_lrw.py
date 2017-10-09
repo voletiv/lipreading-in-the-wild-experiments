@@ -2,17 +2,17 @@ from process_lrw_functions import *
 
 process_lrw(dataDir=LRW_DATA_DIR,
     saveDir=LRW_SAVE_DIR,
-    startExtracting=True,
-    startSetWordNumber='test/ALWAYS_00057',
+    startExtracting=False,
+    startSetWordNumber='train/AMOUNT_00740',
     endSetWordNumber=None,
     copyTxtFile=True,
     extractAudioFromMp4=True,
-    dontWriteAudioIfExists=True,
+    dontWriteAudioIfExists=False,
     extractFramesFromMp4=True,
     writeFrameImages=True,
-    dontWriteFrameIfExists=True,
+    dontWriteFrameIfExists=False,
     detectAndSaveMouths=True,
-    dontWriteMouthIfExists=True,
+    dontWriteMouthIfExists=False,
     verbose=False)
 
 # # DEBUG

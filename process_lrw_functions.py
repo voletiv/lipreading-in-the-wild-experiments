@@ -420,27 +420,40 @@ def detect_mouth_in_frame(frame, detector, predictor,
             print("No faces detected, using prevFace", prevFace, "(detect_mouth_in_frame)")
         faces = [prevFace]
 
-    # Iterate over the faces, find the correct one by checking mouth mean
-    for face in faces:
+    # If multiple faces in frame
+    if len(faces) > 1:
+        
+        # Iterate over the faces, find the correct one by checking mouth mean
+        for face in faces:
 
+            # Predict facial landmarks
+            shape = predictor(frame, face)
+
+            # # Show landmarks and face
+            # win = dlib.image_window()
+            # win.set_image(frame)
+            # win.add_overlay(shape)
+            # win.add_overlay(face)
+
+            # Note all mouth landmark coordinates
+            mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
+                                    for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
+
+            # Check if correct face is selected by checking position of mouth mean
+            mouthMean = np.mean(mouthCoords, axis=0)
+            if mouthMean[0] > 110 and mouthMean[0] < 150 \
+                    and mouthMean[1] > 140 and mouthMean[1] < 170:
+                break
+
+    # If only one face in frame
+    else:
+        # Note face
+        face = frame[0]
         # Predict facial landmarks
         shape = predictor(frame, face)
-
-        # # Show landmarks and face
-        # win = dlib.image_window()
-        # win.set_image(frame)
-        # win.add_overlay(shape)
-        # win.add_overlay(face)
-
         # Note all mouth landmark coordinates
         mouthCoords = np.array([[shape.part(i).x, shape.part(i).y]
                                 for i in range(MOUTH_SHAPE_FROM, MOUTH_SHAPE_TO)])
-
-        # Check if correct face is selected by checking position of mouth mean
-        mouthMean = np.mean(mouthCoords, axis=0)
-        if mouthMean[0] > 110 and mouthMean[0] < 150 \
-                and mouthMean[1] > 140 and mouthMean[1] < 170:
-            break
 
     # Mouth Rect: x, y, w, h
     mouthRect = (np.min(mouthCoords[:, 0]), np.min(mouthCoords[:, 1]),
@@ -494,7 +507,7 @@ def expand_rect(rect, scale=1.5):
 
 def reprocess_videos_with_multiple_faces(startExtracting=False,
         startSetWordNumber='test/AFTERNOON_00001',
-        endSetWordNumber = 'test/ALWAYS_00001'):
+        endSetWordNumber='test/ALWAYS_00001'):
     # Init
     dataDir = LRW_DATA_DIR
     saveDir = LRW_SAVE_DIR
