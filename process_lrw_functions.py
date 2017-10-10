@@ -284,7 +284,7 @@ def extract_and_save_frames_and_mouths(saveDir=LRW_SAVE_DIR,
     # If only the 5 or 6 frames with the word, given by the word duration
     # in the .txt file, are to be extracted
     if extractOnlyWordFrames:
-        wordFrameNumbers = extract_word_frame_numbers(wordFileName)
+        wordFrameNumbers = extract_word_frame_numbers(wordFileName, verbose=verbose)
 
     # For each frame
     for f, frame in enumerate(videoFrames):
