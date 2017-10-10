@@ -367,12 +367,15 @@ def read_jpeg_frames_from_dir(saveDir, wordFileName, verbose=False):
     return videoFrames, videoFrameNames
 
 
-def extract_word_frame_numbers(wordFileName):
+def extract_word_frame_numbers(wordFileName, verbose=False):
     # Find the duration of the word_metadata
     wordDuration = extract_word_duration(wordFileName)
     # Find frame numbers
-    return range(math.floor(VIDEO_FRAMES_PER_WORD/2 - wordDuration*VIDEO_FPS/2),
+    wordFrameNumbers = range(math.floor(VIDEO_FRAMES_PER_WORD/2 - wordDuration*VIDEO_FPS/2),
         math.ceil(VIDEO_FRAMES_PER_WORD/2 + wordDuration*VIDEO_FPS/2) + 1)
+    if verbose:
+        print("Word frame numbers = ", wordFrameNumbers, "; Word duration = ", wordDuration)
+    return wordFrameNumbers
 
 
 def extract_word_duration(wordFileName):
