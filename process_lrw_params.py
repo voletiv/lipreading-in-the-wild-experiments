@@ -4,6 +4,7 @@ import dlib
 import glob
 # stackoverflow.com/questions/29718238/how-to-read-mp4-video-to-be-processed-by-scikit-image
 import imageio
+import math
 # import matplotlib
 # matplotlib.use('agg')     # Use this for remote terminals, with ssh -X
 import matplotlib.pyplot as plt
@@ -54,6 +55,9 @@ FACIAL_LANDMARKS_IDXS = dict([
     ("nose", (27, 35)),
     ("jaw", (0, 17))
 ])
+
+VIDEO_FPS = 25
+VIDEO_FRAMES_PER_WORD = 30
 
 MOUTH_SHAPE_FROM = FACIAL_LANDMARKS_IDXS["mouth"][0]
 MOUTH_SHAPE_TO = FACIAL_LANDMARKS_IDXS["mouth"][1]

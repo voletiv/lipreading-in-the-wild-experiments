@@ -15,6 +15,7 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                 extractAudioFromMp4=False,
                 dontWriteAudioIfExists=True,
                 extractFramesFromMp4=False,
+                extractOnlyWordFrames=True,
                 writeFrameImages=False,
                 dontWriteFrameIfExists=True,
                 detectAndSaveMouths=False,
@@ -141,6 +142,7 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                         return extract_and_save_frames_and_mouths(saveDir=saveDir,
                                                                   wordFileName=wordFileName,
                                                                   extractFramesFromMp4=extractFramesFromMp4,
+                                                                  extractOnlyWordFrames=extractOnlyWordFrames,
                                                                   writeFrameImages=writeFrameImages,
                                                                   detectAndSaveMouths=detectAndSaveMouths,
                                                                   dontWriteFrameIfExists=dontWriteFrameIfExists,
@@ -248,6 +250,7 @@ def extract_audio_from_mp4(saveDir, wordFileName, dontWriteAudioIfExists, verbos
 def extract_and_save_frames_and_mouths(saveDir=LRW_SAVE_DIR,
         wordFileName='/home/voletiv/Datasets/LRW/lipread_mp4/ABOUT/test/ABOUT_00001.txt',
         extractFramesFromMp4=False,
+        extractOnlyWordFrames=True,
         writeFrameImages=False,
         detectAndSaveMouths=False,
         dontWriteFrameIfExists=True,
@@ -267,7 +270,8 @@ def extract_and_save_frames_and_mouths(saveDir=LRW_SAVE_DIR,
             videoFrames = extract_frames_from_video(wordFileName, verbose)
         # Else, read frame names in directory
         elif detectAndSaveMouths:
-            videoFrames = read_jpeg_frames_from_dir(saveDir, wordFileName, verbose)
+            videoFrames, videoFrameNames = read_jpeg_frames_from_dir(saveDir,
+                wordFileName, verbose)
     # If mp4 or jpeg files to read are missing, cascade ValueError up
     except ValueError as err:
         raise ValueError(err)
@@ -277,19 +281,39 @@ def extract_and_save_frames_and_mouths(saveDir=LRW_SAVE_DIR,
         # Default face
         face = dlib.rectangle(30, 30, 220, 220)
 
+    # If only the 5 or 6 frames with the word, given by the word duration
+    # in the .txt file, are to be extracted
+    if extractOnlyWordFrames:
+        wordFrameNumbers = extract_word_frame_numbers(wordFileName)
+
     # For each frame
     for f, frame in enumerate(videoFrames):
 
+        # If frames are extracted from video, all frames are read
+        if detectAndSaveMouths:
+            frameNumer = f + 1
+        # If frames are read from jpeg images, frame numbers are in their names
+        else:
+            frameNumer = int(videoFrameNames[f].split('/')[-1].split('.')[0].split('_')[-1])
+
+        # If only the 5 or 6 frames with the word, given by the word duration
+        # in the .txt file, are to be extracted
+        if extractOnlyWordFrames:
+            # Extract only the wordFrameNumbers
+            if frameNumer not in wordFrameNumbers:
+                continue
+
         # Write the frame image (from video)
         if extractFramesFromMp4 and writeFrameImages:
-            write_frame_image(saveDir=saveDir, wordFileName=wordFileName, f=f,
-                frame=frame, dontWriteFrameIfExists=dontWriteFrameIfExists,
-                verbose=verbose)
+            write_frame_image(saveDir=saveDir, wordFileName=wordFileName,
+                frameNumer=frameNumer, frame=frame,
+                dontWriteFrameIfExists=dontWriteFrameIfExists, verbose=verbose)
 
         # Detect mouths in frames
         if detectAndSaveMouths:
-            face = detect_mouth_and_write(saveDir=saveDir, wordFileName=wordFileName,
-                f=f, frame=frame, detector=detector, predictor=predictor,
+            face = detect_mouth_and_write(saveDir=saveDir,
+                wordFileName=wordFileName, frameNumer=frameNumer, frame=frame,
+                detector=detector, predictor=predictor,
                 dontWriteMouthIfExists=dontWriteMouthIfExists, prevFace=face,
                 verbose=verbose)
 
@@ -326,30 +350,46 @@ def read_jpeg_frames_from_dir(saveDir, wordFileName, verbose=False):
     # Read video frame names
     videoFrameNames = sorted(glob.glob(videoFrameNamesFormat))
 
-    # If <30 frames are read
-    if len(videoFrameNames) < 30:
-        raise ValueError("\n\nERROR: 30 frames not found in" + \
-            videoFrameNamesFormat + " format. (read_jpeg_frames_from_dir)\n\n")
-
-    # Read all frame images
-    videoFrames = []
-    for frameName in videoFrameNames:
-        videoFrames.append(imageio.imread(frameName))
+    try:
+        # Read all frame images
+        videoFrames = []
+        for frameName in videoFrameNames:
+            videoFrames.append(imageio.imread(frameName))
+    except OSError:
+        # If not able to read
+        raise ValueError("ERROR: could not read " + frameName + " (read_jpeg_frames_from_dir)")
 
     if verbose:
             print("Frames read from jpeg images:", wordFileName,
                 "(read_jpeg_frames_from_dir)")
 
     # Return
-    return videoFrames
+    return videoFrames, videoFrameNames
 
 
-def write_frame_image(saveDir, wordFileName, f, frame, dontWriteFrameIfExists=True,
-        verbose=False):
+def extract_word_frame_numbers(wordFileName):
+    # Find the duration of the word_metadata
+    wordDuration = extract_word_duration(wordFileName)
+    # Find frame numbers
+    return range(math.floor(VIDEO_FRAMES_PER_WORD/2 - wordDuration*VIDEO_FPS/2),
+        math.ceil(VIDEO_FRAMES_PER_WORD/2 + wordDuration*VIDEO_FPS/2) + 1)
+
+
+def extract_word_duration(wordFileName):
+    # Read last line of word metadata
+    with open(wordFileName) as f:
+        for line in f:
+            pass
+    # Find the duration of the word_metadata`
+    return float(line.rstrip().split()[-2])
+
+
+def write_frame_image(saveDir, wordFileName, frameNumer, frame,
+        dontWriteFrameIfExists=True, verbose=False):
 
     # Name
     frameImageName = os.path.join(saveDir, "/".join(wordFileName.split(
-        "/")[-3:]).split('.')[0] + "_{0:02d}".format(f + 1) + ".jpg")
+        "/")[-3:]).split('.')[0] + "_{0:02d}".format(frameNumer) + ".jpg")
 
     # If file is not supposed to be written if it exists
     if dontWriteFrameIfExists:
@@ -368,14 +408,14 @@ def write_frame_image(saveDir, wordFileName, f, frame, dontWriteFrameIfExists=Tr
         print("Frame image written:", frameImageName, "(write_frame_image)")
 
 
-def detect_mouth_and_write(saveDir, wordFileName, f, frame, detector, predictor,
+def detect_mouth_and_write(saveDir, wordFileName, frameNumer, frame, detector, predictor,
         dontWriteMouthIfExists=True, prevFace=dlib.rectangle(30, 30, 220, 220),
         verbose=False):
 
     # Image Name
     mouthImageName = os.path.join(saveDir, "/".join(wordFileName.split(
                                   "/")[-3:]).split('.')[0] + \
-                                  "_{0:02d}_mouth".format(f + 1) + ".jpg")
+                                  "_{0:02d}_mouth".format(frameNumer) + ".jpg")
 
     # If file is not supposed to be written if it exists
     if dontWriteMouthIfExists:
@@ -395,7 +435,7 @@ def detect_mouth_and_write(saveDir, wordFileName, f, frame, detector, predictor,
     imageio.imwrite(mouthImageName, mouthImage)
 
     if verbose:
-        print("Mouth image", mouthImageName, "written. (detect_mouth_and_write)")
+        print("Mouth image written:", mouthImageName, "(detect_mouth_and_write)")
 
     # Return
     return face
@@ -420,10 +460,10 @@ def detect_mouth_in_frame(frame, detector, predictor,
             print("No faces detected, using prevFace", prevFace, "(detect_mouth_in_frame)")
         faces = [prevFace]
 
-    # If multiple faces in frame
+    # If multiple faces in frame, find the correct face by checking mouth mean
     if len(faces) > 1:
-        
-        # Iterate over the faces, find the correct one by checking mouth mean
+
+        # Iterate over the faces
         for face in faces:
 
             # Predict facial landmarks
