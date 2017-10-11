@@ -1,27 +1,5 @@
-print("Importing stuff...")
-
-import dlib
-import glob
-# stackoverflow.com/questions/29718238/how-to-read-mp4-video-to-be-processed-by-scikit-image
-import imageio
-import math
-# import matplotlib
-# matplotlib.use('agg')     # Use this for remote terminals, with ssh -X
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-import shutil
-import subprocess
-import tqdm
 import warnings
-
-from matplotlib.patches import Rectangle
-from skimage.transform import resize
-
-# Facial landmark detection
-# http://dlib.net/face_landmark_detection.py.html
-
-print("Done importing stuff.")
 
 # # To ignore the deprecation warning from scikit-image
 warnings.filterwarnings("ignore",category=UserWarning)

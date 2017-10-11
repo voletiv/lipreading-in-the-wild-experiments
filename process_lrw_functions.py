@@ -1,4 +1,30 @@
+from __future__ import print_function
+
+print("Importing stuff...")
+
+import dlib
+import glob
+# stackoverflow.com/questions/29718238/how-to-read-mp4-video-to-be-processed-by-scikit-image
+import imageio
+import math
+# import matplotlib
+# matplotlib.use('agg')     # Use this for remote terminals, with ssh -X
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+import shutil
+import subprocess
+import tqdm
+
+from matplotlib.patches import Rectangle
+from skimage.transform import resize
+
+# Facial landmark detection
+# http://dlib.net/face_landmark_detection.py.html
+
 from process_lrw_params import *
+
+print("Done importing stuff.")
 
 #############################################################
 # EXTRACT AUDIO, FRAMES, AND MOUTHS

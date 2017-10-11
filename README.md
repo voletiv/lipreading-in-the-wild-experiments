@@ -4,15 +4,15 @@ This repository contains my experiments with lip reading using deep learning in 
 
 ## Requirements
 
-1. Required libraries by Python (I used Python3) are mentioned in the requirements.txt file.
+1. Libraries required by Python (I used Python3) are mentioned in the _requirements.txt_ file.
 
-2. 'ffmpeg' is also required for the imageio module to read an mp4 file. Install it using:
+2. '_ffmpeg_' is also required for the imageio module to read an mp4 file. Install it using:
 
 ```sh
 sudo apt install ffmpeg
 ```
 
-3. "shape_predictor_68_face_landmarks.dat" file is required inside the _shape-predictor_ directory. It is used for detecting facial landmarks. Instructions to download and place the file are available in the readme file in the _shape-predictor_ directory.
+3. "_shape\_predictor\_68\_face\_landmarks.dat"_ file is required inside the _shape-predictor_ directory. It is used for detecting facial landmarks. Instructions to download and place the file are available in the readme file inside the _shape-predictor_ directory.
 
 ## Files
 
@@ -78,7 +78,7 @@ Each video _frame_ is a colour image (3 channels) 256x256 pixels in size.
 - Make the mouth bounding box square, with the side as the larger of width and height of the mouth bounding box
 
 - Expand the mouth bounding box
-	- Expand to set the width of the mouth bounding box as 0.6 times the width of _face_
+	- Expand to set the width of the mouth bounding box as 0.65 times the width of _face_
 
 - Resize the mouth to 120x120 pixels
 	- Mouth is the portion of frame given by thhe expanded mouth bounding box	
