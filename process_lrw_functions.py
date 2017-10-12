@@ -14,6 +14,7 @@ import numpy as np
 import os
 import shutil
 import subprocess
+import time
 import tqdm
 
 from matplotlib.patches import Rectangle
@@ -98,14 +99,19 @@ def process_lrw(dataDir=LRW_DATA_DIR,
         detector = None
         predictor = None
 
+    # Time
+    start_time = time.time()
+
     # LOOP THROUGH ALL DIRECTORIES IN LRW DATASET
     # For each word
     for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
         print(wordDir)
+        print_time_till_now(start_time)
 
         # train, val or test
         for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
             print(setDir)
+            print_time_till_now(start_time)
 
             # Create directory in saveDir if it doesn't exist
             setSaveDir = os.path.join(saveDir, '/'.join(os.path.normpath(setDir).split('/')[-2:]))
@@ -128,6 +134,7 @@ def process_lrw(dataDir=LRW_DATA_DIR,
                     continue
 
                 print(wordFileName)
+                print_time_till_now(start_time)
 
                 # If endSetWordNumber is reached, end
                 if endSetWordNumber is not None:
@@ -202,6 +209,14 @@ def process_lrw(dataDir=LRW_DATA_DIR,
 #############################################################
 # DEPENDENT FUNCTIONS
 #############################################################
+
+
+def print_time_till_now(start_time):
+    till_now = time.time() - start_time
+    h = till_now//3600
+    m = (till_now - h*3600)//60
+    s = (till_now - h*3600 - m*60)
+    print(h, "hr", m, "min", s, "s")
 
 
 def load_detector_and_predictor(verbose=False):
