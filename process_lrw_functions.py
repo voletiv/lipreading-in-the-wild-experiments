@@ -215,8 +215,8 @@ def print_time_till_now(start_time):
     till_now = time.time() - start_time
     h = till_now//3600
     m = (till_now - h*3600)//60
-    s = (till_now - h*3600 - m*60)
-    print(h, "hr", m, "min", s, "s")
+    s = (till_now - h*3600 - m*60)//1
+    print(h, "hr", m, "min", s, "sec")
 
 
 def load_detector_and_predictor(verbose=False):

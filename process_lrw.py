@@ -3,7 +3,7 @@ from process_lrw_functions import *
 process_lrw(dataDir=LRW_DATA_DIR,
     saveDir=LRW_SAVE_DIR,
     startExtracting=False,
-    startSetWordNumber='test/ATTACKS_00001',
+    startSetWordNumber='val/CUSTOMERS_00090',
     endSetWordNumber=None,
     copyTxtFile=True,
     extractAudioFromMp4=True,
