@@ -212,7 +212,12 @@ def process_lrw(dataDir=LRW_DATA_DIR,
 
 
 def print_time_till_now(start_time):
-    till_now = time.time() - start_time
+    now = time.time()
+    h = now//3600
+    m = (now - h*3600)//60
+    s = (now - h*3600 - m*60)//1
+    print("{0:02d}:{1:02d}:{2:02d}".format(h, m, s))
+    till_now = now - start_time
     h = till_now//3600
     m = (till_now - h*3600)//60
     s = (till_now - h*3600 - m*60)//1
