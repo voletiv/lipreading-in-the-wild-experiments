@@ -96,20 +96,22 @@ lrw_test_attributes = np.hstack((lrw_test_attributes, np.reshape(lrw_word_mean_d
 # LOGISTIC REGRESSOR CRITIC
 #############################################################
 
-logReg_unopt = LogisticRegression()
+logReg_unopt = LogisticRegression(class_weight='balanced')
 logReg_unopt.fit(lrw_val_attributes, lrw_lipreader_preds_val_correct_or_wrong)
 
 # Save
-joblib.dump(logReg_unopt, 'logReg_unopt_attributes.pkl', compress=3)
+joblib.dump(logReg_unopt, 'logReg_unopt_attributes_balanced.pkl', compress=3)
 
 # Acc
 logReg_unopt.score(lrw_val_attributes, lrw_lipreader_preds_val_correct_or_wrong)
 logReg_unopt.score(lrw_test_attributes, lrw_lipreader_preds_test_correct_or_wrong)
 # >>> # Acc
 # ... logReg_unopt.score(lrw_val_attributes, lrw_lipreader_preds_val_correct_or_wrong)
-# 0.73763999999999996
+# unopt unbalanced - 0.73763999999999996
+# unopt balanced - 0.68615999999999999
 # >>> logReg_unopt.score(lrw_test_attributes, lrw_lipreader_preds_test_correct_or_wrong)
-# 0.71192
+# unopt unbalanced - 0.71192
+# unopt balanced - 0.65288000000000002
 
 # Scores
 lrw_val_logReg_unopt_score = logReg_unopt.decision_function(lrw_val_attributes)
@@ -118,31 +120,33 @@ lrw_val_logReg_unopt_prob = logReg_unopt.predict_proba(lrw_val_attributes)[:, 1]
 lrw_test_logReg_unopt_prob = logReg_unopt.predict_proba(lrw_test_attributes)[:, 1]
 
 # OP
-critic_threshold = 0.7
+critic_threshold = 0.5
 # val
-lrw_val_tn, lrw_val_fp, lrw_val_fn, lrw_val_tp = confusion_matrix(lrw_lipreader_preds_val_correct_or_wrong, lrw_val_logReg_unopt_prob >= threshold).ravel()
+lrw_val_tn, lrw_val_fp, lrw_val_fn, lrw_val_tp = confusion_matrix(lrw_lipreader_preds_val_correct_or_wrong, lrw_val_logReg_unopt_prob >= critic_threshold).ravel()
 lrw_val_fpr_op = lrw_val_fp/(lrw_val_fp + lrw_val_tn)
 lrw_val_tpr_op = lrw_val_tp/(lrw_val_tp + lrw_val_fn)
-lrw_val_acc = np.mean((lrw_val_logReg_unopt_prob[:, 1] >= threshold) == lrw_lipreader_preds_val_correct_or_wrong)
+lrw_val_acc = np.mean((lrw_val_logReg_unopt_prob >= critic_threshold) == lrw_lipreader_preds_val_correct_or_wrong)
+# unopt unbalanced - 0.68835999999999997
 # test
-lrw_test_tn, lrw_test_fp, lrw_test_fn, lrw_test_tp = confusion_matrix(lrw_lipreader_preds_test_correct_or_wrong, lrw_test_logReg_unopt_prob >= threshold).ravel()
+lrw_test_tn, lrw_test_fp, lrw_test_fn, lrw_test_tp = confusion_matrix(lrw_lipreader_preds_test_correct_or_wrong, lrw_test_logReg_unopt_prob >= critic_threshold).ravel()
 lrw_test_fpr_op = lrw_test_fp/(lrw_test_fp + lrw_test_tn)
 lrw_test_tpr_op = lrw_test_tp/(lrw_test_tp + lrw_test_fn)
-lrw_test_acc = np.mean((lrw_test_logReg_unopt_prob[:, 1] >= threshold) == lrw_lipreader_preds_test_correct_or_wrong)
+lrw_test_acc = np.mean((lrw_test_logReg_unopt_prob >= critic_threshold) == lrw_lipreader_preds_test_correct_or_wrong)
+# unopt unbalanced - 0.65624000000000005
 
 # ROC
 # val
 lrw_val_fpr, lrw_val_tpr, _ = roc_curve(lrw_lipreader_preds_val_correct_or_wrong, lrw_val_logReg_unopt_score)
 lrw_val_roc_auc = auc(lrw_val_fpr, lrw_val_tpr)
-plt.plot(lrw_val_fpr, lrw_val_tpr, label='val ROC curve (area = {0:0.2f}), threshold = {1:.02f}, val_acc = {2:.02f}'.format(lrw_val_roc_auc, threshold, lrw_val_acc), color='C0')
+plt.plot(lrw_val_fpr, lrw_val_tpr, label='val ROC curve (area = {0:0.2f}), threshold = {1:.02f}, val_acc = {2:.02f}'.format(lrw_val_roc_auc, critic_threshold, lrw_val_acc), color='C0')
 # plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[2])
 plt.plot(lrw_val_fpr_op, lrw_val_tpr_op, marker='x', markersize=10, color='C0')
 # test
 lrw_test_fpr, lrw_test_tpr, _ = roc_curve(lrw_lipreader_preds_test_correct_or_wrong, lrw_test_logReg_unopt_score)
 lrw_test_roc_auc = auc(lrw_test_fpr, lrw_test_tpr)
-plt.plot(lrw_test_fpr, lrw_test_tpr, label='test ROC curve (area = {0:0.2f}), threshold = {1:.02f}, test_acc = {1:.02f}'.format(lrw_test_roc_auc, threshold, lrw_test_acc), color='C1')
+plt.plot(lrw_test_fpr, lrw_test_tpr, label='test ROC curve (area = {0:0.2f}), threshold = {1:.02f}, test_acc = {1:.02f}'.format(lrw_test_roc_auc, critic_threshold, lrw_test_acc), color='C1')
 plt.plot(lrw_test_fpr_op, lrw_test_tpr_op, marker='x', markersize=10, color='C1')
-plt.title("logReg critic on LRW - using word_durations, dense_preds, softmax_preds")
+plt.title("logReg balanced critic on LRW \n- using word_durations, dense_preds, softmax_preds")
 plt.xlabel("FPR")
 plt.ylabel("TPR")
 plt.legend()
