@@ -106,3 +106,5 @@ ENV/
 # .mat
 newest_retrieval_LRW_500.mat
 
+# npz
+*.npz

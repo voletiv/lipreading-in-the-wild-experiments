@@ -1,6 +1,9 @@
+import csv
+import glob
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io as sio
+import tqdm
 
 from scipy import interp
 from sklearn.preprocessing import label_binarize
@@ -26,29 +29,112 @@ def load_lrw_dense_softmax_from_mat_file(mat_file=LRW_LIPREADER_OUTPUTS_MAT_FILE
 
 
 #############################################################
+# FIX ORDER
+#############################################################
+
+
+def fix_order_of_features_and_samples(a={},
+                                      vocab_file=LRW_VOCAB_FILE,
+                                      vocab=None,
+                                      lrw_correct_wordIdx_file=LRW_CORRECT_WORDIDX_FILE,
+                                      blazar_word_to_feature_number_map=None):
+    # All elements in a have to be 25000x500
+    # Vocab words order
+    if vocab_file is not None:
+        blazar_lrw_vocab = load_vocab(vocab_file=vocab_file, sort=False)
+    elif vocab is not None:
+        blazar_lrw_vocab = vocab
+    else:
+        print("Mention one of vocab_file or vocab!")
+        return
+    # sort
+    index_of_alphabetic_words_in_blazar = np.argsort(blazar_lrw_vocab)
+    # Features order
+    if lrw_correct_wordIdx_file is not None:
+        blazar_word_to_feature_number_map = load_lrw_correct_wordIdx(lrw_correct_wordIdx_file)[np.arange(0, 25000, 50)]
+    elif blazar_word_to_feature_number_map is not None:
+            pass
+    else:
+        print("Mention one of lrw_correct_wordIdx_file or blazar_word_to_feature_number_map!")
+        return
+    # All elements in a have to be 25000x500
+    for k in a:
+        n_samples_per_word = int(len(a[k])/len(blazar_lrw_vocab))
+        # Alphabetic words order
+        new_a_array = np.array(a[k])
+        for w in range(len(blazar_lrw_vocab)):
+            alphabetic_index = index_of_alphabetic_words_in_blazar[w]
+            new_a_array[w*n_samples_per_word : w*n_samples_per_word+n_samples_per_word] = a[k][alphabetic_index*n_samples_per_word : alphabetic_index*n_samples_per_word+n_samples_per_word]
+        # Alphabetic features order
+        new_array = np.array(new_a_array)
+        for f in range(len(blazar_lrw_vocab)):
+            new_array[:, f] = new_a_array[:, blazar_word_to_feature_number_map[index_of_alphabetic_words_in_blazar[f]]]
+        # Save
+        a[k] = new_array
+
+
+# # TEST
+# strange_array_1 = np.array([[13, 15, 14], [16, 18, 17], [7, 9, 8], [10, 12, 11], [1, 3, 2], [4, 6, 5]])
+# strange_array_2 = np.array([[13, 15, 14], [16, 18, 17], [7, 9, 8], [10, 12, 11], [1, 3, 2], [4, 6, 5]])
+# a = {'strange_array_1':strange_array_1, 'strange_array_2':strange_array_2}
+# strange_vocab = ['c', 'b', 'a']
+# strange_word_to_feature_number_map = [1, 2, 0]
+# fix_order_of_features_and_samples(a=a, vocab_file=None, vocab=strange_vocab, lrw_correct_wordIdx_file=None, blazar_word_to_feature_number_map=strange_word_to_feature_number_map)
+# reordered_strange_array_1 = a['strange_array_1']
+# reordered_strange_array_2 = a['strange_array_2']
+# reordered_strange_array_1
+# reordered_strange_array_2
+
+
+#############################################################
 # LOAD WORDS VOCABULARY
 #############################################################
 
 
-def load_vocab(vocab_file=LRW_VOCAB_FILE):
+def load_vocab(vocab_file=LRW_VOCAB_FILE, sort=True):
     vocab = []
     with open(vocab_file) as f:
         for line in f:
             vocab.append(line.rstrip())
-    return vocab
-
+    if sort == True:
+        return sorted(vocab)
+    else:
+        return vocab
 
 #############################################################
-# LOAD WORDS VOCABULARY
+# LOAD LRW_CORRECT_WORDIDX
 #############################################################
 
-LRW_VOCAB = load_vocab(LRW_VOCAB_FILE)
+
+def make_lrw_correct_wordIdx(lrw_lipreader_preds_val_softmax):
+    lrw_lipreader_preds_val_wordIdx = np.argmax(lrw_lipreader_preds_val_softmax, axis=1)
+    lrw_correct_wordIdx_50 = []
+    for i in range(0, 25000, 50):
+        lrw_correct_wordIdx_50.append(np.argmax(np.bincount(lrw_lipreader_preds_val_wordIdx[i:i+50])))
+    # 50 instances per word, 500 words
+    LRW_CORRECT_WORDIDX = np.repeat(lrw_correct_wordIdx_50, (50))
+    with open("LRW_CORRECT_WORDIDX.txt", 'w') as f:
+        for i in LRW_CORRECT_WORDIDX:
+            a = f.write(str(i) + '\n')
+
+
+def load_lrw_correct_wordIdx(lrw_correct_wordIdx_file=LRW_CORRECT_WORDIDX_FILE):
+    lrw_correct_wordIdx = []
+    with open(lrw_correct_wordIdx_file, 'r') as f:
+        for line in f:
+            lrw_correct_wordIdx.append(int(line))
+    return np.array(lrw_correct_wordIdx)
 
 #############################################################
 # PRECISION @ K
 #############################################################
 
-def find_precision_at_k_and_average_precision(lrw_lipreader_preds_softmax, lrw_correct_wordIdx):
+
+def find_precision_at_k_and_average_precision(lrw_lipreader_preds_softmax, lrw_correct_wordIdx, critic_removes=None):
+    n_classes = lrw_correct_wordIdx.max() - lrw_correct_wordIdx.min() + 1
+    if critic_removes is not None:
+        lrw_lipreader_preds_softmax = lrw_lipreader_preds_softmax[np.logical_not(critic_removes), :]
+        lrw_correct_wordIdx = lrw_correct_wordIdx[np.logical_not(critic_removes)]
     # Find precision at k for each class
     ranking_sortArgs = np.zeros((lrw_lipreader_preds_softmax.shape), dtype=int)
     ranked_correct_wordIdx = np.zeros((lrw_lipreader_preds_softmax.shape))
@@ -71,13 +157,14 @@ def find_precision_at_k_and_average_precision(lrw_lipreader_preds_softmax, lrw_c
     # # Precision@50
     # precision_at_50_averaged_over_words = np.mean(precision_at_k_per_word[50])
     # Average Precision
-    average_precision_per_word = precision_at_k_per_word[-1]
-    average_precision = np.mean(average_precision_per_word)
+    # average_precision_per_word = precision_at_k_per_word[-1]
+    # average_precision = np.mean(average_precision_per_word)
     # 0.77693021007376883
-    return average_precision, precision_at_k_per_word
+    return precision_at_k_per_word
 
 
-def plot_lrw_precision_at_k_image(precision_at_k_per_word, title_append="", cmap='jet'):
+def plot_lrw_property_image(lrw_property, title="?????????????", cmap='jet', clim=None):
+    # lrw_property must be of shape (500,)
     # Fig
     fig, ax = plt.subplots(figsize=(28, 10))
     # Grid
@@ -85,7 +172,7 @@ def plot_lrw_precision_at_k_image(precision_at_k_per_word, title_append="", cmap
     y_lim = 25
     x, y = np.meshgrid(np.arange(x_lim), np.arange(y_lim))
     # Image
-    image = plt.imshow(np.reshape(precision_at_k_per_word[-1][:x_lim*y_lim], (y_lim, x_lim)), cmap=cmap, clim=[0, 1], aspect='auto')
+    image = plt.imshow(np.reshape(lrw_property[:x_lim*y_lim], (y_lim, x_lim)), cmap=cmap, clim=clim, aspect='auto')
     plt.colorbar(image)
     # Words in image
     for i, (x_val, y_val) in enumerate(zip(x.flatten(), y.flatten())):
@@ -95,7 +182,7 @@ def plot_lrw_precision_at_k_image(precision_at_k_per_word, title_append="", cmap
         # else:
         #     c = 'k'
         # ax.text(x_val, y_val, LRW_VOCAB[i], va='center', ha='center', fontsize=7, color=c)
-        ax.text(x_val, y_val, lrw_vocab[i], va='center', ha='center', fontsize=7)
+        ax.text(x_val, y_val, LRW_VOCAB[i], va='center', ha='center', fontsize=7)
     # ax.set_xlim(0, x_lim)
     # ax.set_ylim(0, y_lim)
     # ax.set_xticks(np.arange(x_lim))
@@ -103,7 +190,7 @@ def plot_lrw_precision_at_k_image(precision_at_k_per_word, title_append="", cmap
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     # ax.grid()
-    plt.title("Average Precision (@K) - LRW " + title_append)
+    plt.title(title)
     plt.show()
     plt.close()
 
@@ -272,3 +359,53 @@ def compute_grid_multiclass_PR_plot_curve(correct_word_idx, preds, preds_word_id
         plt.close()
     # Return
     return recall_OP, precision_OP, precision, recall, average_precision
+
+
+#############################################################
+# WORD DURATIONS (ATTRIBUTE)
+#############################################################
+
+
+def load_blazar_lrw_word_durations():
+    alphabetic_word_durations = load_lrw_all_words_durations()
+    blazar_to_alphabetic_args = np.argsort(LRW_VOCAB) # Just for illustration
+    alphabetic_to_blazar_args = np.argsort(np.argsort(LRW_VOCAB))
+    blazar_LRW_word_durations = np.array(alphabetic_word_durations)[alphabetic_to_blazar_args]
+    blazar_LRW_word_mean_durations = [np.mean(word_durations) for word_durations in blazar_LRW_word_durations]
+    return blazar_LRW_word_mean_durations, blazar_LRW_word_durations
+
+
+def load_lrw_words_mean_durations():
+    all_word_durations = load_lrw_all_words_durations()
+    return np.array([np.mean(word_durations) for word_durations in all_word_durations])
+
+
+def load_lrw_all_words_durations():
+    with open(LRW_ALPHABETIC_WORD_DURATIONS_FILE, 'r') as f:  #opens PW file
+        reader = csv.reader(f)
+        data = list(list([float(i) for i in rec]) for rec in csv.reader(f, delimiter=',')) #reads csv into a list of lists
+        return data
+
+def save_all_word_durations():
+    lrw_word_durations = []
+    extract_word_durations_per_word(lrw_word_durations)
+    with open("lrw_word_durations.csv", "w") as f:
+        wr = csv.writer(f)
+        wr.writerows(lrw_word_durations)
+
+
+def extract_word_durations_per_word(lrw_word_durations, dataDir=LRW_DATA_DIR):
+    for w, wordDir in enumerate(tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/'))))):
+        lrw_word_durations.append([])
+        for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
+            for wordFileName in tqdm.tqdm(sorted(glob.glob(os.path.join(setDir, '*.txt')))):
+                lrw_word_durations[w].append(extract_word_duration(wordFileName))
+
+
+def extract_word_duration(wordFileName):
+    with open(wordFileName) as f:
+        for line in f:
+            pass
+    # Find the duration of the word_metadata`
+    return float(line.rstrip().split()[-2])
+

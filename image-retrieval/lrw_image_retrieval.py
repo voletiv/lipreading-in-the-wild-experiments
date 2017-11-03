@@ -8,6 +8,17 @@ from sklearn.preprocessing import label_binarize
 from lrw_image_retrieval_functions import *
 
 #############################################################
+# Basics
+#############################################################
+
+LRW_VOCAB = load_vocab(LRW_VOCAB_FILE, sort=True)
+LRW_CORRECT_WORDIDX = np.repeat(np.arange(500), 50)
+
+# When ordered according to magnetar_LRW_all_words.txt, i.e. not alphabetically:
+# LRW_VOCAB = load_vocab(LRW_VOCAB_FILE, sort=False)
+# LRW_CORRECT_WORDIDX = load_lrw_correct_wordIdx()
+
+#############################################################
 # LOAD DENSE, SOFTMAX OUTPUTS
 #############################################################
 
@@ -15,17 +26,21 @@ lrw_lipreader_preds_val_dense, lrw_lipreader_preds_val_softmax, \
         lrw_lipreader_preds_test_dense, lrw_lipreader_preds_test_softmax = \
     load_lrw_dense_softmax_from_mat_file(LRW_LIPREADER_OUTPUTS_MAT_FILE)
 
-# #############################################################
-# # SORT VOCABULARY AND OUTPUTS
-# #############################################################
+#############################################################
+# FIX ORDER
+#############################################################
 
-# sorting_idx = np.argsort(LRW_VOCAB)
+a = {'lrw_lipreader_preds_val_dense':lrw_lipreader_preds_val_dense,
+     'lrw_lipreader_preds_val_softmax':lrw_lipreader_preds_val_softmax,
+     'lrw_lipreader_preds_test_dense':lrw_lipreader_preds_test_dense,
+     'lrw_lipreader_preds_test_softmax':lrw_lipreader_preds_test_softmax}
 
-# LRW_VOCAB = np.array(LRW_VOCAB)[sorting_idx]
-# lrw_val_dense = lrw_val_dense[:, sorting_idx]
-# lrw_val_softmax = lrw_val_softmax[:, sorting_idx]
-# lrw_test_dense = lrw_test_dense[:, sorting_idx]
-# lrw_test_softmax = lrw_test_softmax[:, sorting_idx]
+fix_order_of_features_and_samples(a)
+
+lrw_lipreader_preds_val_dense = a['lrw_lipreader_preds_val_dense']
+lrw_lipreader_preds_val_softmax = a['lrw_lipreader_preds_val_softmax']
+lrw_lipreader_preds_test_dense = a['lrw_lipreader_preds_test_dense']
+lrw_lipreader_preds_test_softmax = a['lrw_lipreader_preds_test_softmax']
 
 #############################################################
 # LRW_LIPREADER_PREDS_WORDIDX
@@ -35,27 +50,11 @@ lrw_lipreader_preds_val_wordIdx = np.argmax(lrw_lipreader_preds_val_softmax, axi
 lrw_lipreader_preds_test_wordIdx = np.argmax(lrw_lipreader_preds_test_softmax, axis=1)
 
 #############################################################
-# LRW CORRECT WORDIDX
-#############################################################
-
-lrw_correct_wordIdx_50 = []
-lrw_val_preds_word_idx = []
-lrw_test_preds_word_idx = []
-
-for i in range(0, 25000, 50):
-    lrw_correct_wordIdx_50.append(np.argmax(np.bincount(lrw_lipreader_preds_val_wordIdx[i:i+50])))
-
-# 50 instances per word, 500 words
-lrw_correct_wordIdx = np.repeat(lrw_correct_wordIdx_50, (50))
-
-#############################################################
 # ACCURACIES
 #############################################################
 
-# lrw_correct_wordIdx = np.repeat(np.arange(500), 50)
-
-np.sum(lrw_lipreader_preds_val_wordIdx == lrw_correct_wordIdx)/len(lrw_correct_wordIdx)
-np.sum(lrw_lipreader_preds_test_wordIdx == lrw_correct_wordIdx)/len(lrw_correct_wordIdx)
+np.sum(lrw_lipreader_preds_val_wordIdx == LRW_CORRECT_WORDIDX)/len(LRW_CORRECT_WORDIDX)
+np.sum(lrw_lipreader_preds_test_wordIdx == LRW_CORRECT_WORDIDX)/len(LRW_CORRECT_WORDIDX)
 
 # for i in range(0, 25000, 50):
 #     print(np.sum(lrw_lipreader_preds_val_wordIdx[i:i+50]==np.argmax(np.bincount(lrw_lipreader_preds_val_wordIdx[i:i+50])))/50,
@@ -68,31 +67,41 @@ np.sum(lrw_lipreader_preds_test_wordIdx == lrw_correct_wordIdx)/len(lrw_correct_
 n_classes = LRW_VOCAB_SIZE
 samples_per_class = LRW_TEST_SAMPLES_PER_CLASS
 
-val_average_precision, val_precision_at_k_per_word = find_precision_at_k_and_average_precision(lrw_lipreader_preds_val_softmax, lrw_correct_wordIdx)
+lrw_val_precision_at_k_per_word = find_precision_at_k_and_average_precision(lrw_lipreader_preds_val_softmax, LRW_CORRECT_WORDIDX)
 
-test_average_precision, test_precision_at_k_per_word = find_precision_at_k_and_average_precision(lrw_lipreader_preds_test_softmax, lrw_correct_wordIdx)
+lrw_test_precision_at_k_per_word = find_precision_at_k_and_average_precision(lrw_lipreader_preds_test_softmax, LRW_CORRECT_WORDIDX)
 
-# BAR GRAPH OF AVERAGE PRECISION PER WORD
-plt.barh(np.arange(n_classes), val_precision_at_k_per_word[-1])
-plt.yticks(np.arange(n_classes), LRW_VOCAB, fontsize=8)
-plt.show()
+np.savez("lrw_precision_at_k",
+    # lrw_val_average_precision_per_word=lrw_val_average_precision_per_word,
+    lrw_val_precision_at_k_per_word=lrw_val_precision_at_k_per_word,
+    # lrw_test_average_precision_per_word=lrw_test_average_precision_per_word,
+    lrw_test_precision_at_k_per_word=lrw_test_precision_at_k_per_word)
 
-plot_lrw_precision_at_k_image(val_precision_at_k_per_word, title_append="val", cmap='gray')
 
-plot_lrw_precision_at_k_image(test_precision_at_k_per_word, title_append="test", cmap='jet')
+# # BAR GRAPH OF AVERAGE PRECISION PER WORD
+# plt.barh(np.arange(n_classes), val_precision_at_k_per_word[-1])
+# plt.yticks(np.arange(n_classes), LRW_VOCAB, fontsize=8)
+# plt.show()
+
+plot_lrw_property_image(lrw_val_precision_at_k_per_word[-1], title="Average Precision (@K) - LRW val", cmap='gray', clim=[0, 1])
+
+plot_lrw_property_image(lrw_test_precision_at_k_per_word[-1], title="Average Precision (@K) - LRW test", cmap='jet', clim=[0, 1])
+
+
+
 
 
 #############################################################
 # CONFUSION MATRIX
 #############################################################
 
-# train_critic_tn, train_critic_fp, train_critic_fn, train_critic_tp = confusion_matrix(lrw_correct_wordIdx, train_critic_preds > .5).ravel()
+# train_critic_tn, train_critic_fp, train_critic_fn, train_critic_tp = confusion_matrix(LRW_CORRECT_WORDIDX, train_critic_preds > .5).ravel()
 # train_critic_OP_fpr = train_critic_fp/(train_critic_fp + train_critic_tn)
 # train_critic_OP_tpr = train_critic_tp/(train_critic_tp + train_critic_fn)
 
 val_fpr, val_tpr, val_roc_auc, val_OP_fpr, val_OP_tpr, \
         test_fpr, test_tpr, test_roc_auc, test_OP_fpr, test_OP_tpr = \
-    compute_ROC_lrw_multiclass(lrw_correct_wordIdx,
+    compute_ROC_lrw_multiclass(LRW_CORRECT_WORDIDX,
         lrw_lipreader_preds_val_softmax,
         lrw_lipreader_preds_test_softmax,
         savePlot=False, showPlot=True,
@@ -103,7 +112,7 @@ val_fpr, val_tpr, val_roc_auc, val_OP_fpr, val_OP_tpr, \
 #############################################################
 
 n_classes = 500
-Y_test = label_binarize(lrw_correct_wordIdx, classes=range(n_classes))
+Y_test = label_binarize(LRW_CORRECT_WORDIDX, classes=range(n_classes))
 y_score = lrw_lipreader_preds_val_softmax
 
 # For each class
@@ -141,11 +150,11 @@ plt.title(
 
 
 recall_OP, precision_OP, precision, recall, average_precision \
-    = compute_grid_multiclass_PR_plot_curve(lrw_correct_wordIdx, lrw_lipreader_preds_val_softmax, lrw_val_preds_word_idx, plotCurve=False)
+    = compute_grid_multiclass_PR_plot_curve(LRW_CORRECT_WORDIDX, lrw_lipreader_preds_val_softmax, lrw_val_preds_word_idx, plotCurve=False)
 
 
 recall_OP, precision_OP, precision, recall, average_precision \
-    = compute_grid_multiclass_PR_plot_curve(lrw_correct_wordIdx, lrw_lipreader_preds_test_softmax, lrw_test_preds_word_idx, plotCurve=False)
+    = compute_grid_multiclass_PR_plot_curve(LRW_CORRECT_WORDIDX, lrw_lipreader_preds_test_softmax, lrw_test_preds_word_idx, plotCurve=False)
 
 
 
