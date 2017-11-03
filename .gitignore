@@ -102,3 +102,7 @@ ENV/
 
 # .dat - to ignore shape_predictor file
 *.dat
+
+# .mat
+newest_retrieval_LRW_500.mat
+

@@ -8,6 +8,8 @@ warnings.filterwarnings("ignore",category=UserWarning)
 # PARAMS
 #############################################################
 
+LRW_DIR = os.path.dirname(os.path.realpath(__file__))
+
 if 'voletiv' in os.getcwd():
     # voletiv
     LRW_DATA_DIR = '/media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/'
