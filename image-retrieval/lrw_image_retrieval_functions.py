@@ -35,9 +35,10 @@ def load_lrw_dense_softmax_from_mat_file(mat_file=LRW_LIPREADER_OUTPUTS_MAT_FILE
 
 def fix_order_of_features_and_samples(a={},
                                       vocab_file=LRW_VOCAB_FILE,
-                                      vocab=None,
+                                      vocab=None,   # For testing
                                       lrw_correct_wordIdx_file=LRW_CORRECT_WORDIDX_FILE,
-                                      blazar_word_to_feature_number_map=None):
+                                      blazar_word_to_feature_number_map=None    # For testing
+                                      ):
     # All elements in a have to be 25000x500
     # Vocab words order
     if vocab_file is not None:
