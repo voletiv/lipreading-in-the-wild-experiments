@@ -1,14 +1,20 @@
 import os
+import sys
 import warnings
 
-# # To ignore the deprecation warning from scikit-image
+# To ignore the deprecation warning from scikit-image
 warnings.filterwarnings("ignore",category=UserWarning)
 
 #############################################################
 # PARAMS
 #############################################################
 
-LRW_DIR = os.path.dirname(os.path.realpath(__file__))
+PROCESS_LRW_DIR = os.path.dirname(os.path.realpath(__file__))
+
+if PROCESS_LRW_DIR not in sys.path:
+    sys.path.append(PROCESS_LRW_DIR)
+
+LRW_DIR = os.path.normpath(os.path.join(PROCESS_LRW_DIR, ".."))
 
 if 'voletiv' in os.getcwd():
     # voletiv
@@ -57,7 +63,7 @@ def load_lrw_vocab_list(GRID_VOCAB_LIST_FILE):
             lrw_vocab.append(word)
     return lrw_vocab
 
-LRW_VOCAB_LIST_FILE = 'lrw_vocabulary.txt'
+LRW_VOCAB_LIST_FILE = os.path.join(LRW_DIR, 'lrw_vocabulary.txt')
 
 LRW_VOCAB = load_lrw_vocab_list(LRW_VOCAB_LIST_FILE)
 

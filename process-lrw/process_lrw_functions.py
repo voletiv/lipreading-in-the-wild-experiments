@@ -183,10 +183,8 @@ def process_lrw(dataDir=LRW_DATA_DIR,
 
             # Read all .txt file names (since .txt are saved in both
             # LRW_DATA_DIR and LRW_SAVE_DIR)
-            wordFileNames = sorted(glob.glob(os.path.join(setDir, '*.txt')))
-
             # For each video
-            for wordFileName in tqdm.tqdm(wordFileNames):
+            for wordFileName in tqdm.tqdm(sorted(glob.glob(os.path.join(setDir, '*.txt')))):
 
                 # Check if the directory to start at has been reached
                 if startSetWordNumber in wordFileName:
