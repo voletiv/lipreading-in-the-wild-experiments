@@ -3,8 +3,8 @@ import sys
 
 HEAD_POSE_DIR = os.path.dirname(os.path.realpath(__file__))
 
-if LRW_DIR not in sys.path:
-    sys.path.append(LRW_DIR)
+# if LRW_DIR not in sys.path:
+#     sys.path.append(LRW_DIR)
 
 if 'voletiv' in os.getcwd():
     # voletiv
