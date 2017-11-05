@@ -29,4 +29,4 @@ elif 'voleti.vikram' in os.getcwd():
     LRW_DATA_DIR = '/shared/fusor/home/voleti.vikram/LRW-mouths'
     LRW_SAVE_DIR = '/shared/fusor/home/voleti.vikram/LRW-mouths'
     GAZR_BUILD_DIR = '/shared/fusor/home/voleti.vikram/gazr/build'
-    SHAPE_DAT_FILE = "/shared/fusor/home/voleti.vikram/lipreading-in-the-wild-experiments/shape-predictor/shape_predictor_68_face_landmarks.dat"
+    SHAPE_DAT_FILE = "/shared/fusor/home/voleti.vikram/shape_predictor_68_face_landmarks.dat"
