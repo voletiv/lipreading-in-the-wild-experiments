@@ -1,9 +1,6 @@
-from head_pose_functions import *
-
 import sys
 
-# Set dataDir
-dataDir = LRW_DATA_DIR
+from head_pose_functions import *
 
 ################################################
 # Init
@@ -14,6 +11,7 @@ startWord = None
 startSetWordNumber = None
 endWord = None
 endSetWordNumber = None
+dataDir = LRW_DATA_DIR
 
 for i, v in enumerate(sys.argv):
 
@@ -22,24 +20,36 @@ for i, v in enumerate(sys.argv):
             startWord = sys.argv[i+1]
         except IndexError:
             print("[ERROR] Please specify where to start from!")
+            sys.exit()
 
     elif "--startSetWordNumber" in v or "-sSWN" in v:
         try:
             startSetWordNumber = sys.argv[i+1]
         except IndexError:
             print("[ERROR] Please specify where to start from!")
+            sys.exit()
 
     elif "--endWord" in v or "-eW" in v:
         try:
             endWord = sys.argv[i+1]
         except IndexError:
             print("[ERROR] Please specify where to end at!")
+            sys.exit()
 
     elif "--endSetWordNumber" in v or "-eSWN" in v:
         try:
             endSetWordNumber = sys.argv[i+1]
         except IndexError:
             print("[ERROR] Please specify where to end at!")
+            sys.exit()
+
+    elif "--dataDir" in v or '-d' in v:
+        try:
+            dataDir = sys.argv[i+1]
+        except IndexError:
+            print("[ERROR] Please specify dataDir properly!")
+            sys.exit()
+
 
 
 ################################################
