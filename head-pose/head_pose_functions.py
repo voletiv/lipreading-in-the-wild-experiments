@@ -29,7 +29,8 @@ def write_frame_jpg_file_names_in_txt_file(dataDir, startWord=None, startSetWord
             # End at that Word specified
             if endWord is not None:
                 if endWord in wordDir:
-                    raise KeyboardInterrupt
+                    f.close()
+                    return
             f, file_name = close_and_open_new_f(f, wordDir)
             # set: {test, train, val}
             for setDir in sorted(glob.glob(os.path.join(wordDir, '*/'))):
@@ -48,7 +49,8 @@ def write_frame_jpg_file_names_in_txt_file(dataDir, startWord=None, startSetWord
                         # End at that SetWordNumber specified
                         if endSetWordNumber is not None:
                             if endSetWordNumber in jpgName:
-                                raise KeyboardInterrupt
+                                f.close()
+                                return
                         # Consider only frame images, not mouth images
                         if "mouth.jpg" not in jpgName:
                             # Skip those frames that are not in the word
