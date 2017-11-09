@@ -1,4 +1,7 @@
+from __future__ import print_function
+
 import glob
+import math
 import os
 import tqdm
 
@@ -6,9 +9,9 @@ from head_pose_params import *
 
 
 # To write_frame_jpg_file_names_in_txt_file
-def write_frame_jpg_file_names_in_txt_file(dataDir, startSetWordNumber=None, endSetWordNumber=None):
+def write_frame_jpg_file_names_in_txt_file(dataDir, startWord=None, startSetWordNumber=None, endWord=None, endSetWordNumber=None):
     # Start, end
-    if startSetWordNumber is None:
+    if startSetWordNumber is None and startWord is None:
         startExtracting = True
     else:
         startExtracting = False
@@ -17,12 +20,20 @@ def write_frame_jpg_file_names_in_txt_file(dataDir, startSetWordNumber=None, end
     # word
     for wordDir in sorted(glob.glob(os.path.join(dataDir, '*/'))):
             # print(wordDir, end='\r')
+            # Start from that Word specified
+            if startWord is not None:
+                if startWord in wordDir:
+                    startExtracting = True
+                if not startExtracting:
+                    continue
+            # End at that Word specified
+            if endWord is not None:
+                if endWord in jpgName:
+                    raise KeyboardInterrupt
             f, file_name = close_and_open_new_f(f, wordDir)
-            # set
+            # set: {test, train, val}
             for setDir in sorted(glob.glob(os.path.join(wordDir, '*/'))):
                 # print(setDir, end='\r')
-                # jpg
-                # wordFrameNumbers = extract_word_frame_numbers(wordFileName, verbose=verbose)
                 for wordFileName in sorted(glob.glob(os.path.join(setDir, '*.txt'))):
                     # Extract word frame numbers
                     wordFrameNumbers = extract_word_frame_numbers(wordFileName)
@@ -71,8 +82,28 @@ def close_and_open_new_f(f, wordDir):
     return f, new_file_name
 
 
+def extract_word_frame_numbers(wordFileName, verbose=False):
+    # Find the duration of the word_metadata
+    wordDuration = extract_word_duration(wordFileName)
+    # Find frame numbers
+    wordFrameNumbers = range(math.floor(VIDEO_FRAMES_PER_WORD/2 - wordDuration*VIDEO_FPS/2),
+        math.ceil(VIDEO_FRAMES_PER_WORD/2 + wordDuration*VIDEO_FPS/2) + 1)
+    if verbose:
+        print("Word frame numbers = ", wordFrameNumbers, "; Word duration = ", wordDuration)
+    return wordFrameNumbers
+
+
+def extract_word_duration(wordFileName):
+    # Read last line of word metadata
+    with open(wordFileName) as f:
+        for line in f:
+            pass
+    # Find the duration of the word_metadata`
+    return float(line.rstrip().split()[-2])
+
+
 # To run_dlib_head_pose_estimator
-def run_dlib_head_pose_estimator(dataDir):
+def run_gazr_dlib_head_pose_estimator(dataDir):
     # Call shell command using subprocess
     # subprocess.Popen(["/home/voletiv/GitHubRepos/gazr/build/gazr_benchmark_head_pose_multiple_frames", "/home/voletiv/GitHubRepos/lipreading-in-the-wild-experiments/shape-predictor/shape_predictor_68_face_landmarks.dat", "head_pose.txt", ">", "a.txt"])
     # "> a.txt" doesn't work
