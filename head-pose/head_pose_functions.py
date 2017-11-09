@@ -28,7 +28,7 @@ def write_frame_jpg_file_names_in_txt_file(dataDir, startWord=None, startSetWord
                     continue
             # End at that Word specified
             if endWord is not None:
-                if endWord in jpgName:
+                if endWord in wordDir:
                     raise KeyboardInterrupt
             f, file_name = close_and_open_new_f(f, wordDir)
             # set: {test, train, val}
