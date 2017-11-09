@@ -18,47 +18,53 @@ def write_frame_jpg_file_names_in_txt_file(dataDir, startWord=None, startSetWord
     # MAKE .txt FILES OF ALL JPG FILES IN WORD
     f = open("head_pose_dummy.txt", 'w')
     # word
-    for wordDir in sorted(glob.glob(os.path.join(dataDir, '*/'))):
-            # print(wordDir, end='\r')
-            # Start from that Word specified
-            if startWord is not None:
-                if startWord in wordDir:
-                    startExtracting = True
-                if not startExtracting:
-                    continue
-            # End at that Word specified
-            if endWord is not None:
-                if endWord in wordDir:
-                    f.close()
-                    return
-            f, file_name = close_and_open_new_f(f, wordDir)
-            # set: {test, train, val}
-            for setDir in sorted(glob.glob(os.path.join(wordDir, '*/'))):
-                # print(setDir, end='\r')
-                for wordFileName in sorted(glob.glob(os.path.join(setDir, '*.txt'))):
-                    # Extract word frame numbers
-                    wordFrameNumbers = extract_word_frame_numbers(wordFileName)
-                    # For all images
-                    for jpgName in sorted(glob.glob('.'.join(wordFileName.split('.')[:-1]) + '*.jpg')):
-                        # Start from that SetWordNumber specified
-                        if startSetWordNumber is not None:
-                            if startSetWordNumber in jpgName:
-                                startExtracting = True
-                        if not startExtracting:
-                            continue
-                        # End at that SetWordNumber specified
-                        if endSetWordNumber is not None:
-                            if endSetWordNumber in jpgName:
-                                f.close()
-                                return
-                        # Consider only frame images, not mouth images
-                        if "mouth.jpg" not in jpgName:
-                            # Skip those frames that are not in the word
-                            frameNumber = int(jpgName.split('/')[-1].split('.')[0].split('_')[-1])
-                            if frameNumber not in wordFrameNumbers:
+    try:
+        for wordDir in sorted(glob.glob(os.path.join(dataDir, '*/'))):
+                # print(wordDir, end='\r')
+                # Start from that Word specified
+                if startWord is not None:
+                    if startWord in wordDir:
+                        startExtracting = True
+                    if not startExtracting:
+                        continue
+                # End at that Word specified
+                if endWord is not None:
+                    if endWord in wordDir:
+                        f.close()
+                        return
+                f, file_name = close_and_open_new_f(f, wordDir)
+                # set: {test, train, val}
+                for setDir in sorted(glob.glob(os.path.join(wordDir, '*/'))):
+                    # print(setDir, end='\r')
+                    for wordFileName in sorted(glob.glob(os.path.join(setDir, '*.txt'))):
+                        # Extract word frame numbers
+                        wordFrameNumbers = extract_word_frame_numbers(wordFileName)
+                        # For all images
+                        for jpgName in sorted(glob.glob('.'.join(wordFileName.split('.')[:-1]) + '*.jpg')):
+                            # Start from that SetWordNumber specified
+                            if startSetWordNumber is not None:
+                                if startSetWordNumber in jpgName:
+                                    startExtracting = True
+                            if not startExtracting:
                                 continue
-                            a = f.write(jpgName + "\n")
-                            print(jpgName, end="\r")
+                            # End at that SetWordNumber specified
+                            if endSetWordNumber is not None:
+                                if endSetWordNumber in jpgName:
+                                    f.close()
+                                    return
+                            # Consider only frame images, not mouth images
+                            if "mouth.jpg" not in jpgName:
+                                # Skip those frames that are not in the word
+                                frameNumber = int(jpgName.split('/')[-1].split('.')[0].split('_')[-1])
+                                if frameNumber not in wordFrameNumbers:
+                                    continue
+                                a = f.write(jpgName + "\n")
+                                print(jpgName, end="\r")
+    except KeyboardInterrupt:
+        print("\nCtrl+C was pressed\n")
+        f.close()
+        return
+
     f.close()
 
 
