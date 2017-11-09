@@ -16,6 +16,9 @@ if PROCESS_LRW_DIR not in sys.path:
 
 LRW_DIR = os.path.normpath(os.path.join(PROCESS_LRW_DIR, ".."))
 
+if LRW_DIR not in sys.path:
+    sys.path.append(LRW_DIR)
+
 if 'voletiv' in os.getcwd():
     # voletiv
     LRW_DATA_DIR = '/media/voletiv/01D2BF774AC76280/Datasets/LRW/lipread_mp4/'
@@ -30,7 +33,7 @@ elif 'voleti.vikram' in os.getcwd():
 # CONSTANTS
 #############################################################
 
-SHAPE_PREDICTOR_PATH = 'shape-predictor/shape_predictor_68_face_landmarks.dat'
+SHAPE_PREDICTOR_PATH = os.path.realpath(os.path.join(PROCESS_LRW_DIR, '../shape-predictor/shape_predictor_68_face_landmarks.dat'))
 
 FACIAL_LANDMARKS_IDXS = dict([
     ("mouth", (48, 68)),
