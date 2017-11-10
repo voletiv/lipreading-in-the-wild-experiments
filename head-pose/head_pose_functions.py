@@ -9,7 +9,7 @@ from head_pose_params import *
 
 
 # To write_frame_jpg_file_names_in_txt_file
-def write_frame_jpg_file_names_in_txt_file(dataDir, startWord=None, startSetWordNumber=None, endWord=None, endSetWordNumber=None):
+def write_frame_jpg_file_names_in_txt_file(dataDir, startWord=None, startSetWordNumber=None, endWord=None, endSetWordNumber=None, append_to_file=True):
     # Start, end
     if startSetWordNumber is None and startWord is None:
         startExtracting = True
@@ -20,38 +20,42 @@ def write_frame_jpg_file_names_in_txt_file(dataDir, startWord=None, startSetWord
     # word
     try:
         for wordDir in sorted(glob.glob(os.path.join(dataDir, '*/'))):
-                # print(wordDir, end='\r')
+                # print(wordDir)
                 # Start from that Word specified
-                if startWord is not None:
-                    if startWord in wordDir:
-                        startExtracting = True
-                    if not startExtracting:
+                if startWord is not None and not startExtracting:
+                    if startWord not in wordDir:
                         continue
+                # If startSetWordNumber is None, start extracting
+                if startWord is not None and startSetWordNumber is None:
+                    startExtracting = True
                 # End at that Word specified
                 if endWord is not None:
                     if endWord in wordDir:
+                        print("\nEnding at", wordDir, "!")
                         f.close()
                         return
-                f, file_name = close_and_open_new_f(f, wordDir)
+                f, file_name = close_and_open_new_f(f, wordDir, append_to_file)
                 # set: {test, train, val}
                 for setDir in sorted(glob.glob(os.path.join(wordDir, '*/'))):
-                    # print(setDir, end='\r')
+                    # print(setDir)
                     for wordFileName in sorted(glob.glob(os.path.join(setDir, '*.txt'))):
+                        # print(wordFileName)
+                        # Start from that SetWordNumber specified
+                        if startSetWordNumber is not None:
+                            if startSetWordNumber in wordFileName:
+                                startExtracting = True
+                        if not startExtracting:
+                            continue
+                        # End at that SetWordNumber specified
+                        if endSetWordNumber is not None:
+                            if endSetWordNumber in wordFileName:
+                                print("\nEnding at", wordFileName, "!")
+                                f.close()
+                                return
                         # Extract word frame numbers
                         wordFrameNumbers = extract_word_frame_numbers(wordFileName)
                         # For all images
                         for jpgName in sorted(glob.glob('.'.join(wordFileName.split('.')[:-1]) + '*.jpg')):
-                            # Start from that SetWordNumber specified
-                            if startSetWordNumber is not None:
-                                if startSetWordNumber in jpgName:
-                                    startExtracting = True
-                            if not startExtracting:
-                                continue
-                            # End at that SetWordNumber specified
-                            if endSetWordNumber is not None:
-                                if endSetWordNumber in jpgName:
-                                    f.close()
-                                    return
                             # Consider only frame images, not mouth images
                             if "mouth.jpg" not in jpgName:
                                 # Skip those frames that are not in the word
@@ -83,10 +87,14 @@ for wordDir in sorted(glob.glob(os.path.join(LRW_DATA_DIR, '*/'))):
 
 
 # To make a new head_pose_jpg_file_names_<WORD>.txt file for each word
-def close_and_open_new_f(f, wordDir):
+def close_and_open_new_f(f, wordDir, append_to_file):
     f.close()
     new_file_name = os.path.join(LRW_SAVE_DIR, "head_pose_jpg_file_names_{0}.txt".format(wordDir.split('/')[-2]))
-    f = open(new_file_name, 'w')
+    if append_to_file and os.path.exists(new_file_name):
+        append_or_write = 'a' # append if already exists
+    else:
+        append_or_write = 'w' # make a new file if not
+    f = open(new_file_name, append_or_write)
     return f, new_file_name
 
 
