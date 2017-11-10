@@ -1,9 +1,16 @@
+import sys
+
 from process_lrw_functions import *
+
+startSetWordNumber = 'train/WHOLE_00313'
+
+if len(sys.argv) > 1:
+    startSetWordNumber = sys.argv[1]
 
 process_lrw(dataDir=LRW_DATA_DIR,
     saveDir=LRW_SAVE_DIR,
     startExtracting=False,
-    startSetWordNumber='train/WHOLE_00313',
+    startSetWordNumber=startSetWordNumber,
     endSetWordNumber=None,
     copyTxtFile=True,
     extractAudioFromMp4=True,
