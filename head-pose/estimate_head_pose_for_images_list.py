@@ -1,6 +1,8 @@
+import glob
+import os
 import sys
 
-from head_pose_functions import *
+from head_pose_params import *
 
 sys.path.append(DEEPGAZE_EXAMPLES_DIR)
 
@@ -42,6 +44,7 @@ for file in sorted(glob.glob(os.path.join(LRW_SAVE_DIR, 'head_pose_jpg_file_name
     if run:
         word = file.split('/')[-1].split('.')[-2].split('_')[-1]
         print(word)
-        cnn_head_pose_estimation_images_list(file, save_npy=True, npy_file_name="head_pose_"+word)
-
+        return_val = cnn_head_pose_estimation_images_list(file, save_npy=True, npy_file_name="head_pose_"+word)
+        if return_val != 0:
+            break
 
