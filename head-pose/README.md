@@ -4,7 +4,9 @@
 python3 write_frame_jpg_file_names_in_txt_file.py -sW ABSOLUTELY -eW ABUSE
 ```
 
-# Run deepgaze to estimate head_pose
+# Estimate head pose for all images in .txt file
+
+## Run deepgaze to estimate head_pose
 
 Deep gaze uses CNN to estimate roll, pitch, yaw.
 
@@ -18,9 +20,9 @@ Deep gaze uses CNN to estimate roll, pitch, yaw.
 python3 estimate_head_pose_for_images_list.py -sW ABSOL -sE YEARS
 ```
 
-## - OR -
+### - OR -
 
-# Run gazr_benchmark_head_pose_multiple_frames
+## Run gazr_benchmark_head_pose_multiple_frames
 
 ```python
 from head_pose_functions import *
