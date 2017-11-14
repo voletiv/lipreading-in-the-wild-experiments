@@ -75,14 +75,14 @@ def write_frame_jpg_file_names_in_txt_file(dataDir, startWord=None, startSetWord
 '''
 for wordDir in sorted(glob.glob(os.path.join(LRW_DATA_DIR, '*/'))):
     for setDir in sorted(glob.glob(os.path.join(wordDir, '*/'))):
-            for wordFileName in sorted(glob.glob(os.path.join(setDir, '*.txt'))):
-                wordFrameNumbers = extract_word_frame_numbers(wordFileName, verbose=True)
-                for jpgName in sorted(glob.glob('.'.join(wordFileName.split('.')[:-1]) + '*.jpg')):
-                     if "mouth.jpg" not in jpgName:
-                            frameNumber = int(jpgName.split('/')[-1].split('.')[0].split('_')[-1])
-                            if frameNumber in wordFrameNumbers:
-                                    print(jpgName)
-                                    # print(jpgName, end="\r")
+        for wordFileName in sorted(glob.glob(os.path.join(setDir, '*.txt'))):
+            wordFrameNumbers = extract_word_frame_numbers(wordFileName, verbose=True)
+            for jpgName in sorted(glob.glob('.'.join(wordFileName.split('.')[:-1]) + '*.jpg')):
+                if "mouth.jpg" not in jpgName:
+                    frameNumber = int(jpgName.split('/')[-1].split('.')[0].split('_')[-1])
+                    if frameNumber in wordFrameNumbers:
+                        print(jpgName)
+                        # print(jpgName, end="\r")
 '''
 
 
