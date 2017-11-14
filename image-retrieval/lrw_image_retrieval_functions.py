@@ -13,6 +13,28 @@ from sklearn.metrics import roc_curve, auc
 
 from lrw_image_retrieval_params import *
 
+#############################################################
+# Basics
+#############################################################
+
+#############################################################
+# LOAD WORDS VOCABULARY
+#############################################################
+
+
+def load_vocab(vocab_file=LRW_VOCAB_FILE, sort=True):
+    vocab = []
+    with open(vocab_file) as f:
+        for line in f:
+            vocab.append(line.rstrip())
+    if sort == True:
+        return sorted(vocab)
+    else:
+        return vocab
+
+# LRW_VOCAB = load_vocab(LRW_VOCAB_FILE, sort=True)
+# LRW_CORRECT_WORDIDX = np.repeat(np.arange(500), 50)
+
 
 #############################################################
 # LOAD DENSE, SOFTMAX
@@ -90,21 +112,6 @@ def fix_order_of_features_and_samples(a={},
 
 
 #############################################################
-# LOAD WORDS VOCABULARY
-#############################################################
-
-
-def load_vocab(vocab_file=LRW_VOCAB_FILE, sort=True):
-    vocab = []
-    with open(vocab_file) as f:
-        for line in f:
-            vocab.append(line.rstrip())
-    if sort == True:
-        return sorted(vocab)
-    else:
-        return vocab
-
-#############################################################
 # LOAD LRW_CORRECT_WORDIDX
 #############################################################
 
@@ -128,6 +135,43 @@ def load_lrw_correct_wordIdx(lrw_correct_wordIdx_file=LRW_CORRECT_WORDIDX_FILE):
             lrw_correct_wordIdx.append(int(line))
     return np.array(lrw_correct_wordIdx)
 
+
+
+#############################################################
+# PRECISION-RECALL
+#############################################################
+
+
+def precision_recall(lrw_lipreader_preds_softmax, critic_removes=None):
+    lrw_lipreader_recall_w = []
+    lrw_lipreader_precision_w = []
+    lrw_lipreader_preds_correct_or_wrong = np.zeros((25000, 500))
+    # Correct or wrong
+    for w in range(500):
+        lrw_lipreader_preds_correct_or_wrong[w*50:(w+1)*50, w] = 1
+    # P-R
+    lrw_lipreader_precision_w = np.zeros((25000, 500))
+    lrw_lipreader_recall_w = np.zeros((25000, 500))
+    for w in range(500):
+        # Sort softmax for that word
+        lrw_lipreader_preds_softmax_argsort_w = np.argsort(lrw_lipreader_preds_softmax[:, w])[::-1]
+        # Sort correct_or_wrong
+        lrw_lipreader_preds_correct_or_wrong_sorted_w = lrw_lipreader_preds_correct_or_wrong[:, w][lrw_lipreader_preds_softmax_argsort_w]
+        if critic_removes is not None:
+            critic_removes_w = critic_removes[lrw_lipreader_preds_softmax_argsort_w]
+            lrw_lipreader_preds_correct_or_wrong_sorted_w_selects = lrw_lipreader_preds_correct_or_wrong_sorted_w[np.logical_not(critic_removes_w)]
+            lrw_lipreader_preds_correct_or_wrong_sorted_w_rejects = lrw_lipreader_preds_correct_or_wrong_sorted_w[critic_removes_w]
+            lrw_lipreader_preds_correct_or_wrong_sorted_w = np.concatenate([lrw_lipreader_preds_correct_or_wrong_sorted_w_selects[:50],
+                                                                        lrw_lipreader_preds_correct_or_wrong_sorted_w_rejects,
+                                                                        lrw_lipreader_preds_correct_or_wrong_sorted_w_selects[50:]])
+        # P-R
+        lrw_lipreader_precision_w[:, w] = np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w)/(np.arange(500*50)+1)
+        lrw_lipreader_recall_w[:, w] = np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w)/50
+    # Array
+    return lrw_lipreader_precision_w, lrw_lipreader_recall_w
+
+
+
 #############################################################
 # PRECISION @ K
 #############################################################
@@ -135,9 +179,6 @@ def load_lrw_correct_wordIdx(lrw_correct_wordIdx_file=LRW_CORRECT_WORDIDX_FILE):
 
 def find_precision_at_k_and_average_precision(lrw_lipreader_preds_softmax, lrw_correct_wordIdx, critic_removes=None):
     n_classes = lrw_correct_wordIdx.max() - lrw_correct_wordIdx.min() + 1
-    if critic_removes is not None:
-        lrw_lipreader_preds_softmax = lrw_lipreader_preds_softmax[np.logical_not(critic_removes), :]
-        lrw_correct_wordIdx = lrw_correct_wordIdx[np.logical_not(critic_removes)]
     # Find precision at k for each class
     ranking_sortArgs = np.zeros((lrw_lipreader_preds_softmax.shape), dtype=int)
     ranked_correct_wordIdx = np.zeros((lrw_lipreader_preds_softmax.shape))
@@ -149,6 +190,12 @@ def find_precision_at_k_and_average_precision(lrw_lipreader_preds_softmax, lrw_c
         ranking_sortArgs[:, c] = np.argsort(lrw_lipreader_preds_softmax[:, c])[::-1]
         # Find ranked word idx
         ranked_correct_wordIdx[:, c] = lrw_correct_wordIdx[ranking_sortArgs[:, c]]
+        if critic_removes is not None:
+            # Push wrong predictions (acc to critic) to below 50
+            critic_removes_c = critic_removes[ranking_sortArgs[:, c]]
+            ranked_correct_wordIdx_c_rejects = ranked_correct_wordIdx[:, c][critic_removes_c]
+            ranked_correct_wordIdx_c = ranked_correct_wordIdx[:, c][np.logical_not(critic_removes_c)]
+            ranked_correct_wordIdx[:, c] = np.concatenate((ranked_correct_wordIdx_c[:50], ranked_correct_wordIdx_c_rejects, ranked_correct_wordIdx_c[50:]))
         # Check if they are correct or wrong
         ranked_correct_or_wrong[:, c] = (ranked_correct_wordIdx[:, c] == c)
         # Find the precision at each sample
@@ -388,6 +435,7 @@ def load_lrw_all_words_durations():
         reader = csv.reader(f)
         data = list(list([float(i) for i in rec]) for rec in csv.reader(f, delimiter=',')) #reads csv into a list of lists
         return data
+
 
 def save_all_word_durations():
     lrw_word_durations = []

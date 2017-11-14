@@ -68,10 +68,81 @@ lrw_test_accuracy_per_word = [np.mean(lrw_lipreader_preds_test_correct_or_wrong[
 # lrw_word_mean_durations, _ = blazar_LRW_word_durations()
 lrw_word_mean_durations = load_lrw_words_mean_durations()
 
-# plot_lrw_property_image(blazar_LRW_word_mean_durations, title="word_durations", cmap='gray')
-plot_lrw_property_image(lrw_word_mean_durations, title="lrw_word_durations", cmap='gray')
+# # plot_lrw_property_image(blazar_LRW_word_mean_durations, title="word_durations", cmap='gray')
+# plot_lrw_property_image(lrw_word_mean_durations, title="lrw_word_durations", cmap='gray')
 
 lrw_word_mean_durations_per_sample = np.repeat(lrw_word_mean_durations, (LRW_TEST_SAMPLES_PER_CLASS))
+
+#############################################################
+# PRECISION RECALL CURVE
+#############################################################
+
+# To rank confidence of lipreader
+lrw_lipreader_preds_val_max_softmax = np.max(lrw_lipreader_preds_val_softmax, axis=1)
+lrw_lipreader_preds_test_max_softmax = np.max(lrw_lipreader_preds_test_softmax, axis=1)
+# Sort max softmax values
+lrw_lipreader_preds_val_max_softmax_argsort = np.argsort(lrw_lipreader_preds_val_max_softmax)[::-1]
+lrw_lipreader_preds_val_max_softmax_sorted = lrw_lipreader_preds_val_max_softmax[lrw_lipreader_preds_val_max_softmax_argsort]
+lrw_lipreader_preds_test_max_softmax_argsort = np.argsort(lrw_lipreader_preds_test_max_softmax)[::-1]
+lrw_lipreader_preds_test_max_softmax_sorted = lrw_lipreader_preds_test_max_softmax[lrw_lipreader_preds_test_max_softmax_argsort]
+# Sort correct_or_wrong
+lrw_lipreader_preds_val_correct_or_wrong_max_softmax_sorted = lrw_lipreader_preds_val_correct_or_wrong[lrw_lipreader_preds_val_max_softmax_argsort]
+lrw_lipreader_preds_test_correct_or_wrong_max_softmax_sorted = lrw_lipreader_preds_test_correct_or_wrong[lrw_lipreader_preds_test_max_softmax_argsort]
+
+# Compute overall precision, recall
+# VAL
+lrw_lipreader_val_recall = [0]
+lrw_lipreader_val_precision = [1]
+for i in range(len(lrw_lipreader_preds_val_max_softmax_sorted)):
+    lrw_lipreader_val_recall.append((i+1)/len(lrw_lipreader_preds_val_max_softmax_sorted))
+    lrw_lipreader_val_precision.append(np.mean(lrw_lipreader_preds_val_correct_or_wrong_max_softmax_sorted[:i+1]))
+
+# TEST
+lrw_lipreader_test_recall = [0]
+lrw_lipreader_test_precision = [1]
+for i in range(len(lrw_lipreader_preds_test_max_softmax_sorted)):
+    lrw_lipreader_test_recall.append((i+1)/len(lrw_lipreader_preds_test_max_softmax_sorted))
+    lrw_lipreader_test_precision.append(np.mean(lrw_lipreader_preds_test_correct_or_wrong_max_softmax_sorted[:i+1]))
+
+# Compute precision, recall per word
+# VAL
+lrw_lipreader_val_precision_w, lrw_lipreader_val_recall_w = precision_recall(lrw_lipreader_preds_val_softmax)
+
+# TEST
+lrw_lipreader_test_precision_w, lrw_lipreader_test_recall_w = precision_recall(lrw_lipreader_preds_test_softmax)
+
+# # Plot overall P-R curve
+# plt.step(lrw_lipreader_val_recall, lrw_lipreader_val_precision, label='lrw_val overall')
+# plt.step(np.mean(lrw_lipreader_val_recall_w, axis=0), np.mean(lrw_lipreader_val_precision_w, axis=0), label='lrw_val per word')
+# plt.ylim([0, 1])
+# plt.legend()
+# plt.xlabel("Recall")
+# plt.ylabel("Precision")
+# plt.title("Precision-Recall curve of lipreader on LRW_val")
+# # plt.show()
+
+val_precision_at_k_averaged_across_words = np.mean(lrw_lipreader_val_precision_w, axis=1)[:50]
+val_recall_at_k_averaged_across_words = np.mean(lrw_lipreader_val_recall_w, axis=1)[:50]
+
+test_precision_at_k_averaged_across_words = np.mean(lrw_lipreader_test_precision_w, axis=1)[:50]
+test_recall_at_k_averaged_across_words = np.mean(lrw_lipreader_test_recall_w, axis=1)[:50]
+
+plt.plot(np.arange(50)+1, test_precision_at_k_averaged_across_words, label='Precision @K')
+plt.plot(np.arange(50)+1, test_recall_at_k_averaged_across_words, label='Recall @K')
+plt.ylim([0, 1])
+plt.legend()
+plt.xlabel("# of documents")
+plt.title("Precision, Recall of lipreader on LRW_test")
+plt.savefig("P_R_LRW_test")
+plt.close()
+
+plt.plot(test_recall_at_k_averaged_across_words, test_precision_at_k_averaged_across_words, label="lipreader")
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.xlabel("Recall at K")
+plt.ylabel("Precision at K")
+plt.title("PR curve of lipreader on LRW test")
+plt.savefig("PR_curve_LRW_test")
 
 #############################################################
 # ATTRIBUTES
@@ -96,11 +167,14 @@ lrw_test_attributes = np.hstack((lrw_test_attributes, np.reshape(lrw_word_mean_d
 # LOGISTIC REGRESSOR CRITIC
 #############################################################
 
-logReg_unopt = LogisticRegression(class_weight='balanced')
-logReg_unopt.fit(lrw_val_attributes, lrw_lipreader_preds_val_correct_or_wrong)
+# logReg_unopt = LogisticRegression(class_weight='balanced')
+# logReg_unopt.fit(lrw_val_attributes, lrw_lipreader_preds_val_correct_or_wrong)
 
-# Save
-joblib.dump(logReg_unopt, 'logReg_unopt_attributes_balanced.pkl', compress=3)
+# # Save
+# joblib.dump(logReg_unopt, 'logReg_unopt_attributes_balanced.pkl', compress=3)
+
+# Load
+logReg_unopt = joblib.load('logReg_unopt_attributes_balanced.pkl')
 
 # Acc
 logReg_unopt.score(lrw_val_attributes, lrw_lipreader_preds_val_correct_or_wrong)
@@ -152,28 +226,118 @@ plt.ylabel("TPR")
 plt.legend()
 plt.show()
 
+# PRECISION-RECALL
+precision, recall, _ = precision_recall_curve(lrw_lipreader_preds_val_correct_or_wrong, lrw_val_logReg_unopt_score)
+plt.step(recall, precision)
+plt.xlabel("Recall")
+plt.ylabel("Precision")
+plt.ylim([0, 1])
+plt.show()
+
 #############################################################
 # LOGISTIC REGRESSOR CRITIC - PRECISION @ K
 # Reject those lipreader preds that critic says are definitely wrong
 #############################################################
 
-critic_threshold = 0.7  # Optimal threshold for OP close to (0, 1)
+critic_threshold_for_wrong = .5
+
+# REJECT
+lrw_val_rejection_idx = lrw_val_logReg_unopt_prob <= critic_threshold_for_wrong
+np.mean(lrw_val_rejection_idx)
+# 0.4214
+lrw_test_rejection_idx = lrw_test_logReg_unopt_prob <= critic_threshold_for_wrong
+np.mean(lrw_test_rejection_idx)
+# 0.41927999999999999
+
+# Compute precision, recall per word
+# VAL
+filtered_lrw_lipreader_val_precision_w, filtered_lrw_lipreader_val_recall_w = precision_recall(lrw_lipreader_preds_val_softmax, critic_removes=lrw_val_rejection_idx)
+
+# TEST
+filtered_lrw_lipreader_test_precision_w, filtered_lrw_lipreader_test_recall_w = precision_recall(lrw_lipreader_preds_test_softmax, critic_removes=lrw_test_rejection_idx)
+
+
+val_filtered_precision_at_k_averaged_across_words = np.mean(filtered_lrw_lipreader_val_precision_w, axis=1)[:50]
+val_filtered_recall_at_k_averaged_across_words = np.mean(filtered_lrw_lipreader_val_recall_w, axis=1)[:50]
+
+plt.plot(np.arange(50)+1, val_precision_at_k_averaged_across_words, label='Precision @K')
+plt.plot(np.arange(50)+1, val_recall_at_k_averaged_across_words, label='Recall @K')
+plt.plot(np.arange(50)+1, val_filtered_precision_at_k_averaged_across_words, label='Assessor-filtered Precision @K')
+plt.plot(np.arange(50)+1, val_filtered_recall_at_k_averaged_across_words, label='Assessor-filteredd Recall @K')
+plt.ylim([0, 1])
+plt.legend()
+plt.xlabel("# of documents")
+plt.title("Precision, Recall of lipreader on LRW_val")
+# plt.savefig("P_R_LRW_test")
+plt.show()
+plt.close()
+
+test_filtered_precision_at_k_averaged_across_words = np.mean(filtered_lrw_lipreader_test_precision_w, axis=1)[:50]
+test_filtered_recall_at_k_averaged_across_words = np.mean(filtered_lrw_lipreader_test_recall_w, axis=1)[:50]
+
+plt.plot(np.arange(50)+1, test_precision_at_k_averaged_across_words, label='Precision @K')
+plt.plot(np.arange(50)+1, test_recall_at_k_averaged_across_words, label='Recall @K')
+plt.plot(np.arange(50)+1, test_filtered_precision_at_k_averaged_across_words, label='Assessor-filtered Precision @K')
+plt.plot(np.arange(50)+1, test_filtered_recall_at_k_averaged_across_words, label='Assessor-filteredd Recall @K')
+plt.ylim([0, 1])
+plt.legend()
+plt.xlabel("# of documents")
+plt.title("Precision, Recall of lipreader on LRW_test")
+# plt.savefig("P_R_LRW_test")
+plt.show()
+plt.close()
+
+# P-R curve VAL
+plt.plot(val_recall_at_k_averaged_across_words, val_precision_at_k_averaged_across_words, label="lipreader")
+plt.plot(val_filtered_recall_at_k_averaged_across_words, val_filtered_precision_at_k_averaged_across_words, label="Assessor-filtered lipreader")
+plt.legend()
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.xlabel("Recall at K")
+plt.ylabel("Precision at K")
+plt.title("PR curve of lipreader on LRW val")
+plt.savefig("PR_curve_LRW_val")
+plt.close()
+
+# P-R curve TEST
+plt.plot(test_recall_at_k_averaged_across_words, test_precision_at_k_averaged_across_words, label="lipreader")
+plt.plot(test_filtered_recall_at_k_averaged_across_words, test_filtered_precision_at_k_averaged_across_words, label="Assessor-filtered lipreader")
+plt.legend()
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.xlabel("Recall at K")
+plt.ylabel("Precision at K")
+plt.title("PR curve of lipreader on LRW test")
+plt.savefig("PR_curve_LRW_test")
+plt.close()
+
+
+
+
+# DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE
+#############################################################
+# LOGISTIC REGRESSOR CRITIC - PRECISION @ K
+# Reject those lipreader preds that critic says are definitely wrong
+#############################################################
+# DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE DONT USE
+
+critic_threshold_for_wrong = 0.5  # Optimal threshold for OP close to (0, 1)
 
 # BASELINE PRECISIONS @ K
 # Val
 lrw_val_precision_at_k_per_word = find_precision_at_k_and_average_precision(lrw_lipreader_preds_val_softmax, LRW_CORRECT_WORDIDX, critic_removes=None)
 np.mean(lrw_val_precision_at_k_per_word[0])
 # 0.99599999999999889
-np.mean(lrw_val_precision_at_k_per_word[9])
-# 0.98486019620811271
+np.mean(lrw_val_precision_at_k_per_word[49])
+# 0.91631614211721601
 np.mean(lrw_val_precision_at_k_per_word[-1])
 # 0.77693021007376872
 # Test
 lrw_test_precision_at_k_per_word = find_precision_at_k_and_average_precision(lrw_lipreader_preds_test_softmax, LRW_CORRECT_WORDIDX, critic_removes=None)
 np.mean(lrw_test_precision_at_k_per_word[0])
 # 0.99399999999999888
-np.mean(lrw_test_precision_at_k_per_word[9])
-# 0.98131201499118148
+np.mean(lrw_test_precision_at_k_per_word[49])
+# 0.91171944413468364
 np.mean(lrw_test_precision_at_k_per_word[-1])
 # 0.76906032514427969
 
@@ -189,16 +353,16 @@ np.mean(lrw_test_rejection_idx)
 # Val
 filtered_lrw_val_precision_at_k_per_word = find_precision_at_k_and_average_precision(lrw_lipreader_preds_val_softmax, LRW_CORRECT_WORDIDX, critic_removes=lrw_val_rejection_idx)
 np.mean(filtered_lrw_val_precision_at_k_per_word[0])
-# 0.97999999999999887
-np.mean(filtered_lrw_val_precision_at_k_per_word[9])
-# 0.95923937610229271
+# 0.99599999999999889
+np.mean(filtered_lrw_val_precision_at_k_per_word[49])
+# 0.91631614211721601
 np.mean(filtered_lrw_val_precision_at_k_per_word[-1])
 # 0.84051497409931819
 # Test
 filtered_lrw_test_precision_at_k_per_word = find_precision_at_k_and_average_precision(lrw_lipreader_preds_test_softmax, LRW_CORRECT_WORDIDX, critic_removes=lrw_test_rejection_idx)
 np.mean(filtered_lrw_val_precision_at_k_per_word[0])
 # 0.97999999999999887
-np.mean(filtered_lrw_val_precision_at_k_per_word[9])
+np.mean(filtered_lrw_val_precision_at_k_per_word[49])
 # 0.95923937610229271
 np.mean(filtered_lrw_test_precision_at_k_per_word[-1])
 # 0.80930961564990167
@@ -206,8 +370,8 @@ np.mean(filtered_lrw_test_precision_at_k_per_word[-1])
 
 # PLOT PRECISIONS @ K, averaged across words
 
-plt.plot(np.mean(lrw_val_precision_at_k_per_word, axis=1), label="P@K of lipreader")
-plt.plot(np.mean(filtered_lrw_val_precision_at_k_per_word, axis=1), label="P@K of lipreader minus critic_rejects")
+plt.plot(np.mean(lrw_val_precision_at_k_per_word[:50], axis=1), label="P@K of lipreader")
+plt.plot(np.mean(filtered_lrw_val_precision_at_k_per_word[:50], axis=1), label="P@K of lipreader minus critic_rejects")
 plt.title("LRW Val - mean Average Precisions @ K (mean across words) \n - comparison with rejects by logReg critic")
 plt.xlabel("K = # of documents (ranked by respective scores)")
 plt.ylabel("average precision @ K")
