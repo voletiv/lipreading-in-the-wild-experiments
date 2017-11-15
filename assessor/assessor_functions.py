@@ -233,44 +233,20 @@ def load_frames_per_word(csv_file_name):
 
 
 def split_head_pose(data_dir=LRW_DATA_DIR):
-    # COLLECT NAMES OF ALL WORDS as .txt file names
-    collect_type = " "
-    verbose = False
-    print("Collecting", "lrw_word_names")
-    lrw_word_txt_file_names = []
+
+    # COLLECT NUM OF WORDS IN EACH SET OF EACH WORD
+    n_mouths_in_word_set = []
     # word
     for word_dir in tqdm.tqdm(sorted(glob.glob(os.path.join(data_dir, '*/')))):
-        lrw_word_txt_file_names.append([])
+        n_mouths_in_word_set.append([])
         # set
         for set_dir in sorted(glob.glob(os.path.join(word_dir, '*/'))):
+            n_words = 0
             # number
             for word_file_name in sorted(glob.glob(os.path.join(set_dir, '*.txt'))):
-                # Collect only test, train, or val
-                if ('test' in collect_type and 'test' not in word_file_name) or \
-                        ('train' in collect_type and 'train' not in word_file_name) or \
-                        ('val' in collect_type and 'val' not in word_file_name):
-                    continue
-                # Collect
-                lrw_word_txt_file_names[-1].append(word_file_name)
-
-    # COLLECT NAMES OF ALL JPG FILES WITHIN WORDS
-    lrw_jpg_names = []
-    for lrw_word_txt_files in tqdm.tqdm(lrw_word_txt_file_names):
-        lrw_jpg_names.append([])
-        # Read all image names
-        for word_txt_file in tqdm.tqdm(lrw_word_txt_files):
-            if verbose:
-                print("Word", word_idx_within_batch+1, "of", batch_size)
-            # Word frame numbers
-            word_frame_numbers = extract_word_frame_numbers(word_txt_file, verbose=False)
-            # For each frame in mouth images
-            for jpg_name in sorted(glob.glob('.'.join(word_txt_file.split('.')[:-1]) + '*mouth*.jpg')):
-                # Frame number
-                frame_number = int(jpg_name.split('/')[-1].split('.')[0].split('_')[-2])
-                # Frame in word
-                if frame_number in word_frame_numbers:
-                    lrw_jpg_names[-1].append(jpg_name)
-
+                n_words += len(extract_word_frame_numbers(word_file_name, verbose=False))
+            # Append n_words in set
+            n_mouths_in_word_set[-1].append(n_words)
 
     # COLLECT ALL HEAD POSE FILE NAMES
     lrw_head_poses = []
@@ -278,23 +254,18 @@ def split_head_pose(data_dir=LRW_DATA_DIR):
     for lrw_head_pose_file in tqdm.tqdm(sorted(glob.glob(os.path.join(LRW_HEAD_POSE_DIR, '*.npy')))):
         lrw_head_poses.append(np.load(lrw_head_pose_file))
 
-
     # SPLIT HEAD POSE INTO TEST, TRAIN, VAL
-    for word_jpg_names, word_head_poses in tqdm.tqdm(zip(lrw_jpg_names, lrw_head_poses), total=len(lrw_jpg_names)):
-        word = word_jpg_names[0].split('/')[-1].split('.')[0].split('_')[0]
-        head_pose_test = []
-        head_pose_train = []
-        head_pose_val = []
-        for jpg_name, head_pose in zip(word_jpg_names, word_head_poses):
-            if 'test' in jpg_name:
-                head_pose_test.append(head_pose)
-            elif 'train' in jpg_name:
-                head_pose_train.append(head_pose)
-            elif 'val' in jpg_name:
-                head_pose_val.append(head_pose)
+    for word_num in tqdm.tqdm(range(500)):
+        # Collect word and head_pose of word
+        word = LRW_VOCAB[word_num]
+        head_pose_word = lrw_head_poses[word_num]
+        # Split
+        head_pose_test = head_pose_word[:n_mouths_in_word_set[word_num][0]]
+        head_pose_train = head_pose_word[n_mouths_in_word_set[word_num][0]:n_mouths_in_word_set[word_num][0]+n_mouths_in_word_set[word_num][1]]
+        head_pose_val = head_pose_word[n_mouths_in_word_set[word_num][0]+n_mouths_in_word_set[word_num][1]:n_mouths_in_word_set[word_num][0]+n_mouths_in_word_set[word_num][1]+n_mouths_in_word_set[word_num][2]]
         # Save
-        np.save('head_pose_'+word+'_test.npy', head_pose_test)
-        np.save('head_pose_'+word+'_train.npy', head_pose_train)
-        np.save('head_pose_'+word+'_val.npy', head_pose_val)
+        np.save(os.path.join(LRW_HEAD_POSE_DIR, 'head_pose_'+word+'_test.npy'), head_pose_test)
+        np.save(os.path.join(LRW_HEAD_POSE_DIR, 'head_pose_'+word+'_train.npy'), head_pose_train)
+        np.save(os.path.join(LRW_HEAD_POSE_DIR, 'head_pose_'+word+'_val.npy'), head_pose_val)
 
 
