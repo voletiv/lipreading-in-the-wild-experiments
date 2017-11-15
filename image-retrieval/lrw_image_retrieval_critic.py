@@ -74,7 +74,7 @@ lrw_word_mean_durations = load_lrw_words_mean_durations()
 lrw_word_mean_durations_per_sample = np.repeat(lrw_word_mean_durations, (LRW_TEST_SAMPLES_PER_CLASS))
 
 #############################################################
-# PRECISION RECALL CURVE
+# PRECISION RECALL CURVE with MAX_SOFTMAX
 #############################################################
 
 # To rank confidence of lipreader
@@ -104,6 +104,10 @@ for i in range(len(lrw_lipreader_preds_test_max_softmax_sorted)):
     lrw_lipreader_test_recall.append((i+1)/len(lrw_lipreader_preds_test_max_softmax_sorted))
     lrw_lipreader_test_precision.append(np.mean(lrw_lipreader_preds_test_correct_or_wrong_max_softmax_sorted[:i+1]))
 
+#############################################################
+# PRECISION RECALL CURVE per word
+#############################################################
+
 # Compute precision, recall per word
 # VAL
 lrw_lipreader_val_precision_w, lrw_lipreader_val_recall_w = precision_recall(lrw_lipreader_preds_val_softmax)
@@ -121,14 +125,16 @@ lrw_lipreader_test_precision_w, lrw_lipreader_test_recall_w = precision_recall(l
 # plt.title("Precision-Recall curve of lipreader on LRW_val")
 # # plt.show()
 
-val_precision_at_k_averaged_across_words = np.mean(lrw_lipreader_val_precision_w, axis=1)[:50]
-val_recall_at_k_averaged_across_words = np.mean(lrw_lipreader_val_recall_w, axis=1)[:50]
+lipreader_val_precision_at_k_averaged_across_words = np.mean(lrw_lipreader_val_precision_w, axis=1)
+lipreader_val_recall_at_k_averaged_across_words = np.mean(lrw_lipreader_val_recall_w, axis=1)
 
-test_precision_at_k_averaged_across_words = np.mean(lrw_lipreader_test_precision_w, axis=1)[:50]
-test_recall_at_k_averaged_across_words = np.mean(lrw_lipreader_test_recall_w, axis=1)[:50]
+lipreader_test_precision_at_k_averaged_across_words = np.mean(lrw_lipreader_test_precision_w, axis=1)
+lipreader_test_recall_at_k_averaged_across_words = np.mean(lrw_lipreader_test_recall_w, axis=1)
 
-plt.plot(np.arange(50)+1, test_precision_at_k_averaged_across_words, label='Precision @K')
-plt.plot(np.arange(50)+1, test_recall_at_k_averaged_across_words, label='Recall @K')
+# PLOTS
+
+plt.plot(np.arange(50)+1, lipreader_test_precision_at_k_averaged_across_words[:50], label='Precision @K')
+plt.plot(np.arange(50)+1, lipreader_test_recall_at_k_averaged_across_words[:50], label='Recall @K')
 plt.ylim([0, 1])
 plt.legend()
 plt.xlabel("# of documents")
@@ -136,7 +142,7 @@ plt.title("Precision, Recall of lipreader on LRW_test")
 plt.savefig("P_R_LRW_test")
 plt.close()
 
-plt.plot(test_recall_at_k_averaged_across_words, test_precision_at_k_averaged_across_words, label="lipreader")
+plt.plot(lipreader_test_recall_at_k_averaged_across_words[:50], lipreader_test_precision_at_k_averaged_across_words[:50], label="lipreader")
 plt.xlim([0, 1])
 plt.ylim([0, 1])
 plt.xlabel("Recall at K")
@@ -256,58 +262,63 @@ filtered_lrw_lipreader_val_precision_w, filtered_lrw_lipreader_val_recall_w = pr
 # TEST
 filtered_lrw_lipreader_test_precision_w, filtered_lrw_lipreader_test_recall_w = precision_recall(lrw_lipreader_preds_test_softmax, critic_removes=lrw_test_rejection_idx)
 
+# P@K, R@K
+
+# VAL
+lipreader_val_recall_1_index = 
 
 val_filtered_precision_at_k_averaged_across_words = np.mean(filtered_lrw_lipreader_val_precision_w, axis=1)[:50]
 val_filtered_recall_at_k_averaged_across_words = np.mean(filtered_lrw_lipreader_val_recall_w, axis=1)[:50]
 
-plt.plot(np.arange(50)+1, val_precision_at_k_averaged_across_words, label='Precision @K')
-plt.plot(np.arange(50)+1, val_recall_at_k_averaged_across_words, label='Recall @K')
+plt.plot(np.arange(50)+1, lipreader_val_precision_at_k_averaged_across_words, label='Precision @K')
+plt.plot(np.arange(50)+1, lipreader_val_recall_at_k_averaged_across_words, label='Recall @K')
 plt.plot(np.arange(50)+1, val_filtered_precision_at_k_averaged_across_words, label='Assessor-filtered Precision @K')
 plt.plot(np.arange(50)+1, val_filtered_recall_at_k_averaged_across_words, label='Assessor-filteredd Recall @K')
 plt.ylim([0, 1])
 plt.legend()
-plt.xlabel("# of documents")
+plt.xlabel("K = # of documents")
 plt.title("Precision, Recall of lipreader on LRW_val")
 # plt.savefig("P_R_LRW_test")
 plt.show()
 plt.close()
 
+# TEST
 test_filtered_precision_at_k_averaged_across_words = np.mean(filtered_lrw_lipreader_test_precision_w, axis=1)[:50]
 test_filtered_recall_at_k_averaged_across_words = np.mean(filtered_lrw_lipreader_test_recall_w, axis=1)[:50]
 
-plt.plot(np.arange(50)+1, test_precision_at_k_averaged_across_words, label='Precision @K')
-plt.plot(np.arange(50)+1, test_recall_at_k_averaged_across_words, label='Recall @K')
+plt.plot(np.arange(50)+1, lipreader_test_precision_at_k_averaged_across_words, label='Precision @K')
+plt.plot(np.arange(50)+1, lipreader_test_recall_at_k_averaged_across_words, label='Recall @K')
 plt.plot(np.arange(50)+1, test_filtered_precision_at_k_averaged_across_words, label='Assessor-filtered Precision @K')
 plt.plot(np.arange(50)+1, test_filtered_recall_at_k_averaged_across_words, label='Assessor-filteredd Recall @K')
 plt.ylim([0, 1])
 plt.legend()
-plt.xlabel("# of documents")
+plt.xlabel("K = # of documents")
 plt.title("Precision, Recall of lipreader on LRW_test")
 # plt.savefig("P_R_LRW_test")
 plt.show()
 plt.close()
 
 # P-R curve VAL
-plt.plot(val_recall_at_k_averaged_across_words, val_precision_at_k_averaged_across_words, label="lipreader")
+plt.plot(lipreader_val_recall_at_k_averaged_across_words, lipreader_val_precision_at_k_averaged_across_words, label="lipreader")
 plt.plot(val_filtered_recall_at_k_averaged_across_words, val_filtered_precision_at_k_averaged_across_words, label="Assessor-filtered lipreader")
 plt.legend()
 plt.xlim([0, 1])
 plt.ylim([0, 1])
 plt.xlabel("Recall at K")
 plt.ylabel("Precision at K")
-plt.title("PR curve of lipreader on LRW val")
+plt.title("P@K-R@K curve of lipreader on LRW val, till K=50")
 plt.savefig("PR_curve_LRW_val")
 plt.close()
 
 # P-R curve TEST
-plt.plot(test_recall_at_k_averaged_across_words, test_precision_at_k_averaged_across_words, label="lipreader")
+plt.plot(lipreader_test_recall_at_k_averaged_across_words, lipreader_test_precision_at_k_averaged_across_words, label="lipreader")
 plt.plot(test_filtered_recall_at_k_averaged_across_words, test_filtered_precision_at_k_averaged_across_words, label="Assessor-filtered lipreader")
 plt.legend()
 plt.xlim([0, 1])
 plt.ylim([0, 1])
 plt.xlabel("Recall at K")
 plt.ylabel("Precision at K")
-plt.title("PR curve of lipreader on LRW test")
+plt.title("P@K-R@K curve of lipreader on LRW test, till K=50")
 plt.savefig("PR_curve_LRW_test")
 plt.close()
 
