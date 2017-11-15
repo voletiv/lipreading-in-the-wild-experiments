@@ -108,3 +108,9 @@ newest_retrieval_LRW_500.mat
 
 # npz
 *.npz
+
+# head pose npy files
+head_pose_*.npy
+
+# Abhishek's
+image-retrieval/saved_model_weights_staf*/
