@@ -29,68 +29,6 @@ print("Done importing stuff.")
 
 
 #############################################################
-# PLOT WORD DURATIONS
-#############################################################
-
-
-def plot_word_duration_histograms(dataDir=LRW_DATA_DIR):
-    lrw_train_number_of_frames, lrw_val_number_of_frames, lrw_test_number_of_frames = extract_all_word_number_of_frames(dataDir)
-    # Train
-    plt.figure()
-    plt.subplot(131)
-    a = plt.hist(lrw_train_number_of_frames, bins=np.arange(min(lrw_train_number_of_frames), max(lrw_train_number_of_frames)+1), align='left', rwidth=0.8)
-    plt.xticks(range(max(a[1])))
-    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW train')
-    # Val
-    plt.subplot(132)
-    a = plt.hist(lrw_val_number_of_frames, bins=np.arange(min(lrw_val_number_of_frames), max(lrw_val_number_of_frames)+1), align='left', rwidth=0.8)
-    plt.xticks(range(max(a[1])))
-    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW val')
-    # Test
-    plt.subplot(133)
-    a = plt.hist(lrw_test_number_of_frames, bins=np.arange(min(lrw_test_number_of_frames), max(lrw_test_number_of_frames)+1), align='left', rwidth=0.8)
-    plt.xticks(range(max(a[1])))
-    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW test')
-    # ALL
-    plt.figure()
-    a = plt.hist(np.append(np.append(lrw_train_number_of_frames, lrw_val_number_of_frames), lrw_test_number_of_frames),
-        bins=np.arange(min(min(lrw_train_number_of_frames), min(lrw_val_number_of_frames), min(lrw_test_number_of_frames)),
-            max(max(lrw_train_number_of_frames), max(lrw_val_number_of_frames), max(lrw_test_number_of_frames))+1),
-        align='left', rwidth=0.8)
-    plt.xticks(range(max(a[1])))
-    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW')
-    plt.show()
-
-
-def extract_all_word_number_of_frames(dataDir=LRW_DATA_DIR):
-    lrw_train_number_of_frames = []
-    lrw_val_number_of_frames = []
-    lrw_test_number_of_frames = []
-    for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
-        for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
-            wordFileNames = sorted(glob.glob(os.path.join(setDir, '*.txt')))
-            for wordFileName in tqdm.tqdm(wordFileNames):
-                    line = read_last_line_in_file(wordFileName)
-                    if 'train' in wordFileName:
-                         lrw_train_number_of_frames.append(int(float(line.rstrip().split()[-2])*VIDEO_FPS))
-                    if 'val' in wordFileName:
-                         lrw_val_number_of_frames.append(int(float(line.rstrip().split()[-2])*VIDEO_FPS))
-                    if 'test' in wordFileName:
-                         lrw_test_number_of_frames.append(int(float(line.rstrip().split()[-2])*VIDEO_FPS))
-    return lrw_train_number_of_frames, lrw_val_number_of_frames, lrw_test_number_of_frames
-
-
-def read_last_line_in_file(wordFileName):
-    try:
-        with open(wordFileName) as f:
-            for line in f:
-                 pass
-        return line
-    except OSError:
-        read_last_line_in_file(wordFileName)
-
-
-#############################################################
 # EXTRACT AUDIO, FRAMES, AND MOUTHS
 #############################################################
 
@@ -743,6 +681,130 @@ def reprocess_videos_with_multiple_faces(startExtracting=False,
 #     win.add_overlay(shape)
 #     time.sleep(.5)
 
+
+
+#############################################################
+# PLOT WORD DURATIONS
+#############################################################
+
+
+def plot_word_duration_histograms(dataDir=LRW_DATA_DIR):
+    lrw_train_number_of_frames, lrw_val_number_of_frames, lrw_test_number_of_frames = extract_all_word_number_of_frames(dataDir)
+    # Train
+    plt.figure()
+    plt.subplot(131)
+    a = plt.hist(lrw_train_number_of_frames, bins=np.arange(min(lrw_train_number_of_frames), max(lrw_train_number_of_frames)+1), align='left', rwidth=0.8)
+    plt.xticks(range(max(a[1])))
+    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW train')
+    # Val
+    plt.subplot(132)
+    a = plt.hist(lrw_val_number_of_frames, bins=np.arange(min(lrw_val_number_of_frames), max(lrw_val_number_of_frames)+1), align='left', rwidth=0.8)
+    plt.xticks(range(max(a[1])))
+    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW val')
+    # Test
+    plt.subplot(133)
+    a = plt.hist(lrw_test_number_of_frames, bins=np.arange(min(lrw_test_number_of_frames), max(lrw_test_number_of_frames)+1), align='left', rwidth=0.8)
+    plt.xticks(range(max(a[1])))
+    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW test')
+    # ALL
+    plt.figure()
+    a = plt.hist(np.append(np.append(lrw_train_number_of_frames, lrw_val_number_of_frames), lrw_test_number_of_frames),
+        bins=np.arange(min(min(lrw_train_number_of_frames), min(lrw_val_number_of_frames), min(lrw_test_number_of_frames)),
+            max(max(lrw_train_number_of_frames), max(lrw_val_number_of_frames), max(lrw_test_number_of_frames))+1),
+        align='left', rwidth=0.8)
+    plt.xticks(range(max(a[1])))
+    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW')
+    plt.show()
+
+
+def extract_all_word_number_of_frames(dataDir=LRW_DATA_DIR):
+    lrw_train_number_of_frames = []
+    lrw_val_number_of_frames = []
+    lrw_test_number_of_frames = []
+    for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
+        for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
+            wordFileNames = sorted(glob.glob(os.path.join(setDir, '*.txt')))
+            for wordFileName in tqdm.tqdm(wordFileNames):
+                    line = read_last_line_in_file(wordFileName)
+                    if 'train' in wordFileName:
+                         lrw_train_number_of_frames.append(int(float(line.rstrip().split()[-2])*VIDEO_FPS))
+                    if 'val' in wordFileName:
+                         lrw_val_number_of_frames.append(int(float(line.rstrip().split()[-2])*VIDEO_FPS))
+                    if 'test' in wordFileName:
+                         lrw_test_number_of_frames.append(int(float(line.rstrip().split()[-2])*VIDEO_FPS))
+    return lrw_train_number_of_frames, lrw_val_number_of_frames, lrw_test_number_of_frames
+
+
+def read_last_line_in_file(wordFileName):
+    try:
+        with open(wordFileName) as f:
+            for line in f:
+                 pass
+        return line
+    except OSError:
+        read_last_line_in_file(wordFileName)
+
+
+#############################################################
+# PLOT WORD DURATIONS
+#############################################################
+
+
+def plot_word_duration_histograms(dataDir=LRW_DATA_DIR):
+    lrw_train_number_of_frames, lrw_val_number_of_frames, lrw_test_number_of_frames = extract_all_word_number_of_frames(dataDir)
+    # Train
+    plt.figure()
+    plt.subplot(131)
+    a = plt.hist(lrw_train_number_of_frames, bins=np.arange(min(lrw_train_number_of_frames), max(lrw_train_number_of_frames)+1), align='left', rwidth=0.8)
+    plt.xticks(range(max(a[1])))
+    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW train')
+    # Val
+    plt.subplot(132)
+    a = plt.hist(lrw_val_number_of_frames, bins=np.arange(min(lrw_val_number_of_frames), max(lrw_val_number_of_frames)+1), align='left', rwidth=0.8)
+    plt.xticks(range(max(a[1])))
+    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW val')
+    # Test
+    plt.subplot(133)
+    a = plt.hist(lrw_test_number_of_frames, bins=np.arange(min(lrw_test_number_of_frames), max(lrw_test_number_of_frames)+1), align='left', rwidth=0.8)
+    plt.xticks(range(max(a[1])))
+    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW test')
+    # ALL
+    plt.figure()
+    a = plt.hist(np.append(np.append(lrw_train_number_of_frames, lrw_val_number_of_frames), lrw_test_number_of_frames),
+        bins=np.arange(min(min(lrw_train_number_of_frames), min(lrw_val_number_of_frames), min(lrw_test_number_of_frames)),
+            max(max(lrw_train_number_of_frames), max(lrw_val_number_of_frames), max(lrw_test_number_of_frames))+1),
+        align='left', rwidth=0.8)
+    plt.xticks(range(max(a[1])))
+    plt.xlabel('Number of frames in word'); plt.ylabel('Number of words'); plt.title('Histogram of number of frames per word in LRW')
+    plt.show()
+
+
+def extract_all_word_number_of_frames(dataDir=LRW_DATA_DIR):
+    lrw_train_number_of_frames = []
+    lrw_val_number_of_frames = []
+    lrw_test_number_of_frames = []
+    for wordDir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
+        for setDir in tqdm.tqdm(sorted(glob.glob(os.path.join(wordDir, '*/')))):
+            wordFileNames = sorted(glob.glob(os.path.join(setDir, '*.txt')))
+            for wordFileName in tqdm.tqdm(wordFileNames):
+                    line = read_last_line_in_file(wordFileName)
+                    if 'train' in wordFileName:
+                         lrw_train_number_of_frames.append(int(float(line.rstrip().split()[-2])*VIDEO_FPS))
+                    if 'val' in wordFileName:
+                         lrw_val_number_of_frames.append(int(float(line.rstrip().split()[-2])*VIDEO_FPS))
+                    if 'test' in wordFileName:
+                         lrw_test_number_of_frames.append(int(float(line.rstrip().split()[-2])*VIDEO_FPS))
+    return lrw_train_number_of_frames, lrw_val_number_of_frames, lrw_test_number_of_frames
+
+
+def read_last_line_in_file(wordFileName):
+    try:
+        with open(wordFileName) as f:
+            for line in f:
+                 pass
+        return line
+    except OSError:
+        read_last_line_in_file(wordFileName)
 
 
 #############################################################
