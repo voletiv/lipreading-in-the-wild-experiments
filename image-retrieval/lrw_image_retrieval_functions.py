@@ -51,6 +51,17 @@ def load_lrw_dense_softmax_from_mat_file(mat_file=LRW_LIPREADER_OUTPUTS_MAT_FILE
     lrw_test_softmax = lrw_dense_softmax_mat['test_softmax']    # (25000, 500)
     return lrw_val_dense, lrw_val_softmax, lrw_test_dense, lrw_test_softmax
 
+'''
+correct_y = []
+correct_y_prob = []
+for w in range(500):
+    sm = lrw_lipreader_softmax[w*50:(w+1)*50]
+    word_preds = np.argmax(sm, axis=1)
+    bin_count = np.bincount(word_preds)
+    correct_y.append(np.argmax(bin_count))
+    correct_y_prob.append(bin_count[correct_y[-1]]/50)
+
+'''
 
 #############################################################
 # FIX ORDER

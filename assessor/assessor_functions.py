@@ -30,11 +30,14 @@ def generate_assessor_training_batches(data_dir=LRW_DATA_DIR, batch_size=64, col
     # Read head_poses_per_sample
     lrw_head_poses_per_sample = read_head_poses(collect_type=collect_type, collect_by='sample')
 
+    # Read dense, softmax, one_hot_y
+    lrw_lipreader_dense, lrw_lipreader_softmax, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type=collect_type)
+
     print("Loaded.")
 
     if shuffle:
         np.random.seed(29)
-        full_index_list = np.arange(len(lrw_head_poses_per_sample))
+        full_index_list = np.arange(len(lrw_word_set_num_txt_file_names))
 
     # TO GENERATE
     while 1:
@@ -42,10 +45,13 @@ def generate_assessor_training_batches(data_dir=LRW_DATA_DIR, batch_size=64, col
         # Shuffle
         if shuffle:
             np.random.shuffle(full_index_list)
-            lrw_word_set_num_txt_file_names = lrw_word_set_num_txt_file_names[full_index_list]
-            lrw_n_of_frames_per_sample = lrw_n_of_frames_per_sample[full_index_list]
-            lrw_start_frames_per_sample = lrw_start_frames_per_sample[full_index_list]
-            lrw_head_poses_per_sample = lrw_head_poses_per_sample[full_index_list]
+            lrw_word_set_num_txt_file_names = [lrw_word_set_num_txt_file_names[i] for i in full_index_list]
+            lrw_n_of_frames_per_sample = [lrw_n_of_frames_per_sample[i] for i in full_index_list]
+            lrw_start_frames_per_sample = [lrw_start_frames_per_sample[i] for i in full_index_list]
+            lrw_head_poses_per_sample = [lrw_head_poses_per_sample[i] for i in full_index_list]
+            lrw_lipreader_dense = lrw_lipreader_dense[full_index_list]
+            lrw_lipreader_softmax = lrw_lipreader_softmax[full_index_list]
+            lrw_correct_one_hot_y_arg = lrw_correct_one_hot_y_arg[full_index_list]
 
         n_batches = len(lrw_word_set_num_txt_file_names) // batch_size
 
@@ -54,6 +60,9 @@ def generate_assessor_training_batches(data_dir=LRW_DATA_DIR, batch_size=64, col
 
             if verbose:
                 print("Batch", batch+1, "of", n_batches)
+
+            # Batch word_txt_files
+            batch_lrw_word_set_num_txt_file_names = lrw_word_set_num_txt_file_names[batch*batch_size:(batch + 1)*batch_size]
 
             # Batch number of frames per sample (F)
             batch_n_of_frames_per_sample = lrw_n_of_frames_per_sample[batch*batch_size:(batch + 1)*batch_size]
@@ -64,8 +73,14 @@ def generate_assessor_training_batches(data_dir=LRW_DATA_DIR, batch_size=64, col
             # Batch head poses
             batch_head_poses_per_sample = lrw_head_poses_per_sample[batch*batch_size:(batch + 1)*batch_size]
 
-            # Batch word_txt_files
-            batch_lrw_word_set_num_txt_file_names = lrw_word_set_num_txt_file_names[batch*batch_size:(batch + 1)*batch_size]
+            # Batch dense (D)
+            batch_dense_per_sample = lrw_lipreader_dense[batch*batch_size:(batch + 1)*batch_size]
+
+            # Batch softmax (S)
+            batch_softmax_per_sample = lrw_lipreader_softmax[batch*batch_size:(batch + 1)*batch_size]
+
+            # Batch lipreader one_hot_y
+            batch_lipreader_one_hot_y_arg_per_sample = lrw_correct_one_hot_y_arg[batch*batch_size:(batch + 1)*batch_size]
 
             # Batch mouth images (X)
             batch_mouth_images = np.zeros((batch_size, TIME_STEPS, MOUTH_H, MOUTH_W, MOUTH_CHANNELS))
@@ -73,8 +88,8 @@ def generate_assessor_training_batches(data_dir=LRW_DATA_DIR, batch_size=64, col
             # Batch head poses for training (H)
             batch_head_poses_per_sample_for_training = np.zeros((batch_size, TIME_STEPS, 3))
 
-            # Batch one-hot words (Y)
-            batch_one_hot_words = np.zeros((batch_size, LRW_VOCAB_SIZE))
+            # Batch lipreader_correct_or_wrong (Y)
+            batch_lipreader_correct_or_wrong = np.zeros((batch_size,))
 
             # GENERATE SET OF IMAGES PER WORD
             # For each WORD
@@ -126,17 +141,19 @@ def generate_assessor_training_batches(data_dir=LRW_DATA_DIR, batch_size=64, col
 
                         # Add this image in reverse order into X
                         # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
-                        batch_mouth_images[sample_idx_within_batch][-frame_count] = mouth_image
+                        batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1] = mouth_image
 
                         # Add head pose
                         batch_head_poses_per_sample_for_training[sample_idx_within_batch][-frame_0_start_index-1] = batch_head_poses_per_sample[sample_idx_within_batch][frame_0_start_index]
 
-                        # MAKE ONE HOT WORDS
-                        word_vocab_index = LRW_VOCAB.index(jpg_name.split('/')[-1].split('.')[0].split('_')[0])
-                        batch_one_hot_words[sample_idx_within_batch][word_vocab_index] = 1
+            # Batch number of frames per sample (F)
+            batch_n_of_frames_per_sample = np.array(batch_n_of_frames_per_sample)/float(MAX_FRAMES_PER_WORD)
 
-            # Yield X, H, F, Y
-            yield batch_mouth_images, batch_head_poses_per_sample_for_training, batch_n_of_frames_per_sample/MAX_FRAMES_PER_WORD, batch_one_hot_words
+            # Correct_or_wrong
+            batch_lipreader_correct_or_wrong = np.array(np.argmax(batch_softmax_per_sample, axis=1) == batch_lipreader_one_hot_y_arg_per_sample, dtype=float)
+
+            # Yield X, H, F, D, S, Y
+            yield [batch_mouth_images, batch_head_poses_per_sample_for_training, batch_n_of_frames_per_sample, batch_dense_per_sample, batch_softmax_per_sample], [batch_lipreader_correct_or_wrong]
 
 
 def robust_imread(jpg_name, cv_option=cv2.IMREAD_COLOR):
@@ -240,11 +257,11 @@ def read_txt_file_as_list_per_vocab_word(file_name):
 
 
 def load_dense_softmax_y(collect_type):
-    LRW_dense_softmax_y = np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_dense_softmax_y.npz'))
-    LRW_dense = LRW_dense_softmax_y[collect_type+'Dense']
-    LRW_softmax = LRW_dense_softmax_y[collect_type+'Softmax']
-    LRW_one_hot_y = LRW_dense_softmax_y[collect_type+'Y']
-    return LRW_dense, LRW_softmax, LRW_one_hot_y
+    lrw_lipreader_dense_softmax_y = np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_dense_softmax_y.npz'))
+    lrw_lipreader_dense = lrw_lipreader_dense_softmax_y[collect_type+'Dense']
+    lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y[collect_type+'Softmax']
+    lrw_one_hot_y = lrw_lipreader_dense_softmax_y[collect_type+'Y']
+    return lrw_lipreader_dense, lrw_lipreader_softmax, lrw_one_hot_y
 
 
 #############################################################
@@ -329,7 +346,7 @@ def read_head_poses(collect_type="val", collect_by="sample"):
     if collect_by == 'frame':
         return head_poses_per_frame
     elif collect_by == 'sample':
-        lrw_frames_per_sample = load_array_of_frames_in_word(collect_type=collect_type, collect_by='sample')
+        lrw_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
         head_poses = []
         def gen_head_pose(head_poses_per_frame):
             for i in range(len(head_poses_per_frame)):
