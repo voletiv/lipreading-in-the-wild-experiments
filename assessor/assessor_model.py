@@ -1,3 +1,8 @@
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+
 from keras.models import Model, Sequential
 from keras.layers import Masking, TimeDistributed, Conv2D, BatchNormalization, Activation, MaxPooling2D
 from keras.layers import Flatten, Dense, Input, Concatenate, LSTM
@@ -111,7 +116,7 @@ class CheckpointAndMakePlots(Callback):
     # Init
     def __init__(self, file_name_pre="assessor_cnn_adam", assessor_save_dir="."):
         self.file_name_pre = file_name_pre
-        self.ASSESSOR_SAVE_DIR = assessor_save_dir
+        self.assessor_save_dir = assessor_save_dir
 
     # On train start
     def on_train_begin(self, logs={}):
@@ -146,15 +151,16 @@ class CheckpointAndMakePlots(Callback):
         self.plot_and_save_losses_and_accuracies(epoch)
 
     # Save model checkpoint
-    def save_model_checkpoint(self, epoch, tl, ta, vl, va, sil, sia):
-        model_file_path = os.path.join(self.ASSESSOR_SAVE_DIR,
+    def save_model_checkpoint(self, epoch, tl, ta, vl, va):
+        model_file_path = os.path.join(self.assessor_save_dir,
             self.file_name_pre + "_epoch{0:03d}_tl{1:.4f}_ta{2:.4f}_vl{3:.4f}_va{4:.4f}.hdf5".format(epoch, tl, ta, vl, va))
         print("Saving model", model_file_path)
         self.model.save_weights(model_file_path)
 
     # Plot and save losses and accuracies
     def plot_and_save_losses_and_accuracies(self, epoch):
-        print("Saving plots for epoch " + str(epoch))
+        print("Saving plot for epoch", str(epoch), ":",
+            os.path.join(self.assessor_save_dir, self.file_name_pre + "_plots.png"))
 
         plt.subplot(121)
         plt.plot(self.train_losses, label='train_loss')
@@ -181,6 +187,27 @@ class CheckpointAndMakePlots(Callback):
         plt.tight_layout()
         # plt.subplots_adjust(top=0.85)
         plt.suptitle(self.file_name_pre, fontsize=10)
-        plt.savefig(os.path.join(self.ASSESSOR_SAVE_DIR,
+        plt.savefig(os.path.join(self.assessor_save_dir,
                                  self.file_name_pre + "_plots.png"))
         plt.close()
+
+
+#########################################################
+# WRITE MODEL ARCHITECTURE
+#########################################################
+
+
+def write_model_architecture(model, file_type='json', file_name="model"):
+    if file_type == 'json':
+        # serialize model to JSON
+        model_json = model.to_json()
+        with open(file_name+'.json', "w") as json_file:
+            json_file.write(model_json)
+    elif file_type == 'yaml':
+        # serialize model to YAML
+        model_yaml = model.to_yaml()
+        with open(file_name+'.yaml', "w") as yaml_file:
+            yaml_file.write(model_yaml)
+    else:
+        print("file_type can only be 'json' or 'yaml'")
+

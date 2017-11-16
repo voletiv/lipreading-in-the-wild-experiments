@@ -16,7 +16,7 @@ from assessor_params import *
 
 def generate_assessor_training_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect_type="val", shuffle=True, random_crop=True, verbose=False):
 
-    print("Loading init vars for generation...")
+    print("Loading LRW", collect_type, "init vars for generation...")
 
     # Read lrw_word_set_num_file_names, to read images
     lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=collect_type, collect_by='sample')
@@ -521,4 +521,3 @@ def split_head_pose(data_dir=LRW_DATA_DIR):
         np.save(os.path.join(LRW_HEAD_POSE_DIR, 'head_pose_'+word+'_test.npy'), head_pose_test)
         np.save(os.path.join(LRW_HEAD_POSE_DIR, 'head_pose_'+word+'_train.npy'), head_pose_train)
         np.save(os.path.join(LRW_HEAD_POSE_DIR, 'head_pose_'+word+'_val.npy'), head_pose_val)
-
