@@ -48,3 +48,48 @@ for file in sorted(glob.glob(os.path.join(LRW_SAVE_DIR, 'head_pose_jpg_file_name
         if return_val != 0:
             break
 
+
+
+#########################################################
+# DEBUG - NUM OF SAMPLES IN VAL
+#########################################################
+
+image_file_names = []
+for file in sorted(glob.glob(os.path.join(LRW_SAVE_DIR, 'head_pose_jpg_file_names*'))):
+    with open(file) as f:
+        for line in f:
+            if 'val' in line:
+                    image_file_names.append(line.rstrip())
+
+from deepgaze.head_pose_estimation import CnnHeadPoseEstimator
+
+sess = tf.Session() #Launch the graph in a session.
+my_head_pose_estimator = CnnHeadPoseEstimator(sess) #Head pose estimation object
+
+# Load the weights from the configuration folders
+DEEPGAZE_EXAMPLES_DIR = '/shared/fusor/home/voleti.vikram/deepgaze/examples'
+my_head_pose_estimator.load_roll_variables(os.path.realpath(os.path.join(DEEPGAZE_EXAMPLES_DIR, "../etc/tensorflow/head_pose/roll/cnn_cccdd_30k.tf")))
+my_head_pose_estimator.load_pitch_variables(os.path.realpath(os.path.join(DEEPGAZE_EXAMPLES_DIR, "../etc/tensorflow/head_pose/pitch/cnn_cccdd_30k.tf")))
+my_head_pose_estimator.load_yaw_variables(os.path.realpath(os.path.join(DEEPGAZE_EXAMPLES_DIR, "../etc/tensorflow/head_pose/yaw/cnn_cccdd_30k")))
+
+poses = np.zeros((1, 3))
+
+try:
+    prev_word = "dummy"
+    for image_file in tqdm.tqdm(image_file_names):
+        word = image_file.split('/')[-1].split('.')[0].split('_')[0]
+        if word != prev_word:
+            np.save(os.path.join(LRW_SAVE_DIR, "head_pose_"+prev_word), poses)
+            prev_word = word
+            poses = np.empty((0, 3))
+        #Read the image with OpenCV
+        image = cv2.imread(image_file)
+        # Get the angles for roll, pitch and yaw
+        roll = my_head_pose_estimator.return_roll(image)  # Evaluate the roll angle using a CNN
+        pitch = my_head_pose_estimator.return_pitch(image)  # Evaluate the pitch angle using a CNN
+        yaw = my_head_pose_estimator.return_yaw(image)  # Evaluate the yaw angle using a CNN
+        poses = np.vstack((poses, [(roll[0,0,0])/25, pitch[0,0,0]/45, yaw[0,0,0]/100]))
+except KeyboardInterrupt:
+    print("\n\nCtrl+C was pressed!\n\n")
+    return_val = 1
+
