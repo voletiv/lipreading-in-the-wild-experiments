@@ -6,16 +6,6 @@ import tqdm
 from assessor_functions import *
 
 ######################################################
-# NUMBER OF FRAMES IN EVERY WORD
-######################################################
-
-# # EXTRACT AND SAVE N_OF_FRAMES IN EVERY WORD
-# extract_and_save_word_set_nOfFramesPerWord(dataDir=LRW_DATA_DIR)
-
-# LOAD N_OF_FRAMES IN EVERY WORD
-frames_every_word_test, frames_every_word_train, frames_every_word_val = load_array_of_frames_per_word(os.path.join(LRW_ASSESSOR_DIR, ))
-
-######################################################
 # DENSE, SOFTMAX, Y
 ######################################################
 

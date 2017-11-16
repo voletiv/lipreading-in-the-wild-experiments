@@ -14,37 +14,40 @@ from assessor_params import *
 #############################################################
 
 
-def generate_lrw_mouth_image_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect_type="train", shuffle=True, random_crop=True, verbose=False):
+def generate_assessor_training_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect_type="val", shuffle=True, random_crop=True, verbose=False):
 
-    # COLLECT NAMES OF ALL WORDS (so it can be shuffled) as .txt file names
-    print("Collecting", collect_type, "lrw_word_names")
+    print("Loading init vars for generation...")
 
-    lrw_word_txt_file_names = []
+    # Read lrw_word_set_num_file_names, to read images
+    lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=collect_type, collect_by='sample')
 
-    # word
-    for word_dir in tqdm.tqdm(sorted(glob.glob(os.path.join(data_dir, '*/')))):
-        # set
-        for set_dir in sorted(glob.glob(os.path.join(word_dir, '*/'))):
-            # number
-            for word_file_name in sorted(glob.glob(os.path.join(set_dir, '*.txt'))):
-                # Collect only test, train, or val
-                if ('test' in collect_type and 'test' not in word_file_name) or \
-                        ('train' in collect_type and 'train' not in word_file_name) or \
-                        ('val' in collect_type and 'val' not in word_file_name):
-                    continue
-                # Collect
-                lrw_word_txt_file_names.append(word_file_name)
+    # Read n_of_frames_per_sample
+    lrw_n_of_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
 
-    lrw_word_txt_file_names = np.array(lrw_word_txt_file_names)
+    # Read start_frames_per_sample
+    lrw_start_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=START_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
+
+    # Read head_poses_per_sample
+    lrw_head_poses_per_sample = read_head_poses(collect_type=collect_type, collect_by='sample')
+
+    print("Loaded.")
+
+    if shuffle:
+        np.random.seed(29)
+        full_index_list = np.arange(len(lrw_head_poses_per_sample))
 
     # TO GENERATE
     while 1:
 
         # Shuffle
         if shuffle:
-            np.random.shuffle(lrw_word_txt_file_names)
+            np.random.shuffle(full_index_list)
+            lrw_word_set_num_txt_file_names = lrw_word_set_num_txt_file_names[full_index_list]
+            lrw_n_of_frames_per_sample = lrw_n_of_frames_per_sample[full_index_list]
+            lrw_start_frames_per_sample = lrw_start_frames_per_sample[full_index_list]
+            lrw_head_poses_per_sample = lrw_head_poses_per_sample[full_index_list]
 
-        n_batches = len(lrw_word_txt_file_names) // batch_size
+        n_batches = len(lrw_word_set_num_txt_file_names) // batch_size
 
         # For each batch
         for batch in range(n_batches):
@@ -52,27 +55,40 @@ def generate_lrw_mouth_image_batches(data_dir=LRW_DATA_DIR, batch_size=64, colle
             if verbose:
                 print("Batch", batch+1, "of", n_batches)
 
+            # Batch number of frames per sample (F)
+            batch_n_of_frames_per_sample = lrw_n_of_frames_per_sample[batch*batch_size:(batch + 1)*batch_size]
+
+            # Batch start frames per sample
+            batch_start_frames_per_sample = lrw_start_frames_per_sample[batch*batch_size:(batch + 1)*batch_size]
+
+            # Batch head poses
+            batch_head_poses_per_sample = lrw_head_poses_per_sample[batch*batch_size:(batch + 1)*batch_size]
+
+            # Batch word_txt_files
+            batch_lrw_word_set_num_txt_file_names = lrw_word_set_num_txt_file_names[batch*batch_size:(batch + 1)*batch_size]
+
             # Batch mouth images (X)
             batch_mouth_images = np.zeros((batch_size, TIME_STEPS, MOUTH_H, MOUTH_W, MOUTH_CHANNELS))
+
+            # Batch head poses for training (H)
+            batch_head_poses_per_sample_for_training = np.zeros((batch_size, TIME_STEPS, 3))
 
             # Batch one-hot words (Y)
             batch_one_hot_words = np.zeros((batch_size, LRW_VOCAB_SIZE))
 
-            # word_txt_files of batch
-            batch_lrw_word_txt_file_names = lrw_word_txt_file_names[batch*batch_size:(batch + 1)*batch_size]
-
             # GENERATE SET OF IMAGES PER WORD
             # For each WORD
-            for word_idx_within_batch, word_txt_file in enumerate(batch_lrw_word_txt_file_names):
+            for sample_idx_within_batch, word_txt_file in enumerate(batch_lrw_word_set_num_txt_file_names):
 
                 if verbose:
-                    print("Word", word_idx_within_batch+1, "of", batch_size)
+                    print("Sample", sample_idx_within_batch+1, "of", batch_size)
 
                 # Word frame numbers
-                word_frame_numbers = extract_word_frame_numbers(word_txt_file, verbose=False)
+                word_frame_numbers = range(batch_start_frames_per_sample[sample_idx_within_batch],
+                                           batch_start_frames_per_sample[sample_idx_within_batch] + batch_n_of_frames_per_sample[sample_idx_within_batch])
 
                 # For each frame in mouth images
-                frame_count = 0
+                frame_0_start_index = -1
                 set_crop_offset = True
                 for jpg_name in sorted(glob.glob('.'.join(word_txt_file.split('.')[:-1]) + '*mouth*.jpg')):
 
@@ -83,7 +99,7 @@ def generate_lrw_mouth_image_batches(data_dir=LRW_DATA_DIR, batch_size=64, colle
                     if frame_number in word_frame_numbers:
 
                         # Increment frame count, for saving at right index
-                        frame_count += 1
+                        frame_0_start_index += 1
 
                         if verbose:
                             print(jpg_name)
@@ -110,14 +126,17 @@ def generate_lrw_mouth_image_batches(data_dir=LRW_DATA_DIR, batch_size=64, colle
 
                         # Add this image in reverse order into X
                         # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
-                        batch_mouth_images[word_idx_within_batch][-frame_count] = mouth_image
+                        batch_mouth_images[sample_idx_within_batch][-frame_count] = mouth_image
+
+                        # Add head pose
+                        batch_head_poses_per_sample_for_training[sample_idx_within_batch][-frame_0_start_index-1] = batch_head_poses_per_sample[sample_idx_within_batch][frame_0_start_index]
 
                         # MAKE ONE HOT WORDS
                         word_vocab_index = LRW_VOCAB.index(jpg_name.split('/')[-1].split('.')[0].split('_')[0])
-                        batch_one_hot_words[word_idx_within_batch][word_vocab_index] = 1
+                        batch_one_hot_words[sample_idx_within_batch][word_vocab_index] = 1
 
-            # Yield
-            yield batch_mouth_images, batch_one_hot_words
+            # Yield X, H, F, Y
+            yield batch_mouth_images, batch_head_poses_per_sample_for_training, batch_n_of_frames_per_sample/MAX_FRAMES_PER_WORD, batch_one_hot_words
 
 
 def robust_imread(jpg_name, cv_option=cv2.IMREAD_COLOR):
@@ -126,6 +145,93 @@ def robust_imread(jpg_name, cv_option=cv2.IMREAD_COLOR):
         return image
     except TypeError:
         return robust_imread(jpg_name, cv_option)
+
+
+#############################################################
+# lrw_word_set_num_txt_file_names
+#############################################################
+
+
+def collect_all_lrw_word_set_num_txt_file_names(data_dir=LRW_DATA_DIR):
+
+    # COLLECT NAMES OF ALL WORDS (so it can be shuffled) as .txt file names
+    print("Collecting", collect_type, "lrw_word_names")
+
+    lrw_word_set_num_txt_file_names = []
+    lrw_word_set_num_txt_file_names_test = []
+    lrw_word_set_num_txt_file_names_train = []
+    lrw_word_set_num_txt_file_names_val = []
+
+    # word
+    for word_dir in tqdm.tqdm(sorted(glob.glob(os.path.join(data_dir, '*/')))):
+        # set
+        for set_dir in sorted(glob.glob(os.path.join(word_dir, '*/'))):
+            # number
+            for word_set_num_txt_file_name in sorted(glob.glob(os.path.join(set_dir, '*.txt'))):
+                # Collect
+                lrw_word_set_num_txt_file_names.append(word_set_num_txt_file_name)
+                # Collect only test, train, or val
+                if 'test' in word_set_num_txt_file_name:
+                    lrw_word_set_num_txt_file_names_test.append(word_set_num_txt_file_name)
+                if 'train' in word_set_num_txt_file_name:
+                    lrw_word_set_num_txt_file_names_train.append(word_set_num_txt_file_name)
+                if 'val' in word_set_num_txt_file_name:
+                    lrw_word_set_num_txt_file_names_val.append(word_set_num_txt_file_name)
+
+    write_list_as_txt_file("lrw_word_set_num_txt_file_names", lrw_word_set_num_txt_file_names)
+    write_list_as_txt_file("lrw_word_set_num_txt_file_names_test", lrw_word_set_num_txt_file_names_test)
+    write_list_as_txt_file("lrw_word_set_num_txt_file_names_train", lrw_word_set_num_txt_file_names_train)
+    write_list_as_txt_file("lrw_word_set_num_txt_file_names_val", lrw_word_set_num_txt_file_names_val)
+
+
+def read_lrw_word_set_num_file_names(collect_type="train", collect_by='sample'):
+    if collect_by == 'sample':
+        if 'test' in collect_type:
+            return read_txt_file_as_list('lrw_word_set_num_txt_file_names_test.txt')
+        elif 'train' in collect_type:
+            return read_txt_file_as_list('lrw_word_set_num_txt_file_names_train.txt')
+        elif 'val' in collect_type:
+            return read_txt_file_as_list('lrw_word_set_num_txt_file_names_val.txt')
+        else:
+            return read_txt_file_as_list('lrw_word_set_num_txt_file_names.txt')
+    elif collect_by == 'vocab_word':
+        if 'test' in collect_type:
+            return read_txt_file_as_list_per_vocab_word('lrw_word_set_num_txt_file_names_test.txt')
+        elif 'train' in collect_type:
+            return read_txt_file_as_list_per_vocab_word('lrw_word_set_num_txt_file_names_train.txt')
+        elif 'val' in collect_type:
+            return read_txt_file_as_list_per_vocab_word('lrw_word_set_num_txt_file_names_val.txt')
+        else:
+            return read_txt_file_as_list_per_vocab_word('lrw_word_set_num_txt_file_names.txt')
+
+
+def write_list_as_txt_file(file_name, the_list):
+    with open(file_name+'.txt', 'w') as f:
+        for line in the_list:
+            a = f.write(line + '\n')
+
+
+def read_txt_file_as_list(file_name):
+    the_list = []
+    with open(file_name, 'r') as f:
+        for line in f:
+            the_list.append(line.rstrip())
+    return the_list
+
+
+def read_txt_file_as_list_per_vocab_word(file_name):
+    the_list = []
+    with open(file_name, 'r') as f:
+        prev_word = ""
+        for line in f:
+            # New row for every vocab_word
+            word = line.rstrip().split('/')[-1].split('.')[0].split('_')[0]
+            if word != prev_word:
+                the_list.append([])
+                prev_word = word
+            # Append
+            the_list[-1].append(line.rstrip())
+    return the_list
 
 
 #############################################################
@@ -142,8 +248,148 @@ def load_dense_softmax_y(collect_type):
 
 
 #############################################################
-# NUMBER OF FRAMES IN EVERY WORD
+# READ NUMBER OF FRAMES IN EVERY WORD
 #############################################################
+
+
+def load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=" ", collect_by="sample"):
+    data = load_list_of_lists_of_frames_per_set(csv_file_name)
+    frames_per = []
+    prev_word = ""
+    for d in data:
+        if collect_by == 'vocab_word':
+            # New row for every word
+            word = d[0]
+            if word != prev_word:
+                frames_per.append([])
+                prev_word = word
+        # Test
+        if 'test' in collect_type:
+            if d[1] == 'test':
+                for i, e in enumerate(d):
+                    if i < 2:
+                        continue
+                    if collect_by == 'vocab_word':
+                        frames_per[-1].append(int(e))
+                    elif collect_by == 'sample':
+                        frames_per.append(int(e))
+        # Train
+        elif 'train' in collect_type:
+            if d[1] == 'train':
+                for i, e in enumerate(d):
+                    if i < 2:
+                        continue
+                    if collect_by == 'vocab_word':
+                        frames_per[-1].append(int(e))
+                    elif collect_by == 'sample':
+                        frames_per.append(int(e))
+        # Val
+        elif 'val' in collect_type:
+            if d[1] == 'val':
+                for i, e in enumerate(d):
+                    if i < 2:
+                        continue
+                    if collect_by == 'vocab_word':
+                        frames_per[-1].append(int(e))
+                    elif collect_by == 'sample':
+                        frames_per.append(int(e))
+        # All
+        else:
+            for i, e in enumerate(d):
+                if i < 2:
+                    continue
+                if collect_by == 'vocab_word':
+                    frames_per[-1].append(int(e))
+                elif collect_by == 'sample':
+                    frames_per.append(int(e))
+    return frames_per
+
+
+def load_list_of_lists_of_frames_per_set(csv_file_name):
+    with open(csv_file_name, 'r') as f:  #opens PW file
+        reader = csv.reader(f)
+        data = list(list([i for i in rec]) for rec in csv.reader(f, delimiter=',')) #reads csv into a list of lists
+        return data
+
+
+# def extract_frame_idx_per_sample(lrw_word_set_num_txt_file_names):
+#     frame_idx_per_sample = []
+#     for word_set_num_txt_file in lrw_word_set_num_txt_file_names:
+#         frame_idx_per_sample.append(extract_word_frame_numbers(word_set_num_txt_file, verbose=False))
+#     return frame_idx_per_sample
+
+
+#############################################################
+# READ HEAD POSE
+#############################################################
+
+
+def read_head_poses(collect_type="val", collect_by="sample"):
+    head_poses_per_frame = read_head_poses_per_frame(collect_type=collect_type)
+    if collect_by == 'frame':
+        return head_poses_per_frame
+    elif collect_by == 'sample':
+        lrw_frames_per_sample = load_array_of_frames_in_word(collect_type=collect_type, collect_by='sample')
+        head_poses = []
+        def gen_head_pose(head_poses_per_frame):
+            for i in range(len(head_poses_per_frame)):
+                yield head_poses_per_frame[i]
+        head_poses_gen = gen_head_pose(head_poses_per_frame)
+        for i in range(len(lrw_frames_per_sample)):
+            head_poses.append([])
+            for n_of_frames in range(lrw_frames_per_sample[i]):
+                try:
+                    head_poses[-1].append(next(head_poses_gen))
+                except StopIteration:
+                    print("Iteration stopped! Something wrong, maybe?")
+        return head_poses
+
+
+def read_head_poses_per_frame(collect_type="val"):
+    head_pose_files_list = read_head_pose_files_list(collect_type=collect_type)
+    head_poses = np.empty((0, 3))
+    for head_pose_file in head_pose_files_list:
+        head_poses = np.vstack((head_poses, np.load(head_pose_file)))
+    return head_poses
+
+
+def read_head_pose_files_list(collect_type="val"):
+    if 'test' in collect_type:
+        return sorted(glob.glob(os.path.join(LRW_HEAD_POSE_DIR, "*_test.npy")))
+    elif 'train' in collect_type:
+        return sorted(glob.glob(os.path.join(LRW_HEAD_POSE_DIR, "*_train.npy")))
+    elif 'val' in collect_type:
+        return sorted(glob.glob(os.path.join(LRW_HEAD_POSE_DIR, "*_val.npy")))
+    else:
+        return [f for f in sorted(glob.glob(os.path.join(LRW_HEAD_POSE_DIR, "*.npy"))) if '_test.npy' not in f and '_train.npy' not in f and '_val.npy' not in f]
+
+
+#############################################################
+# COMPUTE NUMBER OF FRAMES IN EVERY WORD
+#############################################################
+
+# # EXTRACT AND SAVE N_OF_FRAMES IN EVERY WORD
+# extract_and_save_word_set_nOfFramesPerWord(dataDir=LRW_DATA_DIR)
+
+
+def extract_and_save_sample_start_frame_idx(dataDir=LRW_DATA_DIR):
+    # GET FRAME_DURATION OF WORDS
+    start_frame = []
+    # WORD
+    for word_dir in tqdm.tqdm(sorted(glob.glob(os.path.join(dataDir, '*/')))):
+        word = word_dir.split('/')[-2]
+        # set
+        for set_dir in sorted(glob.glob(os.path.join(word_dir, '*/'))):
+            setD = set_dir.split('/')[-2]
+            # number
+            start_frame.append([])
+            start_frame[-1].append(word)
+            start_frame[-1].append(setD)
+            for word_set_num_txt_file_name in sorted(glob.glob(os.path.join(set_dir, '*.txt'))):
+                # wordFrameNumbers
+                word_start_frame_index = extract_word_frame_numbers(word_set_num_txt_file_name)[0]
+                start_frame[-1].append(word_start_frame_index)
+        save_list_of_lists_as_csv(start_frame, "start_frames_per_sample")
 
 
 def extract_and_save_word_set_nOfFramesPerWord(dataDir=LRW_DATA_DIR):
@@ -159,17 +405,17 @@ def extract_and_save_word_set_nOfFramesPerWord(dataDir=LRW_DATA_DIR):
             frame_lengths.append([])
             frame_lengths[-1].append(word)
             frame_lengths[-1].append(setD)
-            for word_file_name in sorted(glob.glob(os.path.join(set_dir, '*.txt'))):
+            for word_set_num_txt_file_name in sorted(glob.glob(os.path.join(set_dir, '*.txt'))):
                 # wordFrameNumbers
-                wordDuration = extract_word_duration(word_file_name)
+                wordDuration = extract_word_duration(word_set_num_txt_file_name)
                 wordFrameDuration = math.ceil(VIDEO_FRAMES_PER_WORD/2 + wordDuration*VIDEO_FPS/2) - math.floor(VIDEO_FRAMES_PER_WORD/2 - wordDuration*VIDEO_FPS/2) + 1
                 frame_lengths[-1].append(wordFrameDuration)
-        save_list_of_lists_as_csv(frame_lengths, "frames_per_word")
+        save_list_of_lists_as_csv(frame_lengths, "n_of_frames_per_sample")
 
 
-def extract_word_frame_numbers(word_file_name, verbose=False):
+def extract_word_frame_numbers(word_set_num_txt_file_name, verbose=False):
     # Find the duration of the word_metadata
-    wordDuration = extract_word_duration(word_file_name)
+    wordDuration = extract_word_duration(word_set_num_txt_file_name)
     # Find frame numbers
     wordFrameNumbers = range(math.floor(VIDEO_FRAMES_PER_WORD/2 - wordDuration*VIDEO_FPS/2),
         math.ceil(VIDEO_FRAMES_PER_WORD/2 + wordDuration*VIDEO_FPS/2) + 1)
@@ -178,9 +424,9 @@ def extract_word_frame_numbers(word_file_name, verbose=False):
     return wordFrameNumbers
 
 
-def extract_word_duration(word_file_name):
+def extract_word_duration(word_set_num_txt_file_name):
     # Read last line of word metadata
-    with open(word_file_name) as f:
+    with open(word_set_num_txt_file_name) as f:
         for line in f:
             pass
     # Find the duration of the word_metadata`
@@ -191,40 +437,6 @@ def save_list_of_lists_as_csv(list_of_lists, csv_file_name):
     with open(csv_file_name+".csv", "w") as f:
         wr = csv.writer(f)
         wr.writerows(list_of_lists)
-
-
-def load_array_of_frames_per_word(csv_file_name=N_FRAMES_PER_WORD_FILE):
-    data = load_frames_per_word(csv_file_name)
-    frames_per_word_test = []
-    frames_per_word_train = []
-    frames_per_word_val = []
-    for d in data:
-        # Test
-        if d[1] == 'test':
-            for i, e in enumerate(d):
-                if i < 2:
-                    continue
-                frames_per_word_test.append(int(e))
-        # Train
-        if d[1] == 'train':
-            for i, e in enumerate(d):
-                if i < 2:
-                    continue
-                frames_per_word_train.append(int(e))
-        # Val
-        if d[1] == 'val':
-            for i, e in enumerate(d):
-                if i < 2:
-                    continue
-                frames_per_word_val.append(int(e))
-    return np.array(frames_per_word_test), np.array(frames_per_word_train), np.array(frames_per_word_val)
-
-
-def load_frames_per_word(csv_file_name):
-    with open(csv_file_name, 'r') as f:  #opens PW file
-        reader = csv.reader(f)
-        data = list(list([i for i in rec]) for rec in csv.reader(f, delimiter=',')) #reads csv into a list of lists
-        return data
 
 
 #############################################################
@@ -243,8 +455,8 @@ def split_head_pose(data_dir=LRW_DATA_DIR):
         for set_dir in sorted(glob.glob(os.path.join(word_dir, '*/'))):
             n_words = 0
             # number
-            for word_file_name in sorted(glob.glob(os.path.join(set_dir, '*.txt'))):
-                n_words += len(extract_word_frame_numbers(word_file_name, verbose=False))
+            for word_set_num_txt_file_name in sorted(glob.glob(os.path.join(set_dir, '*.txt'))):
+                n_words += len(extract_word_frame_numbers(word_set_num_txt_file_name, verbose=False))
             # Append n_words in set
             n_mouths_in_word_set[-1].append(n_words)
 
@@ -262,10 +474,9 @@ def split_head_pose(data_dir=LRW_DATA_DIR):
         # Split
         head_pose_test = head_pose_word[:n_mouths_in_word_set[word_num][0]]
         head_pose_train = head_pose_word[n_mouths_in_word_set[word_num][0]:n_mouths_in_word_set[word_num][0]+n_mouths_in_word_set[word_num][1]]
-        head_pose_val = head_pose_word[n_mouths_in_word_set[word_num][0]+n_mouths_in_word_set[word_num][1]:n_mouths_in_word_set[word_num][0]+n_mouths_in_word_set[word_num][1]+n_mouths_in_word_set[word_num][2]]
+        head_pose_val = head_pose_word[n_mouths_in_word_set[word_num][0]+n_mouths_in_word_set[word_num][1]:]
         # Save
         np.save(os.path.join(LRW_HEAD_POSE_DIR, 'head_pose_'+word+'_test.npy'), head_pose_test)
         np.save(os.path.join(LRW_HEAD_POSE_DIR, 'head_pose_'+word+'_train.npy'), head_pose_train)
         np.save(os.path.join(LRW_HEAD_POSE_DIR, 'head_pose_'+word+'_val.npy'), head_pose_val)
-
 
