@@ -688,6 +688,43 @@ def reprocess_videos_with_multiple_faces(startExtracting=False,
 #############################################################
 
 
+def plot_frames_per_sample():
+
+    # From assessor_functions
+    # lrw_n_of_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
+
+    plt.bar(np.arange(22), np.bincount(lrw_n_of_frames_per_sample))
+    plt.xticks(range(22))
+
+    plt.title('Histogram of number of frames per sample in LRW')
+    plt.show()
+
+    plt.figure()
+
+    plt.subplot(131)
+    plt.bar(np.arange(22), np.bincount(lrw_n_of_frames_per_sample_test))
+    plt.xticks(range(22))
+    plt.xlabel('Number of frames in sample')
+    plt.ylabel('Number of sample')
+    plt.title('Histogram of number of frames per sample in LRW test')
+
+    plt.subplot(132)
+    plt.bar(np.arange(22), np.bincount(lrw_n_of_frames_per_sample_train))
+    plt.xticks(range(22))
+    plt.xlabel('Number of frames in sample')
+    plt.ylabel('Number of sample')
+    plt.title('Histogram of number of frames per sample in LRW train')
+
+    plt.subplot(133)
+    plt.bar(np.arange(22), np.bincount(lrw_n_of_frames_per_sample_val))
+    plt.xticks(range(22))
+    plt.xlabel('Number of frames in sample')
+    plt.ylabel('Number of sample')
+    plt.title('Histogram of number of frames per sample in LRW val')
+
+    plt.show()
+
+
 def plot_word_duration_histograms(dataDir=LRW_DATA_DIR):
     lrw_train_number_of_frames, lrw_val_number_of_frames, lrw_test_number_of_frames = extract_all_word_number_of_frames(dataDir)
     # Train

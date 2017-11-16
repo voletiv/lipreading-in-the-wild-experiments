@@ -129,8 +129,8 @@ def generate_assessor_training_batches(data_dir=LRW_DATA_DIR, batch_size=64, col
                                 h_offset = np.random.randint(low=0, high=mouth_image.shape[0]-MOUTH_H)
                                 w_offset = np.random.randint(low=0, high=mouth_image.shape[1]-MOUTH_W)
                             else:
-                                h_offset = (mouth_image.shape[0] - MOUTH_H) / 2
-                                w_offset = (mouth_image.shape[1] - MOUTH_W) / 2
+                                h_offset = (mouth_image.shape[0] - MOUTH_H) // 2
+                                w_offset = (mouth_image.shape[1] - MOUTH_W) // 2
                             if verbose:
                                 print("Crop offsets (h, w):", h_offset, w_offset)
                             # Reset
@@ -163,6 +163,31 @@ def robust_imread(jpg_name, cv_option=cv2.IMREAD_COLOR):
     except TypeError:
         return robust_imread(jpg_name, cv_option)
 
+
+'''
+for sample_idx_within_batch, word_txt_file in enumerate(batch_lrw_word_set_num_txt_file_names):
+    word_frame_numbers = range(batch_start_frames_per_sample[sample_idx_within_batch],batch_start_frames_per_sample[sample_idx_within_batch] + batch_n_of_frames_per_sample[sample_idx_within_batch])
+    frame_0_start_index = -1
+    set_crop_offset = True
+    for jpg_name in sorted(glob.glob('.'.join(word_txt_file.split('.')[:-1]) + '*mouth*.jpg')):
+        frame_number = int(jpg_name.split('/')[-1].split('.')[0].split('_')[-2])
+        if frame_number in word_frame_numbers:
+            frame_0_start_index += 1
+            mouth_image = robust_imread(jpg_name)
+            if set_crop_offset:
+                if random_crop:
+                     h_offset = np.random.randint(low=0, high=mouth_image.shape[0]-MOUTH_H)
+                     w_offset = np.random.randint(low=0, high=mouth_image.shape[1]-MOUTH_W)
+                else:
+                     h_offset = (mouth_image.shape[0] - MOUTH_H) / 2
+                     w_offset = (mouth_image.shape[1] - MOUTH_W) / 2
+                set_crop_offset = False
+            mouth_image = mouth_image[h_offset:h_offset+MOUTH_H, w_offset:w_offset+MOUTH_W]
+            batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1] = mouth_image
+            batch_head_poses_per_sample_for_training[sample_idx_within_batch][-frame_0_start_index-1] = batch_head_poses_per_sample[sample_idx_within_batch][frame_0_start_index]
+    break
+batch_n_of_frames_per_sample = np.array(batch_n_of_frames_per_sample)/float(MAX_FRAMES_PER_WORD)
+'''
 
 #############################################################
 # lrw_word_set_num_txt_file_names
@@ -258,10 +283,10 @@ def read_txt_file_as_list_per_vocab_word(file_name):
 
 def load_dense_softmax_y(collect_type):
     lrw_lipreader_dense_softmax_y = np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_dense_softmax_y.npz'))
-    lrw_lipreader_dense = lrw_lipreader_dense_softmax_y[collect_type+'Dense']
-    lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y[collect_type+'Softmax']
-    lrw_one_hot_y = lrw_lipreader_dense_softmax_y[collect_type+'Y']
-    return lrw_lipreader_dense, lrw_lipreader_softmax, lrw_one_hot_y
+    lrw_lipreader_dense = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_dense']
+    lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_softmax']
+    lrw_one_hot_y_rg = lrw_lipreader_dense_softmax_y['lrw_correct_one_hot_arg']
+    return lrw_lipreader_dense, lrw_lipreader_softmax, lrw_one_hot_y_rg
 
 
 #############################################################

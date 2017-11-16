@@ -50,12 +50,12 @@ elif 'voleti.vikram' in os.getcwd():
 
 VIDEO_FPS = 25
 VIDEO_FRAMES_PER_WORD = 30
-MAX_FRAMES_PER_WORD = 20
+MAX_FRAMES_PER_WORD = 21
 
 N_OF_FRAMES_PER_SAMPLE_CSV_FILE = 'n_of_frames_per_sample.csv'
 START_FRAMES_PER_SAMPLE_CSV_FILE = 'start_frames_per_sample.csv'
 
-TIME_STEPS = 22
+TIME_STEPS = MAX_FRAMES_PER_WORD
 MOUTH_H = 112
 MOUTH_W = 112
 MOUTH_CHANNELS = 3
