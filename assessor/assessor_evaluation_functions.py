@@ -1,3 +1,7 @@
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def my_precision_recall(lrw_lipreader_preds_softmax, lrw_correct_one_hot_y_arg, critic_removes=None):
@@ -8,6 +12,7 @@ def my_precision_recall(lrw_lipreader_preds_softmax, lrw_correct_one_hot_y_arg, 
     # P-R
     lrw_lipreader_precision_w = np.zeros((25000, 500))
     lrw_lipreader_recall_w = np.zeros((25000, 500))
+    lrw_lipreader_avg_precision_w = np.zeros((500))
     for w in range(500):
         # Sort softmax for that word
         lrw_lipreader_preds_softmax_argsort_w = np.argsort(lrw_lipreader_preds_softmax[:, lrw_correct_one_hot_y_arg[w*50]])[::-1]
@@ -21,10 +26,11 @@ def my_precision_recall(lrw_lipreader_preds_softmax, lrw_correct_one_hot_y_arg, 
                                                                         lrw_lipreader_preds_correct_or_wrong_sorted_w_rejects,
                                                                         lrw_lipreader_preds_correct_or_wrong_sorted_w_selects[50:]])
         # P-R
-        lrw_lipreader_precision_w[:, lrw_correct_one_hot_y_arg[w*50]] = np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w)/(np.arange(500*50)+1)
-        lrw_lipreader_recall_w[:, lrw_correct_one_hot_y_arg[w*50]] = np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w)/50
+        lrw_lipreader_precision_w[:, w] = np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w)/(np.arange(500*50)+1)
+        lrw_lipreader_recall_w[:, w] = np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w)/50
+        lrw_lipreader_avg_precision_w[w] = np.sum(np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w) / (np.arange(500*50)+1) * lrw_lipreader_preds_correct_or_wrong_sorted_w)/50
     # Array
-    return lrw_lipreader_precision_w, lrw_lipreader_recall_w
+    return lrw_lipreader_precision_w, lrw_lipreader_recall_w, lrw_lipreader_avg_precision_w
 
 
 def plot_ROC_with_OP(fpr, tpr, roc_auc, fpr_op, tpr_op, assessor_save_dir, this_model, threshold=.5):
@@ -82,4 +88,39 @@ def plot_P_atK_vs_R_atK(lipreader_precision_at_k_averaged_across_words, filtered
     plt.ylabel("Precision at K")
     plt.title("P@K vs R@K curve of lipreader on LRW val, till K=50")
     plt.savefig(os.path.join(assessor_save_dir, this_model+"_PR_curve_LRW_"+lrw_type+".png"))
+    plt.close()
+
+
+def plot_lrw_property_image(lrw_property, title="?????????????", cmap='jet', clim=None, save=True, assessor_save_dir=".", this_model="assessor_cnn_adam", lrw_type="val", file_name="avg_precision"):
+    # lrw_property must be of shape (500,)
+    # Fig
+    fig, ax = plt.subplots(figsize=(28, 10))
+    # Grid
+    x_lim = 20
+    y_lim = 25
+    x, y = np.meshgrid(np.arange(x_lim), np.arange(y_lim))
+    # Image
+    image = plt.imshow(np.reshape(lrw_property[:x_lim*y_lim], (y_lim, x_lim)), cmap=cmap, clim=clim, aspect='auto')
+    plt.colorbar(image)
+    # Words in image
+    for i, (x_val, y_val) in enumerate(zip(x.flatten(), y.flatten())):
+        # print(image.get_array()[y_val][x_val])
+        # if np.mean(image.cmap(image.get_array()[y_val][x_val])[:3]) < .5:
+        #     c = 'w'
+        # else:
+        #     c = 'k'
+        # ax.text(x_val, y_val, LRW_VOCAB[i], va='center', ha='center', fontsize=7, color=c)
+        ax.text(x_val, y_val, LRW_VOCAB[i], va='center', ha='center', fontsize=7)
+    # ax.set_xlim(0, x_lim)
+    # ax.set_ylim(0, y_lim)
+    # ax.set_xticks(np.arange(x_lim))
+    # ax.set_yticks(np.arange(y_lim))
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    # ax.grid()
+    plt.title(title)
+    if save:
+        plt.savefig(os.path.join(assessor_save_dir, this_model+"_"+file_name+"_"+lrw_type+".png"))
+    else:
+        plt.show()
     plt.close()

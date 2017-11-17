@@ -43,6 +43,14 @@ for i in tqdm.tqdm(range(25000//batch_size)):
 np.save(os.path.join(assessor_save_dir, this_model+"_lrw_test_preds"), lrw_test_assessor_preds)
 
 ######################################################
+# LOAD
+######################################################
+
+lrw_val_assessor_preds = np.load(os.path.join(assessor_save_dir, this_model+"_lrw_val_preds.npy"))
+
+lrw_test_assessor_preds = np.load(os.path.join(assessor_save_dir, this_model+"_lrw_test_preds.npy"))
+
+######################################################
 # SOFTMAX
 ######################################################
 
@@ -58,7 +66,7 @@ lipreader_lrw_test_correct_or_wrong = np.argmax(lipreader_lrw_test_softmax, axis
 # ASSESSOR THRESHOLD
 ######################################################
 
-assessor_threshold = .7
+assessor_threshold = .5
 
 ######################################################
 # ROC, OPERATING POINT
@@ -91,27 +99,37 @@ plot_PR_curve(recall, precision, average_precision, assessor_save_dir, this_mode
 # COMPARISON OF P-R
 ######################################################
 
-lipreader_lrw_val_precision_w, lipreader_lrw_val_recall_w = my_precision_recall(lipreader_lrw_val_softmax, lrw_correct_one_hot_y_arg)
+lipreader_lrw_val_precision_w, lipreader_lrw_val_recall_w, lipreader_lrw_val_avg_precision_w = \
+    my_precision_recall(lipreader_lrw_val_softmax, lrw_correct_one_hot_y_arg)
 
 lipreader_lrw_val_precision_at_k_averaged_across_words = np.mean(lipreader_lrw_val_precision_w, axis=1)[:50]
 lipreader_lrw_val_recall_at_k_averaged_across_words = np.mean(lipreader_lrw_val_recall_w, axis=1)[:50]
 
 lrw_val_rejection_idx = lrw_val_assessor_preds <= assessor_threshold
-filtered_lipreader_lrw_val_precision_w, filtered_lipreader_lrw_val_val_recall_w = my_precision_recall(lipreader_lrw_val_softmax, lrw_correct_one_hot_y_arg, critic_removes=lrw_val_rejection_idx)
+filtered_lipreader_lrw_val_precision_w, filtered_lipreader_lrw_val_recall_w, filtered_lipreader_lrw_val_avg_precision_w = \
+    my_precision_recall(lipreader_lrw_val_softmax, lrw_correct_one_hot_y_arg, critic_removes=lrw_val_rejection_idx)
 
 filtered_val_precision_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_val_precision_w, axis=1)[:50]
-filtered_val_recall_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_val_val_recall_w, axis=1)[:50]
+filtered_val_recall_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_val_recall_w, axis=1)[:50]
 
 # P@K vs K, R@K vs K
 plot_P_atK_and_R_atK_vs_K(lipreader_lrw_val_precision_at_k_averaged_across_words, filtered_val_precision_at_k_averaged_across_words,
                           lipreader_lrw_val_recall_at_k_averaged_across_words, filtered_val_recall_at_k_averaged_across_words,
-                          assessor_save_dir=assessor_save_dir, this_model="assessor_cnn_adam", lrw_type="val"+str(assessor_threshold))
+                          assessor_save_dir=assessor_save_dir, this_model=this_model, lrw_type="val"+str(assessor_threshold))
 
 # P-R curve VAL
 plot_P_atK_vs_R_atK(lipreader_lrw_val_precision_at_k_averaged_across_words, filtered_val_precision_at_k_averaged_across_words,
                     lipreader_lrw_val_recall_at_k_averaged_across_words, filtered_val_recall_at_k_averaged_across_words,
-                    assessor_save_dir=assessor_save_dir, this_model="assessor_cnn_adam", lrw_type="val"+str(assessor_threshold))
+                    assessor_save_dir=assessor_save_dir, this_model=this_model, lrw_type="val"+str(assessor_threshold))
 
 
+######################################################
+# PRECISION GIF
+######################################################
 
+plot_lrw_property_image(lipreader_lrw_val_avg_precision_w, title="Average Precision (@K) - LRW val", cmap='gray', clim=[0, 1], save=True,
+        assessor_save_dir=assessor_save_dir, this_model=this_model, lrw_type="val", file_name="avg_precision"):
+
+plot_lrw_property_image(filtered_lipreader_lrw_val_avg_precision_w, title="Average Precision (@K) - LRW val filtered using assessor", cmap='gray', clim=[0, 1], save=True,
+        assessor_save_dir=assessor_save_dir, this_model=this_model, lrw_type="val", file_name="avg_precision"):
 
