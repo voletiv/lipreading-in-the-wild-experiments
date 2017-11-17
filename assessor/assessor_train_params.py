@@ -21,8 +21,12 @@ random_crop = True
 
 verbose = False
 
-# Assessor type
-mouth_nn = 'cnn'
+# Assessor
+mouth_nn = 'resnet18'
+mouth_features_dim = 512
+lstm_units_1 = 32
+dense_fc_1 = 128
+dense_fc_2 = 64
 
 # Compile
 optimizer = 'adam'
@@ -36,8 +40,8 @@ n_epochs = 100
 
 # Val
 val_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=val_collect_type, collect_by='sample')
-# val_steps_per_epoch = len(val_lrw_word_set_num_txt_file_names) // batch_size
-val_steps_per_epoch = 10     # Set less value so as not to take too much time computing on full val set
+val_steps_per_epoch = len(val_lrw_word_set_num_txt_file_names) // batch_size
+# val_steps_per_epoch = 10     # Set less value so as not to take too much time computing on full val set
 
 # Class weights
 # The lipreader is correct 70% of the time
@@ -48,10 +52,10 @@ class_weight = {0: .3, 1: .7}
 ######################################################
 
 # THIS MODEL NAME
-this_model = "2_assessor_classweighted_"+mouth_nn+"_"+optimizer
+this_model = "3_assessor_"+mouth_nn+"_"+optimizer
 
 # Save
-assessor_save_dir = os.path.realpath(os.path.join('../../ASSESSORS/', this_model))
+assessor_save_dir = os.path.realpath(os.path.join(ASSESSOR_SAVE_DIR, this_model))
 
 # Make the dir if it doesn't exist
 if not os.path.exists(assessor_save_dir):

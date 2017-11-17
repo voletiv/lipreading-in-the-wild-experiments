@@ -13,42 +13,44 @@ from assessor_params import *
 from resnet import ResnetBuilder
 
 #########################################################
-# MODEL PARAMS
+# CNN MODEL PARAMS
 #########################################################
 
 conv_f_1 = 32
 conv_f_2 = 64
 conv_f_3 = 128
-mouth_features_dim = 512
-lstm_units_1 = 32
-dense_fc_1 = 128
-dense_fc_2 = 64
 
 #########################################################
 # MODEL
 #########################################################
 
-def my_assessor_model(mouth_nn='cnn'):
+def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, dense_fc_1=128, dense_fc_2=64):
 
-    mouth_input_shape = (TIME_STEPS, MOUTH_H, MOUTH_W, MOUTH_CHANNELS)
-    my_input_mouth_images = Input(shape=mouth_input_shape)
+    mouth_input_shape = (MOUTH_H, MOUTH_W, MOUTH_CHANNELS)
+    my_input_mouth_images = Input(shape=(TIME_STEPS, *mouth_input_shape))
     my_input_head_poses = Input(shape=(TIME_STEPS, 3))
     my_input_n_of_frames = Input(shape=(1,))
     my_input_lipreader_dense = Input(shape=(1024,))
     my_input_lipreader_softmax = Input(shape=(500,))
 
     if mouth_nn == 'cnn':
-        mouth_feature_model = my_cnn_model(mouth_input_shape, conv_f_1, conv_f_2, conv_f_3, mouth_features_dim)
+        mouth_feature_model = TimeDistributed(my_cnn_model(mouth_input_shape, conv_f_1, conv_f_2, conv_f_3, mouth_features_dim),
+                                              input_shape=(TIME_STEPS, *mouth_input_shape))
     elif mouth_nn == 'resnet18':
-        mouth_feature_model = ResnetBuilder.build_resnet_18(mouth_input_shape, mouth_features_dim)
+        mouth_feature_model = TimeDistributed(ResnetBuilder.build_resnet_18(mouth_input_shape, mouth_features_dim),
+                                              input_shape=(TIME_STEPS, *mouth_input_shape))
     elif mouth_nn == 'resnet34':
-        mouth_feature_model = ResnetBuilder.build_resnet_34(mouth_input_shape, mouth_features_dim)
+        mouth_feature_model = TimeDistributed(ResnetBuilder.build_resnet_34(mouth_input_shape, mouth_features_dim),
+                                              input_shape=(TIME_STEPS, *mouth_input_shape))
     elif mouth_nn == 'resnet50':
-        mouth_feature_model = ResnetBuilder.build_resnet_50(mouth_input_shape, mouth_features_dim)
+        mouth_feature_model = TimeDistributed(ResnetBuilder.build_resnet_50(mouth_input_shape, mouth_features_dim),
+                                              input_shape=(TIME_STEPS, *mouth_input_shape))
     elif mouth_nn == 'resnet101':
-        mouth_feature_model = ResnetBuilder.build_resnet_101(mouth_input_shape, mouth_features_dim)
+        mouth_feature_model = TimeDistributed(ResnetBuilder.build_resnet_101(mouth_input_shape, mouth_features_dim),
+                                              input_shape=(TIME_STEPS, *mouth_input_shape))
     elif mouth_nn == 'resnet152':
-        mouth_feature_model = ResnetBuilder.build_resnet_152(mouth_input_shape, mouth_features_dim)
+        mouth_feature_model = TimeDistributed(ResnetBuilder.build_resnet_152(mouth_input_shape, mouth_features_dim),
+                                              input_shape=(TIME_STEPS, *mouth_input_shape))
 
     cnn_features = mouth_feature_model(my_input_mouth_images)
 
@@ -81,27 +83,26 @@ def my_cnn_model(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_dense_fc_1, mask
 
     if masking:
         model.add(Masking(mask_value=0.0, input_shape=input_shape))
-        model.add(TimeDistributed(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4))))
+        model.add(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4)))
     else:
-        model.add(TimeDistributed(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4)),
-            input_shape=input_shape))
+        model.add(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4), input_shape=input_shape))
 
-    model.add(TimeDistributed(BatchNormalization()))
-    model.add(TimeDistributed(Activation('relu')))
-    model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same'))
 
-    model.add(TimeDistributed(Conv2D(filters=conv_f_2, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4))))
-    model.add(TimeDistributed(BatchNormalization()))
-    model.add(TimeDistributed(Activation('relu')))
-    model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')))
+    model.add(Conv2D(filters=conv_f_2, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4)))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same'))
 
-    model.add(TimeDistributed(Conv2D(filters=conv_f_3, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4))))
-    model.add(TimeDistributed(BatchNormalization()))
-    model.add(TimeDistributed(Activation('relu')))
-    model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')))
+    model.add(Conv2D(filters=conv_f_3, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4)))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same'))
 
-    model.add(TimeDistributed(Flatten()))
-    model.add(TimeDistributed(Dense(cnn_dense_fc_1)))
+    model.add(Flatten())
+    model.add(Dense(cnn_dense_fc_1))
 
     return model
 
@@ -188,7 +189,7 @@ class CheckpointAndMakePlots(Callback):
         # plt.subplots_adjust(top=0.85)
         plt.suptitle(self.file_name_pre, fontsize=10)
         plt.savefig(os.path.join(self.assessor_save_dir,
-                                 self.file_name_pre + "_plots.png"))
+                                 self.file_name_pre + "_plots_loss_acc.png"))
         plt.close()
 
 
