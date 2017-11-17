@@ -4,6 +4,12 @@ from assessor_evaluation_functions import *
 from assessor_train_params import *
 
 ######################################################
+# SAVE MODEL
+######################################################
+
+assessor.save_weights("assessor.hdf5")
+
+######################################################
 # PREDICT
 ######################################################
 
@@ -12,7 +18,7 @@ from assessor_train_params import *
 batch_size = 100
 
 # LRW_VAL
-lrw_val_generator = generate_assessor_training_batches(data_dir=data_dir, batch_size=batch_size, collect_type="val", shuffle=False, random_crop=False, verbose=verbose)
+lrw_val_generator = generate_assessor_data_batches(data_dir=data_dir, batch_size=batch_size, collect_type="val", shuffle=False, random_crop=False, verbose=verbose)
 
 # # FAST?
 # get_output = K.function([assessor.input[0], assessor.input[1], assessor.input[2], assessor.input[3], assessor.input[4], K.learning_phase()],
@@ -25,14 +31,14 @@ lrw_val_generator = generate_assessor_training_batches(data_dir=data_dir, batch_
 # SLOW?
 lrw_val_assessor_preds = np.array([])
 for i in tqdm.tqdm(range(25000//batch_size)):
-    [X, y] = next(train_generator)
+    [X, y] = next(lrw_val_generator)
     lrw_val_assessor_preds = np.append(lrw_val_assessor_preds, assessor.predict(X))
 
 # Save
 np.save(os.path.join(assessor_save_dir, this_model+"_lrw_val_preds"), lrw_val_assessor_preds)
 
 # LRW_TEST
-lrw_test_generator = generate_assessor_training_batches(data_dir=data_dir, batch_size=batch_size, collect_type="test", shuffle=False, random_crop=False, verbose=False)
+lrw_test_generator = generate_assessor_data_batches(data_dir=data_dir, batch_size=batch_size, collect_type="test", shuffle=False, random_crop=False, verbose=False)
 
 lrw_test_assessor_preds = np.array([])
 for i in tqdm.tqdm(range(25000//batch_size)):
@@ -72,6 +78,8 @@ assessor_threshold = .5
 # ROC, OPERATING POINT
 ######################################################
 
+# VAL
+
 # OP
 tn, fp, fn, tp = confusion_matrix(lipreader_lrw_val_correct_or_wrong, lrw_val_assessor_preds >= assessor_threshold).ravel()
 fpr_op = fp/(fp + tn)
@@ -82,22 +90,47 @@ fpr, tpr, thresholds = roc_curve(lipreader_lrw_val_correct_or_wrong, lrw_val_ass
 roc_auc = auc(fpr, tpr)
 
 # Plot
-plot_ROC_with_OP(fpr, tpr, roc_auc, fpr_op, tpr_op, assessor_save_dir, this_model, assessor_threshold)
+plot_ROC_with_OP(fpr, tpr, roc_auc, fpr_op, tpr_op, assessor_save_dir, this_model, lrw_type="val", threshold=assessor_threshold, save_and_close=False)
+
+# TEST
+
+# OP
+tn, fp, fn, tp = confusion_matrix(lipreader_lrw_test_correct_or_wrong, lrw_test_assessor_preds >= assessor_threshold).ravel()
+fpr_op = fp/(fp + tn)
+tpr_op = tp/(tp + fn)
+
+# ROC
+fpr, tpr, thresholds = roc_curve(lipreader_lrw_test_correct_or_wrong, lrw_test_assessor_preds)
+roc_auc = auc(fpr, tpr)
+
+# Plot
+plot_ROC_with_OP(fpr, tpr, roc_auc, fpr_op, tpr_op, assessor_save_dir, this_model, lrw_type="test", threshold=assessor_threshold, save_and_close=True)
 
 ######################################################
 # P-R CURVE
 ######################################################
 
+# VAL
+
 # PR
 average_precision = average_precision_score(lipreader_lrw_val_correct_or_wrong, lrw_val_assessor_preds)
 precision, recall, _ = precision_recall_curve(lipreader_lrw_val_correct_or_wrong, lrw_val_assessor_preds)
 
-plot_PR_curve(recall, precision, average_precision, assessor_save_dir, this_model)
+plot_assessor_PR_curve(recall, precision, average_precision, assessor_save_dir, this_model, lrw_type="val", save_and_close=False)
 
+# TEST
+
+# PR
+average_precision = average_precision_score(lipreader_lrw_test_correct_or_wrong, lrw_test_assessor_preds)
+precision, recall, _ = precision_recall_curve(lipreader_lrw_test_correct_or_wrong, lrw_test_assessor_preds)
+
+plot_assessor_PR_curve(recall, precision, average_precision, assessor_save_dir, this_model, lrw_type="test", save_and_close=True)
 
 ######################################################
 # COMPARISON OF P-R
 ######################################################
+
+# VAL
 
 lipreader_lrw_val_precision_w, lipreader_lrw_val_recall_w, lipreader_lrw_val_avg_precision_w = \
     my_precision_recall(lipreader_lrw_val_softmax, lrw_correct_one_hot_y_arg)
@@ -109,18 +142,43 @@ lrw_val_rejection_idx = lrw_val_assessor_preds <= assessor_threshold
 filtered_lipreader_lrw_val_precision_w, filtered_lipreader_lrw_val_recall_w, filtered_lipreader_lrw_val_avg_precision_w = \
     my_precision_recall(lipreader_lrw_val_softmax, lrw_correct_one_hot_y_arg, critic_removes=lrw_val_rejection_idx)
 
-filtered_val_precision_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_val_precision_w, axis=1)[:50]
-filtered_val_recall_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_val_recall_w, axis=1)[:50]
+filtered_lrw_val_precision_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_val_precision_w, axis=1)[:50]
+filtered_lrw_val_recall_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_val_recall_w, axis=1)[:50]
 
 # P@K vs K, R@K vs K
-plot_P_atK_and_R_atK_vs_K(lipreader_lrw_val_precision_at_k_averaged_across_words, filtered_val_precision_at_k_averaged_across_words,
-                          lipreader_lrw_val_recall_at_k_averaged_across_words, filtered_val_recall_at_k_averaged_across_words,
-                          assessor_save_dir=assessor_save_dir, this_model=this_model, lrw_type="val"+str(assessor_threshold))
+plot_P_atK_and_R_atK_vs_K(lipreader_lrw_val_precision_at_k_averaged_across_words, filtered_lrw_val_precision_at_k_averaged_across_words,
+                          lipreader_lrw_val_recall_at_k_averaged_across_words, filtered_lrw_val_recall_at_k_averaged_across_words,
+                          assessor_save_dir=assessor_save_dir, this_model=this_model, lrw_type="val", threshold=assessor_threshold)
 
-# P-R curve VAL
-plot_P_atK_vs_R_atK(lipreader_lrw_val_precision_at_k_averaged_across_words, filtered_val_precision_at_k_averaged_across_words,
-                    lipreader_lrw_val_recall_at_k_averaged_across_words, filtered_val_recall_at_k_averaged_across_words,
-                    assessor_save_dir=assessor_save_dir, this_model=this_model, lrw_type="val"+str(assessor_threshold))
+# P-R curve
+plot_P_atK_vs_R_atK(lipreader_lrw_val_precision_at_k_averaged_across_words, filtered_lrw_val_precision_at_k_averaged_across_words,
+                    lipreader_lrw_val_recall_at_k_averaged_across_words, filtered_lrw_val_recall_at_k_averaged_across_words,
+                    assessor_save_dir=assessor_save_dir, this_model=this_model, lrw_type="val", threshold=assessor_threshold)
+
+# TEST
+
+lipreader_lrw_test_precision_w, lipreader_lrw_test_recall_w, lipreader_lrw_test_avg_precision_w = \
+    my_precision_recall(lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg)
+
+lipreader_lrw_test_precision_at_k_averaged_across_words = np.mean(lipreader_lrw_test_precision_w, axis=1)[:50]
+lipreader_lrw_test_recall_at_k_averaged_across_words = np.mean(lipreader_lrw_test_recall_w, axis=1)[:50]
+
+lrw_test_rejection_idx = lrw_test_assessor_preds <= assessor_threshold
+filtered_lipreader_lrw_test_precision_w, filtered_lipreader_lrw_test_recall_w, filtered_lipreader_lrw_test_avg_precision_w = \
+    my_precision_recall(lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg, critic_removes=lrw_test_rejection_idx)
+
+filtered_lrw_test_precision_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_test_precision_w, axis=1)[:50]
+filtered_lrw_test_recall_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_test_recall_w, axis=1)[:50]
+
+# P@K vs K, R@K vs K
+plot_P_atK_and_R_atK_vs_K(lipreader_lrw_test_precision_at_k_averaged_across_words, filtered_lrw_test_precision_at_k_averaged_across_words,
+                          lipreader_lrw_test_recall_at_k_averaged_across_words, filtered_lrw_test_recall_at_k_averaged_across_words,
+                          assessor_save_dir=assessor_save_dir, this_model=this_model, lrw_type="test", threshold=assessor_threshold)
+
+# P-R curve
+plot_P_atK_vs_R_atK(lipreader_lrw_test_precision_at_k_averaged_across_words, filtered_lrw_test_precision_at_k_averaged_across_words,
+                    lipreader_lrw_test_recall_at_k_averaged_across_words, filtered_lrw_test_recall_at_k_averaged_across_words,
+                    assessor_save_dir=assessor_save_dir, this_model=this_model, lrw_type="test", threshold=assessor_threshold)
 
 
 ######################################################
