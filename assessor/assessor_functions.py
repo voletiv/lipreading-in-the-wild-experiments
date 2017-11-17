@@ -14,7 +14,7 @@ from assessor_params import *
 #############################################################
 
 
-def generate_assessor_training_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect_type="val", shuffle=True, random_crop=True, verbose=False):
+def generate_assessor_data_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect_type="val", shuffle=True, random_crop=True, verbose=False):
 
     print("Loading LRW", collect_type, "init vars for generation...")
 
