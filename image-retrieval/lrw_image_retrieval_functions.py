@@ -153,7 +153,7 @@ def load_lrw_correct_wordIdx(lrw_correct_wordIdx_file=LRW_CORRECT_WORDIDX_FILE):
 #############################################################
 
 
-def precision_recall(lrw_lipreader_preds_softmax, critic_removes=None):
+def my_precision_recall(lrw_lipreader_preds_softmax, critic_removes=None):
     lrw_lipreader_recall_w = []
     lrw_lipreader_precision_w = []
     lrw_lipreader_preds_correct_or_wrong = np.zeros((25000, 500))

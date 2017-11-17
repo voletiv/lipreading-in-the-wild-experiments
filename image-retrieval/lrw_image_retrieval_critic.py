@@ -110,10 +110,10 @@ for i in range(len(lrw_lipreader_preds_test_max_softmax_sorted)):
 
 # Compute precision, recall per word
 # VAL
-lrw_lipreader_val_precision_w, lrw_lipreader_val_recall_w = precision_recall(lrw_lipreader_preds_val_softmax)
+lrw_lipreader_val_precision_w, lrw_lipreader_val_recall_w = my_precision_recall(lrw_lipreader_preds_val_softmax)
 
 # TEST
-lrw_lipreader_test_precision_w, lrw_lipreader_test_recall_w = precision_recall(lrw_lipreader_preds_test_softmax)
+lrw_lipreader_test_precision_w, lrw_lipreader_test_recall_w = my_precision_recall(lrw_lipreader_preds_test_softmax)
 
 # # Plot overall P-R curve
 # plt.step(lrw_lipreader_val_recall, lrw_lipreader_val_precision, label='lrw_val overall')
@@ -257,16 +257,14 @@ np.mean(lrw_test_rejection_idx)
 
 # Compute precision, recall per word
 # VAL
-filtered_lrw_lipreader_val_precision_w, filtered_lrw_lipreader_val_recall_w = precision_recall(lrw_lipreader_preds_val_softmax, critic_removes=lrw_val_rejection_idx)
+filtered_lrw_lipreader_val_precision_w, filtered_lrw_lipreader_val_recall_w = my_precision_recall(lrw_lipreader_preds_val_softmax, critic_removes=lrw_val_rejection_idx)
 
 # TEST
-filtered_lrw_lipreader_test_precision_w, filtered_lrw_lipreader_test_recall_w = precision_recall(lrw_lipreader_preds_test_softmax, critic_removes=lrw_test_rejection_idx)
+filtered_lrw_lipreader_test_precision_w, filtered_lrw_lipreader_test_recall_w = my_precision_recall(lrw_lipreader_preds_test_softmax, critic_removes=lrw_test_rejection_idx)
 
 # P@K, R@K
 
 # VAL
-lipreader_val_recall_1_index = 
-
 val_filtered_precision_at_k_averaged_across_words = np.mean(filtered_lrw_lipreader_val_precision_w, axis=1)[:50]
 val_filtered_recall_at_k_averaged_across_words = np.mean(filtered_lrw_lipreader_val_recall_w, axis=1)[:50]
 
