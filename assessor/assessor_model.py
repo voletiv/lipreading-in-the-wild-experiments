@@ -3,7 +3,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from keras.models import Model, Sequential
+from keras.models import Model, Sequential, model_from_json, model_from_yaml
 from keras.layers import Masking, TimeDistributed, Conv2D, BatchNormalization, Activation, MaxPooling2D
 from keras.layers import Flatten, Dense, Input, Concatenate, LSTM
 from keras.regularizers import l2
