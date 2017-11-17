@@ -24,6 +24,7 @@ conv_f_3 = 128
 # MODEL
 #########################################################
 
+
 def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, dense_fc_1=128, dense_fc_2=64):
 
     mouth_input_shape = (MOUTH_H, MOUTH_W, MOUTH_CHANNELS)
@@ -34,23 +35,17 @@ def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, d
     my_input_lipreader_softmax = Input(shape=(500,))
 
     if mouth_nn == 'cnn':
-        mouth_feature_model = TimeDistributed(my_cnn_model(mouth_input_shape, conv_f_1, conv_f_2, conv_f_3, mouth_features_dim),
-                                              input_shape=(TIME_STEPS, *mouth_input_shape))
+        mouth_feature_model = my_timedistributed_cnn_model((TIME_STEPS, *mouth_input_shape), conv_f_1, conv_f_2, conv_f_3, mouth_features_dim)
     elif mouth_nn == 'resnet18':
-        mouth_feature_model = TimeDistributed(ResnetBuilder.build_resnet_18(mouth_input_shape, mouth_features_dim),
-                                              input_shape=(TIME_STEPS, *mouth_input_shape))
+        mouth_feature_model = ResnetBuilder.build_resnet_18(mouth_input_shape, mouth_features_dim)
     elif mouth_nn == 'resnet34':
-        mouth_feature_model = TimeDistributed(ResnetBuilder.build_resnet_34(mouth_input_shape, mouth_features_dim),
-                                              input_shape=(TIME_STEPS, *mouth_input_shape))
+        mouth_feature_model = ResnetBuilder.build_resnet_34(mouth_input_shape, mouth_features_dim)
     elif mouth_nn == 'resnet50':
-        mouth_feature_model = TimeDistributed(ResnetBuilder.build_resnet_50(mouth_input_shape, mouth_features_dim),
-                                              input_shape=(TIME_STEPS, *mouth_input_shape))
+        mouth_feature_model = ResnetBuilder.build_resnet_50(mouth_input_shape, mouth_features_dim)
     elif mouth_nn == 'resnet101':
-        mouth_feature_model = TimeDistributed(ResnetBuilder.build_resnet_101(mouth_input_shape, mouth_features_dim),
-                                              input_shape=(TIME_STEPS, *mouth_input_shape))
+        mouth_feature_model = ResnetBuilder.build_resnet_101(mouth_input_shape, mouth_features_dim)
     elif mouth_nn == 'resnet152':
-        mouth_feature_model = TimeDistributed(ResnetBuilder.build_resnet_152(mouth_input_shape, mouth_features_dim),
-                                              input_shape=(TIME_STEPS, *mouth_input_shape))
+        mouth_feature_model = ResnetBuilder.build_resnet_152(mouth_input_shape, mouth_features_dim)
 
     cnn_features = mouth_feature_model(my_input_mouth_images)
 
@@ -63,6 +58,10 @@ def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, d
     fc1 = Dense(dense_fc_1, activation='relu')(concatenated_features)
 
     fc2 = Dense(dense_fc_2, activation='relu')(fc1)
+
+    # fc1 = Dense(dense_fc_1, activation='relu', kernel_regularizer=l2(1.e-4))(concatenated_features)
+
+    # fc2 = Dense(dense_fc_2, activation='relu', kernel_regularizer=l2(1.e-4))(fc1)
 
     assessor_output = Dense(1, activation='sigmoid')(fc2)
 
@@ -77,32 +76,33 @@ def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, d
 #########################################################
 
 
-def my_cnn_model(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_dense_fc_1, masking=False):
+def my_timedistributed_cnn_model(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_dense_fc_1, masking=False):
 
     model = Sequential()
 
     if masking:
         model.add(Masking(mask_value=0.0, input_shape=input_shape))
-        model.add(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4)))
+        model.add(TimeDistributed(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4))))
     else:
-        model.add(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4), input_shape=input_shape))
+        model.add(TimeDistributed(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4)),
+            input_shape=input_shape))
 
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same'))
+    model.add(TimeDistributed(BatchNormalization()))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')))
 
-    model.add(Conv2D(filters=conv_f_2, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4)))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same'))
+    model.add(TimeDistributed(Conv2D(filters=conv_f_2, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4))))
+    model.add(TimeDistributed(BatchNormalization()))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')))
 
-    model.add(Conv2D(filters=conv_f_3, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4)))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same'))
+    model.add(TimeDistributed(Conv2D(filters=conv_f_3, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4))))
+    model.add(TimeDistributed(BatchNormalization()))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')))
 
-    model.add(Flatten())
-    model.add(Dense(cnn_dense_fc_1))
+    model.add(TimeDistributed(Flatten()))
+    model.add(TimeDistributed(Dense(cnn_dense_fc_1)))
 
     return model
 
@@ -148,6 +148,9 @@ class CheckpointAndMakePlots(Callback):
             self.best_val_loss = vl
             self.save_model_checkpoint(epoch, tl, ta, vl, va)
 
+        # Save history
+        self.save_history()
+
         # Plot graphs
         self.plot_and_save_losses_and_accuracies(epoch)
 
@@ -157,6 +160,13 @@ class CheckpointAndMakePlots(Callback):
             self.file_name_pre + "_epoch{0:03d}_tl{1:.4f}_ta{2:.4f}_vl{3:.4f}_va{4:.4f}.hdf5".format(epoch, tl, ta, vl, va))
         print("Saving model", model_file_path)
         self.model.save_weights(model_file_path)
+
+    def save_history(self):
+        print("Saving history in", self.assessor_save_dir)
+        np.savetxt(os.path.join(self.assessor_save_dir, self.file_name_pre + "_loss_history.txt"), self.train_losses, delimiter=",")
+        np.savetxt(os.path.join(self.assessor_save_dir, self.file_name_pre + "_acc_history.txt"), self.train_accuracies, delimiter=",")
+        np.savetxt(os.path.join(self.assessor_save_dir, self.file_name_pre + "_val_loss_history.txt"), self.val_losses, delimiter=",")
+        np.savetxt(os.path.join(self.assessor_save_dir, self.file_name_pre + "_val_acc_history.txt"), self.val_accuracies, delimiter=",")
 
     # Plot and save losses and accuracies
     def plot_and_save_losses_and_accuracies(self, epoch):
@@ -211,4 +221,30 @@ def write_model_architecture(model, file_type='json', file_name="model"):
             yaml_file.write(model_yaml)
     else:
         print("file_type can only be 'json' or 'yaml'")
+
+
+#########################################################
+# READ MODEL ARCHITECTURE
+#########################################################
+
+
+def read_model_architecture(model_file_name="model.json", weights_file_name=None):
+    # Load model
+    # json
+    if model_file_name.split('.')[-1] == 'json':
+        with open(model_file_name, 'r') as json_file:
+            loaded_model_json = json_file.read()
+        loaded_model = model_from_json(loaded_model_json)
+    # yaml
+    elif model_file_name.split('.')[-1] == 'yaml' or file_name.split('.')[-1] == 'yml':
+        with open(model_file_name, 'r') as yaml_file:
+            loaded_model_yaml = yaml_file.read()
+        loaded_model = model_from_yaml(loaded_model_yaml)
+    else:
+        print("file_type can only be 'json' or 'yaml'")
+    # Load weights
+    if weights_file_name is not None:
+        loaded_model.load_weights(weights_file_name)
+    # Return
+    return loaded_model
 

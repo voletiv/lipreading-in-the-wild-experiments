@@ -21,6 +21,7 @@ assessor = my_assessor_model(mouth_nn, mouth_features_dim, lstm_units_1, dense_f
 assessor.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
 write_model_architecture(assessor, file_type='json', file_name=os.path.join(assessor_save_dir, this_model))
+write_model_architecture(assessor, file_type='yaml', file_name=os.path.join(assessor_save_dir, this_model))
 
 ######################################################
 # CALLBACKS
@@ -32,11 +33,19 @@ checkpointAndMakePlots = CheckpointAndMakePlots(file_name_pre=this_model, assess
 # TRAIN
 ######################################################
 
-history = assessor.fit_generator(train_generator,
-                                 steps_per_epoch=train_steps_per_epoch,
-                                 epochs=n_epochs,
-                                 callbacks=[checkpointAndMakePlots],
-                                 validation_data=val_generator,
-                                 validation_steps=val_steps_per_epoch,
-                                 class_weight=class_weight,
-                                 initial_epoch=0)
+try:
+    assessor.fit_generator(train_generator,
+                           steps_per_epoch=train_steps_per_epoch,
+                           # steps_per_epoch=1,
+                           epochs=n_epochs,
+                           callbacks=[checkpointAndMakePlots],
+                           validation_data=val_generator,
+                           validation_steps=val_steps_per_epoch,
+                           # validation_steps=1,
+                           class_weight=class_weight,
+                           initial_epoch=0)
+
+except KeyboardInterrupt:
+    print("Saving latest weights...")
+    assessor.save_weights(os.path.join(assessor_save_dir, "assessor.hdf5"))
+    print("Done.")

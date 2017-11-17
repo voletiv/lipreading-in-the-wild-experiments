@@ -22,11 +22,11 @@ random_crop = True
 verbose = False
 
 # Assessor
-mouth_nn = 'resnet18'
+mouth_nn = 'cnn'
 mouth_features_dim = 512
 lstm_units_1 = 32
-dense_fc_1 = 128
-dense_fc_2 = 64
+dense_fc_1 = 512
+dense_fc_2 = 128
 
 # Compile
 optimizer = 'adam'
@@ -52,7 +52,7 @@ class_weight = {0: .3, 1: .7}
 ######################################################
 
 # THIS MODEL NAME
-this_model = "3_assessor_"+mouth_nn+"_"+optimizer
+this_model = "3_assessor_"+mouth_nn+"_mouth"+str(512)+"_lstm"+str(lstm_units_1)+"_1fc"+str(dense_fc_1)+"_2fc"+str(dense_fc_2)+"_"+optimizer
 
 # Save
 assessor_save_dir = os.path.realpath(os.path.join(ASSESSOR_SAVE_DIR, this_model))
