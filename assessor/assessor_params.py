@@ -36,7 +36,7 @@ if 'voletiv' in os.getcwd():
     LRW_DATA_DIR = '/home/voletiv/Datasets/LRW/lipread_mp4/'
     LRW_SAVE_DIR = '.'
     LRW_HEAD_POSE_DIR = '/home/voletiv/GitHubRepos/lipreading-in-the-wild-experiments/head-pose'
-    ASSESSOR_SAVE_DIR = os.path.realpath(os.path.join(LRW_ASSESSOR_DIR, '../../../ASSESSORS/'))
+    ASSESSOR_SAVE_DIR = os.path.realpath(os.path.join(LRW_ASSESSOR_DIR, 'ASSESSORS/'))
 
 elif 'voleti.vikram' in os.getcwd():
     # fusor

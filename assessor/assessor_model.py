@@ -5,7 +5,7 @@ import numpy as np
 
 from keras.models import Model, Sequential, model_from_json, model_from_yaml
 from keras.layers import Masking, TimeDistributed, Conv2D, BatchNormalization, Activation, MaxPooling2D
-from keras.layers import Flatten, Dense, Input, Concatenate, LSTM
+from keras.layers import Flatten, Dense, Input, Add, Concatenate, LSTM
 from keras.regularizers import l2
 from keras.callbacks import Callback
 
@@ -55,9 +55,9 @@ def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, d
 
     concatenated_features = Concatenate()([lstm_output, my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax])
 
-    fc1 = Dense(dense_fc_1, activation='relu')(concatenated_features)
+    fc1 = Dense(dense_fc_1, activation='relu', kernel_regularizer=l2(1.e-4))(concatenated_features)
 
-    fc2 = Dense(dense_fc_2, activation='relu')(fc1)
+    fc2 = Dense(dense_fc_2, activation='relu', kernel_regularizer=l2(1.e-4))(fc1)
 
     # fc1 = Dense(dense_fc_1, activation='relu', kernel_regularizer=l2(1.e-4))(concatenated_features)
 
@@ -102,9 +102,41 @@ def my_timedistributed_cnn_model(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_
     model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')))
 
     model.add(TimeDistributed(Flatten()))
-    model.add(TimeDistributed(Dense(cnn_dense_fc_1)))
+    model.add(TimeDistributed(Dense(cnn_dense_fc_1, kernel_regularizer=l2(1.e-4))))
 
     return model
+
+
+def my_cnn_model(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_dense_fc_1):
+    model = Sequential()
+    model.add(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4),
+        input_shape=input_shape))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same'))
+    model.add(Conv2D(filters=conv_f_2, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4)))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same'))
+    model.add(Conv2D(filters=conv_f_3, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4)))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same'))
+    model.add(Flatten())
+    model.add(Dense(cnn_dense_fc_1, kernel_regularizer=l2(1.e-4)))
+    return model
+
+def make_time_distributed(model, TIME_STEPS, input_shape):
+    time_distributed_model = Sequential()
+    for i in range(len(model.layers)):
+        if i == 0:
+            time_distributed_model.add(TimeDistributed(model.layers[i], input_shape=(TIME_STEPS, *input_shape)))
+        elif not isinstance(model.layers[i], Add):
+            time_distributed_model.add(TimeDistributed(model.layers[i]))
+        else:
+            time_distributed_model.add(model.layers[i])
+    return time_distributed_model
+
 
 
 #########################################################
@@ -228,7 +260,7 @@ def write_model_architecture(model, file_type='json', file_name="model"):
 #########################################################
 
 
-def read_model_architecture(model_file_name="model.json", weights_file_name=None):
+def read_my_model(model_file_name="model.json", weights_file_name=None):
     # Load model
     # json
     if model_file_name.split('.')[-1] == 'json':
