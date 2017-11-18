@@ -1,13 +1,31 @@
+import glob
+
 from sklearn.metrics import confusion_matrix, roc_curve, auc, average_precision_score, precision_recall_curve
 
 from assessor_evaluation_functions import *
+from assessor_model import *
 from assessor_train_params import *
 
 ######################################################
 # SAVE MODEL
 ######################################################
 
-assessor.save_weights("assessor.hdf5")
+# assessor.save_weights("assessor.hdf5")
+
+######################################################
+# LOAD MODEL
+######################################################
+
+experiment_number = 3
+
+for save_dir in sorted(glob.glob(os.path.join(ASSESSOR_SAVE_DIR, "*/"))):
+    if int(save_dir.split('/')[-2][0]) == experiment_number:
+        assessor_save_dir = save_dir
+        this_model = save_dir.split('/')[-2]
+        break
+
+assessor = read_my_model(model_file_name=os.path.join(assessor_save_dir, this_model+".json"),
+                         weights_file_name=os.path.join(assessor_save_dir, "3_assessor_cnn_mouth512_lstm32_1fc512_2fc128_adam_epoch004_tl0.2254_ta0.7095_vl0.5716_va0.7038.hdf5"))
 
 ######################################################
 # PREDICT
