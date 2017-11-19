@@ -46,8 +46,8 @@ n_epochs = 100
 
 # Val
 val_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=val_collect_type, collect_by='sample')
-val_steps_per_epoch = len(val_lrw_word_set_num_txt_file_names) // batch_size
-# val_steps_per_epoch = 10     # Set less value so as not to take too much time computing on full val set
+# val_steps_per_epoch = len(val_lrw_word_set_num_txt_file_names) // batch_size
+val_steps_per_epoch = 10     # Set less value so as not to take too much time computing on full val set
 
 # Class weights
 # The lipreader is correct 70% of the time
@@ -58,13 +58,8 @@ class_weight = {0: .3, 1: .7}
 ######################################################
 
 # THIS MODEL NAME
-this_model = str(experiment_number) + "_assessor_" + mouth_nn + "_mouth" + str(512) + "_lstm" + str(lstm_units_1) + \
-             "_1fc" + str(dense_fc_1) + "_2fc" + str(dense_fc_2) + "_" + optimizer
+this_assessor_model = str(experiment_number) + "_assessor_" + mouth_nn + "_mouth" + str(512) + "_lstm" + str(lstm_units_1) + \
+                      "_1fc" + str(dense_fc_1) + "_2fc" + str(dense_fc_2) + "_" + optimizer
 
 # Save
-assessor_save_dir = os.path.realpath(os.path.join(ASSESSOR_SAVE_DIR, this_model))
-
-# Make the dir if it doesn't exist
-if not os.path.exists(assessor_save_dir):
-    print("Making dir", assessor_save_dir)
-    os.makedirs(assessor_save_dir)
+this_assessor_save_dir = os.path.realpath(os.path.join(ASSESSOR_SAVE_DIR, this_assessor_model))

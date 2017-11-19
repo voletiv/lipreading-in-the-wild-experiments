@@ -4,6 +4,21 @@ from assessor_functions import *
 from assessor_model import *
 from assessor_train_params import *
 
+
+######################################################
+# DIR, PARAMS
+######################################################
+
+# Make the dir if it doesn't exist
+if not os.path.exists(this_assessor_save_dir):
+    print("Making dir", this_assessor_save_dir)
+    os.makedirs(this_assessor_save_dir)
+
+# Copy train_params file into this_assessor_save_dir
+os.system("cp assessor_train_params.py " + this_assessor_save_dir)
+print("Copied assessor_train_params.py to", this_assessor_save_dir)
+
+
 ######################################################
 # GEN BATCHES OF IMAGES
 ######################################################
@@ -20,14 +35,14 @@ assessor = my_assessor_model(mouth_nn, mouth_features_dim, lstm_units_1, dense_f
 
 assessor.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
-write_model_architecture(assessor, file_type='json', file_name=os.path.join(assessor_save_dir, this_model))
-write_model_architecture(assessor, file_type='yaml', file_name=os.path.join(assessor_save_dir, this_model))
+write_model_architecture(assessor, file_type='json', file_name=os.path.join(this_assessor_save_dir, this_assessor_model))
+write_model_architecture(assessor, file_type='yaml', file_name=os.path.join(this_assessor_save_dir, this_assessor_model))
 
 ######################################################
 # CALLBACKS
 ######################################################
 
-checkpointAndMakePlots = CheckpointAndMakePlots(file_name_pre=this_model, assessor_save_dir=assessor_save_dir)
+checkpointAndMakePlots = CheckpointAndMakePlots(file_name_pre=this_assessor_model, this_assessor_save_dir=this_assessor_save_dir)
 
 ######################################################
 # TRAIN
@@ -46,6 +61,6 @@ try:
                            initial_epoch=0)
 
 except KeyboardInterrupt:
-    print("Saving latest weights...")
-    assessor.save_weights(os.path.join(assessor_save_dir, "assessor.hdf5"))
+    print("Saving latest weights as", os.path.join(this_assessor_save_dir, this_assessor_model+"_assessor.hdf5"), "...")
+    assessor.save_weights(os.path.join(this_assessor_save_dir, this_assessor_model+"_assessor.hdf5"))
     print("Done.")
