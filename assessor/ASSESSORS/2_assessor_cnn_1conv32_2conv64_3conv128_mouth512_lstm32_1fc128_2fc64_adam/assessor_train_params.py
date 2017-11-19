@@ -4,6 +4,12 @@ from assessor_functions import *
 from assessor_params import *
 
 ######################################################
+# EXPERIMENT NUMBER
+######################################################
+
+experiment_number = 2
+
+######################################################
 # PARAMS
 ######################################################
 
@@ -21,8 +27,11 @@ random_crop = True
 
 verbose = False
 
-# Assessor type
+# Assessor
 mouth_nn = 'cnn'
+conv_f_1 = 16
+conv_f_2 = 32
+conv_f_3 = 64
 mouth_features_dim = 512
 lstm_units_1 = 32
 dense_fc_1 = 128
@@ -52,12 +61,8 @@ class_weight = {0: .3, 1: .7}
 ######################################################
 
 # THIS MODEL NAME
-this_model = "2_assessor_classweighted_"+mouth_nn+"_"+optimizer
+this_assessor_model = str(experiment_number) + "_assessor_" + mouth_nn + "_mouth" + str(512) + "_lstm" + str(lstm_units_1) + \
+                      "_1fc" + str(dense_fc_1) + "_2fc" + str(dense_fc_2) + "_" + optimizer
 
 # Save
-assessor_save_dir = os.path.realpath(os.path.join('../../ASSESSORS/', this_model))
-
-# Make the dir if it doesn't exist
-if not os.path.exists(assessor_save_dir):
-    print("Making dir", assessor_save_dir)
-    os.makedirs(assessor_save_dir)
+this_assessor_save_dir = os.path.realpath(os.path.join(ASSESSOR_SAVE_DIR, this_assessor_model))

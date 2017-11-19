@@ -7,7 +7,7 @@ from assessor_params import *
 # EXPERIMENT NUMBER
 ######################################################
 
-experiment_number = 4
+experiment_number = 3
 
 ######################################################
 # PARAMS
@@ -29,10 +29,13 @@ verbose = False
 
 # Assessor
 mouth_nn = 'cnn'
+conv_f_1 = 16
+conv_f_2 = 32
+conv_f_3 = 64
 mouth_features_dim = 512
 lstm_units_1 = 32
-dense_fc_1 = 128
-dense_fc_2 = 64
+dense_fc_1 = 512
+dense_fc_2 = 128
 
 # Compile
 optimizer = 'adam'
@@ -63,12 +66,3 @@ this_assessor_model = str(experiment_number) + "_assessor_" + mouth_nn + "_mouth
 
 # Save
 this_assessor_save_dir = os.path.realpath(os.path.join(ASSESSOR_SAVE_DIR, this_assessor_model))
-
-# Make the dir if it doesn't exist
-if not os.path.exists(this_assessor_save_dir):
-    print("Making dir", this_assessor_save_dir)
-    os.makedirs(this_assessor_save_dir)
-
-# Copy this file into this_assessor_save_dir
-os.system("cp assessor_train_params.py " + this_assessor_save_dir)
-print("Copied assessor_train_params.py to", this_assessor_save_dir)
