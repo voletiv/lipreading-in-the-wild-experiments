@@ -2,6 +2,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+
+from assessor_params import *
 
 
 def my_precision_recall(lrw_lipreader_preds_softmax, lrw_correct_one_hot_y_arg, critic_removes=None):
@@ -33,21 +36,21 @@ def my_precision_recall(lrw_lipreader_preds_softmax, lrw_correct_one_hot_y_arg, 
     return lrw_lipreader_precision_w, lrw_lipreader_recall_w, lrw_lipreader_avg_precision_w
 
 
-def plot_ROC_with_OP(fpr, tpr, roc_auc, fpr_op, tpr_op, assessor_save_dir, this_model, lrw_type, threshold=.5, save_and_close=False):
+def plot_ROC_with_OP(fpr, tpr, roc_auc, fpr_op, tpr_op, this_assessor_save_dir, this_assessor_model, lrw_type, assessor_threshold=.5, save_and_close=False):
     plt.plot(fpr, tpr, lw=1, label='LRW ' + lrw_type +' ROC (AUC = %0.2f)' % (roc_auc))
     plt.plot(fpr_op, tpr_op, marker='x', markersize=10, color='C4')
-    plt.title("ROC curve " + this_model + "_thresh" + str(threshold))
+    plt.title("ROC curve " + this_assessor_model + "_thresh" + str(assessor_threshold))
     plt.xlabel("FPR")
     plt.ylabel("TPR")
     plt.legend()
     # plt.show()
     if save_and_close:
-        print("Saving ROC:", os.path.join(assessor_save_dir, this_model+"_ROC_thresh"+str(threshold)+".png"))
-        plt.savefig(os.path.join(assessor_save_dir, this_model+"_ROC_thresh"+str(threshold)+".png"))
+        print("Saving ROC:", os.path.join(this_assessor_save_dir, this_assessor_model+"_ROC_thresh"+str(assessor_threshold)+".png"))
+        plt.savefig(os.path.join(this_assessor_save_dir, this_assessor_model+"_ROC_thresh"+str(assessor_threshold)+".png"))
         plt.close()
 
 
-def plot_assessor_PR_curve(recall, precision, average_precision, assessor_save_dir, this_model, lrw_type="val", save_and_close=False):
+def plot_assessor_PR_curve(recall, precision, average_precision, this_assessor_save_dir, this_assessor_model, lrw_type="val", save_and_close=False):
     plt.step(recall, precision, where='post', label='LRW '+lrw_type+' AP={0:0.2f}'.format(average_precision))
     plt.fill_between(recall, precision, step='post', alpha=0.2)
     plt.xlabel('Recall')
@@ -58,14 +61,14 @@ def plot_assessor_PR_curve(recall, precision, average_precision, assessor_save_d
     leg.get_frame().set_alpha(0.3)
     plt.title('Precision-Recall curve')
     if save_and_close:
-        print("Saving PR:", os.path.join(assessor_save_dir, this_model+"_PR.png"))
-        plt.savefig(os.path.join(assessor_save_dir, this_model+"_PR.png"))
+        print("Saving PR:", os.path.join(this_assessor_save_dir, this_assessor_model+"_PR.png"))
+        plt.savefig(os.path.join(this_assessor_save_dir, this_assessor_model+"_PR.png"))
         plt.close()
 
 
 def plot_P_atK_and_R_atK_vs_K(lipreader_precision_at_k_averaged_across_words, filtered_precision_at_k_averaged_across_words,
                               lipreader_recall_at_k_averaged_across_words, filtered_recall_at_k_averaged_across_words,
-                              assessor_save_dir=".", this_model="assessor_cnn_adam", lrw_type="val", threshold=.5):
+                              this_assessor_save_dir=".", this_assessor_model="assessor_cnn_adam", lrw_type="val", assessor_threshold=.5):
     # P@K vs K, R@K vs K
     plt.plot(np.arange(50)+1, lipreader_precision_at_k_averaged_across_words, label='Precision @K')
     plt.plot(np.arange(50)+1, filtered_precision_at_k_averaged_across_words, label='Assessor-filtered Precision @K')
@@ -75,15 +78,15 @@ def plot_P_atK_and_R_atK_vs_K(lipreader_precision_at_k_averaged_across_words, fi
     plt.legend()
     plt.xlabel("K = # of documents")
     plt.title("Precision, Recall of lipreader on LRW_"+lrw_type+", vs K")
-    print("Saving P@K, R@K vs K:", os.path.join(assessor_save_dir, this_model+"_P@K_R@K_vs_K_LRW_"+lrw_type+"_thresh"+str(threshold)+".png"))
-    plt.savefig(os.path.join(assessor_save_dir, this_model+"_P@K_R@K_vs_K_LRW_"+lrw_type+"_thresh"+str(threshold)+".png"))
+    print("Saving P@K, R@K vs K:", os.path.join(this_assessor_save_dir, this_assessor_model+"_P@K_R@K_vs_K_LRW_"+lrw_type+"_thresh"+str(assessor_threshold)+".png"))
+    plt.savefig(os.path.join(this_assessor_save_dir, this_assessor_model+"_P@K_R@K_vs_K_LRW_"+lrw_type+"_thresh"+str(assessor_threshold)+".png"))
     # plt.show()
     plt.close()
 
 
 def plot_P_atK_vs_R_atK(lipreader_precision_at_k_averaged_across_words, filtered_precision_at_k_averaged_across_words,
                         lipreader_recall_at_k_averaged_across_words, filtered_recall_at_k_averaged_across_words,
-                        assessor_save_dir=".", this_model="assessor_cnn_adam", lrw_type="val", threshold=.5):
+                        this_assessor_save_dir=".", this_assessor_model="assessor_cnn_adam", lrw_type="val", assessor_threshold=.5):
     plt.plot(lipreader_recall_at_k_averaged_across_words, lipreader_precision_at_k_averaged_across_words, label="lipreader")
     plt.fill_between(lipreader_recall_at_k_averaged_across_words, lipreader_precision_at_k_averaged_across_words, step='post', alpha=0.2)
     plt.plot(filtered_recall_at_k_averaged_across_words, filtered_precision_at_k_averaged_across_words, label="Assessor-filtered lipreader")
@@ -94,19 +97,21 @@ def plot_P_atK_vs_R_atK(lipreader_precision_at_k_averaged_across_words, filtered
     plt.xlabel("Recall at K")
     plt.ylabel("Precision at K")
     plt.title("P@K vs R@K curve of lipreader on LRW "+lrw_type+", till K=50")
-    print("Saving P@K vs R@K:", os.path.join(assessor_save_dir, this_model+"_P@K_R@K_curve_LRW_"+lrw_type+"_thresh"+str(threshold)+".png"))
-    plt.savefig(os.path.join(assessor_save_dir, this_model+"_P@K_vs_R@K_LRW_"+lrw_type+"_thresh"+str(threshold)+".png"))
+    print("Saving P@K vs R@K:", os.path.join(this_assessor_save_dir, this_assessor_model+"_P@K_R@K_curve_LRW_"+lrw_type+"_thresh"+str(assessor_threshold)+".png"))
+    plt.savefig(os.path.join(this_assessor_save_dir, this_assessor_model+"_P@K_vs_R@K_LRW_"+lrw_type+"_thresh"+str(assessor_threshold)+".png"))
     plt.close()
 
 
-def plot_lrw_property_image(lrw_property, title="?????????????", cmap='jet', clim=None, save=True, assessor_save_dir=".", this_model="assessor_cnn_adam", lrw_type="val", file_name="avg_precision"):
+def plot_lrw_property_image(lrw_property, title="?????????????", cmap='jet', clim=None, save=True,
+                            this_assessor_save_dir=".", this_assessor_model="assessor_cnn_adam",
+                            file_name="avg_precision", lrw_type="val", filtered_using_assessor=False):
     # lrw_property must be of shape (500,)
-    # Fig
-    fig, ax = plt.subplots(figsize=(28, 10))
     # Grid
     x_lim = 20
     y_lim = 25
     x, y = np.meshgrid(np.arange(x_lim), np.arange(y_lim))
+    # Fig
+    fig, ax = plt.subplots(figsize=(25, 15))
     # Image
     image = plt.imshow(np.reshape(lrw_property[:x_lim*y_lim], (y_lim, x_lim)), cmap=cmap, clim=clim, aspect='auto')
     plt.colorbar(image)
@@ -118,7 +123,7 @@ def plot_lrw_property_image(lrw_property, title="?????????????", cmap='jet', cli
         # else:
         #     c = 'k'
         # ax.text(x_val, y_val, LRW_VOCAB[i], va='center', ha='center', fontsize=7, color=c)
-        ax.text(x_val, y_val, LRW_VOCAB[i], va='center', ha='center', fontsize=7)
+        ax.text(x_val, y_val, LRW_VOCAB[i], va='center', ha='center')
     # ax.set_xlim(0, x_lim)
     # ax.set_ylim(0, y_lim)
     # ax.set_xticks(np.arange(x_lim))
@@ -128,7 +133,11 @@ def plot_lrw_property_image(lrw_property, title="?????????????", cmap='jet', cli
     # ax.grid()
     plt.title(title)
     if save:
-        plt.savefig(os.path.join(assessor_save_dir, this_model+"_"+file_name+"_"+lrw_type+".png"))
+        fig_title = os.path.join(this_assessor_save_dir, this_assessor_model+"_lipreader_"+file_name+"_"+lrw_type)
+        if filtered_using_assessor:
+            fig_title = fig_title + "_assessor_filtered.png"
+        print("Saving lrw_property_image:", fig_title)
+        plt.savefig(fig_title)
     else:
         plt.show()
     plt.close()
