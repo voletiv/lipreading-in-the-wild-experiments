@@ -7,7 +7,7 @@ from assessor_params import *
 # EXPERIMENT NUMBER
 ######################################################
 
-experiment_number = 4
+experiment_number = 5
 
 ######################################################
 # PARAMS
@@ -29,6 +29,9 @@ verbose = False
 
 # Assessor
 mouth_nn = 'cnn'
+conv_f_1 = 16
+conv_f_2 = 32
+conv_f_3 = 64
 mouth_features_dim = 512
 lstm_units_1 = 32
 dense_fc_1 = 128
@@ -58,7 +61,12 @@ class_weight = {0: .3, 1: .7}
 ######################################################
 
 # THIS MODEL NAME
-this_assessor_model = str(experiment_number) + "_assessor_" + mouth_nn + "_mouth" + str(512) + "_lstm" + str(lstm_units_1) + \
+this_assessor_model = str(experiment_number) + "_assessor_" + mouth_nn
+
+if mouth_nn == 'cnn':
+    this_assessor_model = this_assessor_model + '_1conv' + str(conv_f_1) + '_2conv' + str(conv_f_2) + '_3conv' + str(conv_f_3)
+
+this_assessor_model = this_assessor_model + "_mouth" + str(512) + "_lstm" + str(lstm_units_1) + \
                       "_1fc" + str(dense_fc_1) + "_2fc" + str(dense_fc_2) + "_" + optimizer
 
 # Save

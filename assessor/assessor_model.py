@@ -12,20 +12,14 @@ from keras.callbacks import Callback
 from assessor_params import *
 from resnet import ResnetBuilder
 
-#########################################################
-# CNN MODEL PARAMS
-#########################################################
-
-conv_f_1 = 32
-conv_f_2 = 64
-conv_f_3 = 128
 
 #########################################################
 # MODEL
 #########################################################
 
 
-def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, dense_fc_1=128, dense_fc_2=64):
+def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, dense_fc_1=128, dense_fc_2=64,
+                      conv_f_1=32, conv_f_2=64, conv_f_3=128):
 
     mouth_input_shape = (MOUTH_H, MOUTH_W, MOUTH_CHANNELS)
     my_input_mouth_images = Input(shape=(TIME_STEPS, *mouth_input_shape))

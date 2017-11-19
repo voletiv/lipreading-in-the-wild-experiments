@@ -31,7 +31,7 @@ val_generator = generate_assessor_data_batches(data_dir=data_dir, batch_size=bat
 # MAKE MODEL
 ######################################################
 
-assessor = my_assessor_model(mouth_nn, mouth_features_dim, lstm_units_1, dense_fc_1, dense_fc_2)
+assessor = my_assessor_model(mouth_nn, mouth_features_dim, lstm_units_1, dense_fc_1, dense_fc_2, conv_f_1=conv_f_1, conv_f_2=conv_f_2, conv_f_3=conv_f_3)
 
 assessor.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
