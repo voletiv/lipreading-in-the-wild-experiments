@@ -66,6 +66,8 @@ def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, d
     assessor = Model(inputs=[my_input_mouth_images, my_input_head_poses, my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax],
                      outputs=assessor_output)
 
+    assessor.summary()
+
     return assessor
 
 
