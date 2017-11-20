@@ -45,25 +45,43 @@ def load_latest_assessor():
 ######################################################
 
 
-def predict_using_assessor(assessor, data_dir=LRW_DATA_DIR, batch_size=100, collect_type="val"):
+def load_predictions_or_predict_using_assessor(collect_type="val", batch_size=100):
+    lrw_preds_file = os.path.join(this_assessor_save_dir, this_assessor_model+"_lrw_" + collect_type + "_preds.npy")
+
+    if os.path.exists(lrw_preds_file):
+        print("Loading predictions from", lrw_preds_file, "...")
+        lrw_assessor_preds = np.load(lrw_preds_file)
+        lrw_n_of_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
+
+        if len(lrw_assessor_preds) < len(lrw_n_of_frames_per_sample):
+            print("Only", len(lrw_assessor_preds), "samples present. Predicting for", (len(lrw_n_of_frames_per_sample) - len(lrw_assessor_preds))//batch_size, "batches...")
+            lrw_assessor_preds = predict_using_assessor(assessor, data_dir=LRW_DATA_DIR, batch_size=batch_size, collect_type="val",
+                                                            skip_batches=len(lrw_assessor_preds)//batch_size, lrw_assessor_preds=lrw_assessor_preds)
+
+    else:
+        print("Predicting assessor results...")
+        lrw_assessor_preds = predict_using_assessor(assessor, data_dir=LRW_DATA_DIR, batch_size=batch_size, collect_type=collect_type)
+
+    return lrw_assessor_preds
+
+
+def predict_using_assessor(assessor, data_dir=LRW_DATA_DIR, batch_size=100, collect_type="val", skip_batches=0, lrw_assessor_preds=np.array([])):
 
     global this_assessor_save_dir, this_assessor_model
 
     # LRW_VAL
     lrw_data_generator = generate_assessor_data_batches(data_dir=data_dir, batch_size=batch_size, collect_type=collect_type,
-                                                        shuffle=False, random_crop=False, verbose=False)
+                                                        shuffle=False, random_crop=False, verbose=False, skip_batches=skip_batches)
 
     # # FAST?
     # get_output = K.function([assessor.input[0], assessor.input[1], assessor.input[2], assessor.input[3], assessor.input[4], K.learning_phase()],
     #                         [assessor.output])
-    # lrw_val_assessor_preds = np.array([])
     # for i in tqdm.tqdm(range(25000//batch_size)):
     #     [X, y] = next(train_generator)
     #     lrw_val_assessor_preds = np.append(lrw_val_assessor_preds, get_output([X[0], X[1], np.reshape(X[2], (batch_size, 1)), X[3], X[4], 0])[0])
 
-    # SLOW?
-    lrw_assessor_preds = np.array([])
-    for i in tqdm.tqdm(range(25000//batch_size)):
+    # SLOW? 
+    for i in tqdm.tqdm(range(skip_batches, 25000//batch_size)):
         [X, y] = next(lrw_data_generator)
         lrw_assessor_preds = np.append(lrw_assessor_preds, assessor.predict(X))
         if (i+1) % 50 == 0:
@@ -167,29 +185,27 @@ def compare_PR_of_lipreader_and_assessor(lipreader_lrw_softmax, lrw_correct_one_
 ######################################################
 
 
-def evaluate_assessor(experiment_number, load_predictions=True, assessor_threshold=0.5):
+def evaluate_assessor(experiment_number, load_assessor=False, assessor_threshold=0.5):
 
     # Define assessor_save_dir and assesor_model
     define_save_dir_and_model(experiment_number)
 
     # Load assessor
-    assessor = load_latest_assessor()
+    if load_assessor:
+        assessor = load_latest_assessor()
 
-    if load_predictions:
-        print("Loading predictions...")
-        # Load preds
-        lrw_val_assessor_preds = np.load(os.path.join(this_assessor_save_dir, this_assessor_model+"_lrw_val_preds.npy"))
-        lrw_test_assessor_preds = np.load(os.path.join(this_assessor_save_dir, this_assessor_model+"_lrw_test_preds.npy"))
-    else:
-        print("Predicting assessor results...")
-        # Predict
-        lrw_val_assessor_preds = predict_using_assessor(assessor, data_dir=LRW_DATA_DIR, batch_size=100, collect_type="val")
-        lrw_test_assessor_preds = predict_using_assessor(assessor, data_dir=LRW_DATA_DIR, batch_size=100, collect_type="test")
+    # Predictions
+    lrw_val_assessor_preds = load_predictions_or_predict_using_assessor(collect_type="val", batch_size=100)
+    lrw_test_assessor_preds = load_predictions_or_predict_using_assessor(collect_type="test", batch_size=100)
 
     # SOFTMAX, CORRECT_ONE_HOT_Y_ARG
     print("Loading softmax, correct_one_hot_y_arg...")
-    _, lipreader_lrw_val_softmax, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type="val")
-    _, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type="test")
+    try:
+        _, lipreader_lrw_val_softmax, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type="val")
+        _, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type="test")
+    except OSError as err:
+        print(err)
+        return
 
     # CORRECT_OR_WRONG
     lipreader_lrw_val_correct_or_wrong = np.argmax(lipreader_lrw_val_softmax, axis=1) == lrw_correct_one_hot_y_arg
@@ -218,7 +234,7 @@ def evaluate_assessor(experiment_number, load_predictions=True, assessor_thresho
 # MAIN
 if __name__ == "__main__":
 
-    # python3 -i assessor_evaluation 4 -load
+    # python3 -i assessor_evaluation 4
 
     if len(sys.argv) < 2:
         print("[ERROR] Please mention experiment_number.")
@@ -228,10 +244,5 @@ if __name__ == "__main__":
     experiment_number = int(sys.argv[1])
     print("Experiment number:", experiment_number)
 
-    load_predictions = False
-    if len(sys.argv) > 2:
-        if sys.argv[2] == '--load-predictions' or sys.argv[2] == '-load':
-            load_predictions = True
-
     # RUN
-    evaluate_assessor(experiment_number, load_predictions=load_predictions)
+    evaluate_assessor(experiment_number, load_assessor=True)

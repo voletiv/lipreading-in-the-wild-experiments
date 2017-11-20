@@ -14,7 +14,7 @@ from assessor_params import *
 #############################################################
 
 
-def generate_assessor_data_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect_type="val", shuffle=True, random_crop=True, verbose=False):
+def generate_assessor_data_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect_type="val", shuffle=True, random_crop=True, verbose=False, skip_batches=0):
 
     print("Loading LRW", collect_type, "init vars for generation...")
 
@@ -57,6 +57,10 @@ def generate_assessor_data_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect
 
         # For each batch
         for batch in range(n_batches):
+
+            # Skip some if mentioned
+            if batch < skip_batches:
+                continue
 
             if verbose:
                 print("Batch", batch+1, "of", n_batches)
