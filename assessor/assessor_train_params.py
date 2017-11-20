@@ -7,7 +7,7 @@ from assessor_params import *
 # EXPERIMENT NUMBER
 ######################################################
 
-experiment_number = 5
+experiment_number = 6
 
 ######################################################
 # PARAMS
@@ -34,8 +34,8 @@ conv_f_2 = 32
 conv_f_3 = 64
 mouth_features_dim = 512
 lstm_units_1 = 32
-dense_fc_1 = 128
-dense_fc_2 = 64
+dense_fc_1 = 64
+dense_fc_2 = 16
 
 # Compile
 optimizer = 'adam'
