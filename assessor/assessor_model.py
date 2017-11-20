@@ -2,6 +2,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
+
+# np.random.seed(29)
+tf.set_random_seed(29)
 
 from keras.models import Model, Sequential, model_from_json, model_from_yaml
 from keras.layers import Masking, TimeDistributed, Conv2D, BatchNormalization, Activation, MaxPooling2D
