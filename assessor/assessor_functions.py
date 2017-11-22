@@ -14,7 +14,9 @@ from assessor_params import *
 #############################################################
 
 
-def generate_assessor_data_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect_type="val", shuffle=True, random_crop=True, verbose=False, skip_batches=0):
+def generate_assessor_data_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect_type="val", shuffle=True,
+                                   grayscale_images=False, random_crop=True, random_flip=True,
+                                   verbose=False, skip_batches=0):
 
     print("Loading LRW", collect_type, "init vars for generation...")
 
@@ -109,6 +111,7 @@ def generate_assessor_data_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect
                 # For each frame in mouth images
                 frame_0_start_index = -1
                 set_crop_offset = True
+                set_random_flip = True
                 for jpg_name in sorted(glob.glob('.'.join(word_txt_file.split('.')[:-1]) + '*mouth*.jpg')):
 
                     # Frame number
@@ -123,8 +126,14 @@ def generate_assessor_data_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect
                         if verbose:
                             print(jpg_name)
 
+                        # Set image grayscale option
+                        if grayscale_images:
+                            cv_option = cv2.IMREAD_GRAYSCALE
+                        else:
+                            cv_option = cv2.IMREAD_COLOR
+
                         # Read image
-                        mouth_image = robust_imread(jpg_name)
+                        mouth_image = robust_imread(jpg_name, cv_option)
 
                         if set_crop_offset:
                             # Images have been saved at 120x120. We need them at MOUTH_HxMOUTH_W
@@ -142,6 +151,18 @@ def generate_assessor_data_batches(data_dir=LRW_DATA_DIR, batch_size=64, collect
 
                         # Crop image
                         mouth_image = mouth_image[h_offset:h_offset+MOUTH_H, w_offset:w_offset+MOUTH_W]
+
+                        # Set whether to flip or not
+                        if set_random_flip:
+                            if random_flip and np.random.choice(2):
+                                flip = True
+                            else:
+                                flip = False
+                            set_random_flip = False
+
+                        # Flip
+                        if flip:
+                            mouth_image = mouth_image[:, ::-1]
 
                         # Add this image in reverse order into X
                         # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
