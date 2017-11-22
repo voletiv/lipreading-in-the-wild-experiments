@@ -9,7 +9,7 @@ tf.set_random_seed(29)
 
 from keras.models import Model, Sequential, model_from_json, model_from_yaml
 from keras.layers import Masking, TimeDistributed, Conv2D, BatchNormalization, Activation, MaxPooling2D
-from keras.layers import Flatten, Dense, Input, Add, Concatenate, LSTM
+from keras.layers import Flatten, Dense, Input, Reshape, Add, Concatenate, LSTM, Dropout
 from keras.regularizers import l2
 from keras.callbacks import Callback
 
@@ -23,7 +23,7 @@ from resnet import ResnetBuilder
 
 
 def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, dense_fc_1=128, dense_fc_2=64,
-                      conv_f_1=32, conv_f_2=64, conv_f_3=128):
+                      conv_f_1=32, conv_f_2=64, conv_f_3=128, dropout_p=0.2):
 
     mouth_input_shape = (MOUTH_H, MOUTH_W, MOUTH_CHANNELS)
     my_input_mouth_images = Input(shape=(TIME_STEPS, *mouth_input_shape))
@@ -35,15 +35,17 @@ def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, d
     if mouth_nn == 'cnn':
         mouth_feature_model = my_timedistributed_cnn_model((TIME_STEPS, *mouth_input_shape), conv_f_1, conv_f_2, conv_f_3, mouth_features_dim)
     elif mouth_nn == 'resnet18':
-        mouth_feature_model = ResnetBuilder.build_resnet_18(mouth_input_shape, mouth_features_dim)
+        mouth_feature_model = ResnetBuilder.build_resnet_18((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
     elif mouth_nn == 'resnet34':
-        mouth_feature_model = ResnetBuilder.build_resnet_34(mouth_input_shape, mouth_features_dim)
+        mouth_feature_model = ResnetBuilder.build_resnet_34((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
     elif mouth_nn == 'resnet50':
-        mouth_feature_model = ResnetBuilder.build_resnet_50(mouth_input_shape, mouth_features_dim)
+        mouth_feature_model = ResnetBuilder.build_resnet_50((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
     elif mouth_nn == 'resnet101':
-        mouth_feature_model = ResnetBuilder.build_resnet_101(mouth_input_shape, mouth_features_dim)
+        mouth_feature_model = ResnetBuilder.build_resnet_101((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
     elif mouth_nn == 'resnet152':
-        mouth_feature_model = ResnetBuilder.build_resnet_152(mouth_input_shape, mouth_features_dim)
+        mouth_feature_model = ResnetBuilder.build_resnet_152((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
+    elif mouth_nn == 'flatten':
+        mouth_feature_model = Reshape((TIME_STEPS, -1), input_shape=(TIME_STEPS, *mouth_input_shape))
 
     cnn_features = mouth_feature_model(my_input_mouth_images)
 
@@ -55,13 +57,17 @@ def my_assessor_model(mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, d
 
     fc1 = Dense(dense_fc_1, activation='relu', kernel_regularizer=l2(1.e-4))(concatenated_features)
 
-    fc2 = Dense(dense_fc_2, activation='relu', kernel_regularizer=l2(1.e-4))(fc1)
+    bn1 = BatchNormalization()(fc1)
 
-    # fc1 = Dense(dense_fc_1, activation='relu', kernel_regularizer=l2(1.e-4))(concatenated_features)
+    dp1 = Dropout(dropout_p)(bn1)
 
-    # fc2 = Dense(dense_fc_2, activation='relu', kernel_regularizer=l2(1.e-4))(fc1)
+    fc2 = Dense(dense_fc_2, activation='relu', kernel_regularizer=l2(1.e-4))(dp1)
 
-    assessor_output = Dense(1, activation='sigmoid')(fc2)
+    bn2 = BatchNormalization()(fc2)
+
+    dp2 = Dropout(dropout_p)(bn2)
+
+    assessor_output = Dense(1, activation='sigmoid')(dp2)
 
     assessor = Model(inputs=[my_input_mouth_images, my_input_head_poses, my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax],
                      outputs=assessor_output)
@@ -107,6 +113,36 @@ def my_timedistributed_cnn_model(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_
     return model
 
 
+def my_timedistributed_cnn_model_with_skip(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_dense_fc_1, masking=False):
+
+    time_steps = input_shape[0]
+    mouth_shape = (input_shape[1], input_shape[2], input_shape[3])
+
+    my_input = Input(shape=input_shape)
+
+    a_c_out = TimeDistributed(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4)),
+                        input_shape=input_shape)(my_input)
+    a_bn_out = TimeDistributed(BatchNormalization())(a_c_out)
+    a_act_out = TimeDistributed(Activation('relu'))(a_bn_out)
+    a_pool_out = TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same'))(a_act_out)
+    # a_
+
+
+    model.add(TimeDistributed(Conv2D(filters=conv_f_2, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4))))
+    model.add(TimeDistributed(BatchNormalization()))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')))
+
+    model.add(TimeDistributed(Conv2D(filters=conv_f_3, kernel_size=(3, 3), padding='same', activation='relu', kernel_regularizer=l2(1.e-4))))
+    model.add(TimeDistributed(BatchNormalization()))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')))
+
+    model.add(TimeDistributed(Flatten()))
+    model.add(TimeDistributed(Dense(cnn_dense_fc_1, kernel_regularizer=l2(1.e-4))))
+
+    return model
+
 def my_cnn_model(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_dense_fc_1):
     model = Sequential()
     model.add(Conv2D(filters=conv_f_1, kernel_size=(3, 3), padding='same', kernel_regularizer=l2(1.e-4),
@@ -133,144 +169,10 @@ def make_time_distributed_simple(model, TIME_STEPS, input_shape):
         print(model_layer_index)
         if model_layer_index == 0:
             time_distributed_model.add(TimeDistributed(model.layers[model_layer_index], input_shape=(TIME_STEPS, *input_shape)))
-        elif not isinstance(model.layers[model_layer_index], Add):
+        else:
             time_distributed_model.add(TimeDistributed(model.layers[model_layer_index]))
-        else:
-            print("  Add layer!")
-            time_distributed_model_add_layer_inputs = []
-            # For each add layer input
-            for add_layer_input in model.layers[model_layer_index].input:
-                # Find the add layer input
-                for l in range(model_layer_index):
-                    # print(model.layers[l].output == add_layer_input, model.layers[l].output, add_layer_input)
-                    if model.layers[l].output == add_layer_input:
-                        time_distributed_model_add_layer_inputs.append(time_distributed_model.layers[l].output)
-                        continue
-            # Add them
-            my_added = Add()(time_distributed_model_add_layer_inputs)
-            time_distributed_model = Model(inputs=[time_distributed_model.input], outputs=[my_added])
     # Return
     return time_distributed_model
-
-
-def make_time_distributed(model, TIME_STEPS, input_shape, verbose=True):
-    extra_models = []
-    extra_time_distributed_models = []
-    model_input = model.input
-    time_distributed_model_input = Input(shape=(TIME_STEPS, *input_shape))
-    # For each layer
-    for model_layer_index in range(1, len(model.layers)):
-        if verbose:
-            print(model_layer_index)
-            print(model.layers[22].output)
-        # If first layer, use time_distributed_model_input as input
-        if model_layer_index == 1:
-            x = TimeDistributed(model.layers[model_layer_index])(time_distributed_model_input)
-            time_distributed_model = Model(inputs=[time_distributed_model_input], outputs=[x])
-        # Else, in case it is not an Add layer,
-        elif not isinstance(model.layers[model_layer_index], Add):
-            # If the previous layer's output is this layer's input, make TimeDistributed
-            if model.layers[model_layer_index-1].output == model.layers[model_layer_index].input:
-                if verbose:
-                    print("Prev layer's output is this layer's input")
-                x = TimeDistributed(model.layers[model_layer_index])(time_distributed_model.layers[model_layer_index-1].output)
-                time_distributed_model = Model(inputs=[time_distributed_model_input], outputs=[x])
-            # Else, (prev layer's output is not this layer's input)
-            else:
-                if verbose:
-                    print("This layer's input is not previous layer's output.")
-                # Find the layer_index whose output is this layer's input, and use that
-                # First search within model
-                if verbose:
-                    print("Searching in prev layers...")
-                found = False
-                for l in range(model_layer_index):
-                    if model.layers[l].output == model.layers[model_layer_index].input:
-                        if verbose:
-                            print("Found at", l)
-                        found = True
-                        break
-                if found == True:
-                    this_model_layer_input = model.layers[l].output
-                    this_time_distributed_layer_input = time_distributed_model.layers[l].output
-                else:
-                    if verbose:
-                        print("Searching in extras...")
-                    for extra_output_index in range(len(extra_models)):
-                        if extra_models[extra_output_index].output == model.layers[model_layer_index].input:
-                            if verbose:
-                                print("Found at", extra_output_index)
-                            this_model_layer_input = extra_models[extra_output_index].output
-                            this_time_distributed_layer_input = extra_time_distributed_models[extra_output_index].output
-                            break
-                # Add this layer's outputs as extra output
-                if verbose:
-                    print("Appending to extra_outputs")
-                y = model.layers[model_layer_index](this_model_layer_input)
-                this_extra_model = Model(inputs=[model_input], outputs=[y])
-                extra_models.append(this_extra_model)
-                z = TimeDistributed(model.layers[model_layer_index])(this_time_distributed_layer_input)
-                this_extra_time_distributed_model = Model(inputs=[time_distributed_model_input], outputs=[z])
-                extra_time_distributed_models.append(this_extra_time_distributed_model)
-                if verbose:
-                    print("extra_models", extra_models)
-                    print("extra_time_distributed_models", extra_time_distributed_models)
-                # # # DONT DO THIS # # #
-                # # Use the found layer input to append time_distributed_model
-                # x = TimeDistributed(model.layers[model_layer_index])(this_layer_input)
-                # time_distributed_model = Model(inputs=[time_distributed_model_input], outputs=[x])
-                # # # DONT DO THIS # # #
-        # ADD layer
-        else:
-            if verbose:
-                print("  Add layer!")
-            time_distributed_model_add_layer_inputs = []
-            # First search within model
-            found = False
-            # For each add layer input
-            for add_layer_input_index, add_layer_input in enumerate(model.layers[model_layer_index].input):
-                # Find the add layer input
-                if verbose:
-                    print("Searching add layer input", add_layer_input_index, "in prev layers...")
-                for l in range(model_layer_index):
-                    # print(model.layers[l].output == add_layer_input, model.layers[l].output, add_layer_input)
-                    if model.layers[l].output == add_layer_input:
-                        if verbose:
-                            print("Found at", l)
-                        found = True
-                        break
-                if found == True:
-                    time_distributed_model_add_layer_inputs.append(time_distributed_model.layers[l].output)
-                # If not found
-                else:
-                    # Search in extras
-                    print("Searching in extras...")
-                    for extra_output_index in range(len(extra_models)):
-                        if extra_models[extra_output_index].output == add_layer_input:
-                            if verbose:
-                                print("Found at", extra_output_index)
-                            time_distributed_model_add_layer_inputs.append(extra_time_distributedmodels[extra_output_index].output)
-                            break
-            # Add them
-            x = Add()(time_distributed_model_add_layer_inputs)
-            time_distributed_model = Model(inputs=[time_distributed_model_input], outputs=[x])
-    # Finally
-    time_distributed_model = Model(inputs=[time_distributed_model_input], outputs=[x])
-    # Return
-    return time_distributed_model
-
-
-# # Check which layer's input has this output
-# for l in range(len(resnet_model.layers)):
-#     if isinstance(resnet_model.layers[l].input, tf.Tensor):
-#             if resnet_model.layers[22].output == resnet_model.layers[l].input:
-#                 l
-#                 break
-#     else:
-#             if resnet_model.layers[22].output in resnet_model.layers[l].input:
-#                 print("multiple")
-#                 l
-#                 break
 
 
 #########################################################
