@@ -7,7 +7,7 @@ from assessor_params import *
 # EXPERIMENT NUMBER
 ######################################################
 
-experiment_number = 6
+experiment_number = 9
 
 ######################################################
 # PARAMS
@@ -28,14 +28,15 @@ random_crop = True
 verbose = False
 
 # Assessor
-mouth_nn = 'cnn'
-conv_f_1 = 16
-conv_f_2 = 32
-conv_f_3 = 64
-mouth_features_dim = 512
-lstm_units_1 = 32
-dense_fc_1 = 64
-dense_fc_2 = 16
+mouth_nn = 'flatten'
+conv_f_1 = 16   # doesn't matter
+conv_f_2 = 8    # doesn't matter
+conv_f_3 = 4    # doesn't matter
+mouth_features_dim = 512    # doesn't matter
+lstm_units_1 = 8
+dense_fc_1 = 128
+dense_fc_2 = 64
+dropout_p = 0.2
 
 # Compile
 optimizer = 'adam'
@@ -67,7 +68,7 @@ if mouth_nn == 'cnn':
     this_assessor_model = this_assessor_model + '_1conv' + str(conv_f_1) + '_2conv' + str(conv_f_2) + '_3conv' + str(conv_f_3)
 
 this_assessor_model = this_assessor_model + "_mouth" + str(512) + "_lstm" + str(lstm_units_1) + \
-                      "_1fc" + str(dense_fc_1) + "_2fc" + str(dense_fc_2) + "_" + optimizer
+                      "_1fc" + str(dense_fc_1) + "_bn_dp" + str(dropout_p) + "_2fc" + str(dense_fc_2) + "_bn_dp" + str(dropout_p) + "_" + optimizer
 
 # Save
 this_assessor_save_dir = os.path.realpath(os.path.join(ASSESSOR_SAVE_DIR, this_assessor_model))
