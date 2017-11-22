@@ -26,15 +26,23 @@ print("Copied assessor_train_params.py to", this_assessor_save_dir)
 # GEN BATCHES OF IMAGES
 ######################################################
 
-train_generator = generate_assessor_data_batches(data_dir=data_dir, batch_size=batch_size, collect_type=train_collect_type, shuffle=shuffle, random_crop=random_crop, verbose=verbose)
+train_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=train_collect_type,
+                                                 shuffle=shuffle, equal_classes=equal_classes, use_CNN_LSTM=use_CNN_LSTM,
+                                                 grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip, verbose=verbose)
 
-val_generator = generate_assessor_data_batches(data_dir=data_dir, batch_size=batch_size, collect_type=val_collect_type, shuffle=True, random_crop=False, verbose=False)
+val_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=val_collect_type,
+                                               shuffle=shuffle, equal_classes=equal_classes, use_CNN_LSTM=use_CNN_LSTM,
+                                               grayscale_images=grayscale_images, random_crop=False, random_flip=False, verbose=verbose)
 
 ######################################################
 # MAKE MODEL
 ######################################################
 
-assessor = my_assessor_model(mouth_nn, mouth_features_dim, lstm_units_1, dense_fc_1, dense_fc_2, conv_f_1=conv_f_1, conv_f_2=conv_f_2, conv_f_3=conv_f_3)
+assessor = my_assessor_model(use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn,
+                             conv_f_1=conv_f_1, conv_f_2=conv_f_2, conv_f_3=conv_f_3,
+                             mouth_features_dim=mouth_features_dim, lstm_units_1=lstm_units_1,
+                             dense_fc_1=dense_fc_1, dense_fc_2=dense_fc_2,
+                             grayscale_images=grayscale_images)
 
 assessor.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
