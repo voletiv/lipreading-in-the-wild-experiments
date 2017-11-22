@@ -14,10 +14,13 @@ if not os.path.exists(this_assessor_save_dir):
     print("Making dir", this_assessor_save_dir)
     os.makedirs(this_assessor_save_dir)
 
-# Copy train_params file into this_assessor_save_dir
+# Copy assessor_model file into this_assessor_save_dir
+os.system("cp assessor_model.py " + this_assessor_save_dir)
+print("Copied assessor_model.py to", this_assessor_save_dir)
+
+# Copy assessor_train_params file into this_assessor_save_dir
 os.system("cp assessor_train_params.py " + this_assessor_save_dir)
 print("Copied assessor_train_params.py to", this_assessor_save_dir)
-
 
 ######################################################
 # GEN BATCHES OF IMAGES
