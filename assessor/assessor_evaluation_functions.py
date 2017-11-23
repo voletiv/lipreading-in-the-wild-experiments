@@ -1,10 +1,202 @@
+import glob
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import time
 
+from sklearn.metrics import confusion_matrix, roc_curve, auc, average_precision_score, precision_recall_curve
+
+from assessor_functions import *
 from assessor_params import *
+from assessor_model import *
+from assessor_train_params import *
+
+
+######################################################
+# DEFINE SAVE_DIR and MODEL
+######################################################
+
+
+def define_save_dir_and_model(experiment_number):
+
+    global this_assessor_save_dir, this_assessor_model
+
+    for save_dir in sorted(glob.glob(os.path.join(ASSESSOR_SAVE_DIR, "[0-9]*/"))):
+        if int(save_dir.split('/')[-2].split('_')[0]) == experiment_number:
+            this_assessor_save_dir = save_dir
+            this_assessor_model = save_dir.split('/')[-2]
+            break
+
+
+######################################################
+# LOAD MODEL
+######################################################
+
+
+def load_best_or_latest_assessor(load_best_or_latest_or_none='latest'):
+
+    global this_assessor_save_dir, this_assessor_model
+
+    print("Loading", load_best_or_latest, "assessor...")
+
+    if load_best_or_latest_or_none == 'latest':
+        weights_file_name = sorted(glob.glob(os.path.join(this_assessor_save_dir, "*.hdf5")),
+                                   key=os.path.getmtime)[-1]
+    elif load_best_or_latest_or_none == 'best':
+        weights_file_name = sorted(glob.glob(os.path.join(this_assessor_save_dir, "*.hdf5")),
+                                   key=os.path.getmtime)[-2]
+
+    assessor = read_my_model(model_file_name=os.path.join(this_assessor_save_dir, this_assessor_model+".json"),
+                             weights_file_name=weights_file_name)
+
+    return assessor
+
+
+######################################################
+# PREDICT
+######################################################
+
+
+def load_predictions_or_predict_using_assessor(collect_type="val", batch_size=100, assessor=None, load_best_or_latest_or_none='latest'):
+    lrw_preds_file = os.path.join(this_assessor_save_dir, this_assessor_model+"_lrw_" + collect_type + "_preds.npy")
+
+    if os.path.exists(lrw_preds_file):
+        print("Loading predictions from", lrw_preds_file, "...")
+        lrw_assessor_preds = np.load(lrw_preds_file)
+        lrw_n_of_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
+
+        if len(lrw_assessor_preds) < len(lrw_n_of_frames_per_sample):
+            print("Only", len(lrw_assessor_preds), "samples present. Predicting for", (len(lrw_n_of_frames_per_sample) - len(lrw_assessor_preds))//batch_size, "batches...")
+            lrw_assessor_preds = predict_using_assessor(assessor, data_dir=LRW_DATA_DIR, batch_size=batch_size, collect_type="val",
+                                                            skip_batches=len(lrw_assessor_preds)//batch_size, lrw_assessor_preds=lrw_assessor_preds)
+
+    else:
+        print("Predicting assessor results...")
+        # Load assessor
+        if assessor is None:
+            assessor = load_best_or_latest_assessor(load_best_or_latest_or_none)
+        lrw_assessor_preds = predict_using_assessor(assessor, data_dir=LRW_DATA_DIR, batch_size=batch_size, collect_type=collect_type)
+
+    return lrw_assessor_preds
+
+
+def predict_using_assessor(assessor, data_dir=LRW_DATA_DIR, batch_size=100, collect_type="val", skip_batches=0, lrw_assessor_preds=np.array([])):
+
+    global this_assessor_save_dir, this_assessor_model
+
+    # LRW_VAL
+    lrw_data_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=collect_type, shuffle=False,
+                                                        equal_classes=equal_classes, use_CNN_LSTM=use_CNN_LSTM, use_head_pose=use_head_pose,
+                                                        grayscale_images=grayscale_images, random_crop=False, random_flip=False,
+                                                        verbose=False, skip_batches=skip_batches)
+
+    # # FAST?
+    # get_output = K.function([assessor.input[0], assessor.input[1], assessor.input[2], assessor.input[3], assessor.input[4], K.learning_phase()],
+    #                         [assessor.output])
+    # for i in tqdm.tqdm(range(25000//batch_size)):
+    #     [X, y] = next(train_generator)
+    #     lrw_val_assessor_preds = np.append(lrw_val_assessor_preds, get_output([X[0], X[1], np.reshape(X[2], (batch_size, 1)), X[3], X[4], 0])[0])
+
+    # SLOW? 
+    for i in tqdm.tqdm(range(skip_batches, 25000//batch_size)):
+        [X, y] = next(lrw_data_generator)
+        lrw_assessor_preds = np.append(lrw_assessor_preds, assessor.predict(X))
+        if (i+1) % 50 == 0:
+            print("Saving", collect_type, "preds as", os.path.join(this_assessor_save_dir, this_assessor_model+"_lrw_"+collect_type+"_preds"))
+            np.save(os.path.join(this_assessor_save_dir, this_assessor_model+"_lrw_"+collect_type+"_preds"), lrw_assessor_preds)
+
+    # # Save
+    # np.save(os.path.join(this_assessor_save_dir, this_assessor_model+"_lrw_"+collect_type+"_preds"), lrw_assessor_preds)
+
+    return lrw_assessor_preds
+
+
+######################################################
+# ROC, OPERATING POINT
+######################################################
+
+
+def evaluate_and_plot_ROC_with_OP(lipreader_correct_or_wrong, lrw_assessor_preds, collect_type="val", assessor_threshold=0.5, save_and_close=True):
+
+    global this_assessor_save_dir, this_assessor_model
+
+    # OP
+    tn, fp, fn, tp = confusion_matrix(lipreader_correct_or_wrong, lrw_assessor_preds >= assessor_threshold).ravel()
+    fpr_op = fp/(fp + tn)
+    tpr_op = tp/(tp + fn)
+
+    # ROC
+    fpr, tpr, thresholds = roc_curve(lipreader_correct_or_wrong, lrw_assessor_preds)
+    roc_auc = auc(fpr, tpr)
+
+    # Plot
+    plot_ROC_with_OP(fpr, tpr, roc_auc, fpr_op, tpr_op,
+                     this_assessor_save_dir=this_assessor_save_dir, this_assessor_model=this_assessor_model,
+                     lrw_type=collect_type, assessor_threshold=assessor_threshold, save_and_close=save_and_close)
+
+
+######################################################
+# P-R CURVE
+######################################################
+
+
+def evaluate_avg_precision_plot_PR_curve(lipreader_correct_or_wrong, lrw_assessor_preds, collect_type="val", save_and_close=True):
+
+    global this_assessor_save_dir, this_assessor_model
+
+    # PR
+    average_precision = average_precision_score(lipreader_correct_or_wrong, lrw_assessor_preds)
+    precision, recall, _ = precision_recall_curve(lipreader_correct_or_wrong, lrw_assessor_preds)
+
+    plot_assessor_PR_curve(recall, precision, average_precision,
+                           this_assessor_save_dir=this_assessor_save_dir, this_assessor_model=this_assessor_model,
+                           lrw_type=collect_type, save_and_close=save_and_close)
+
+
+######################################################
+# COMPARISON OF P-R
+######################################################
+
+
+def compare_PR_of_lipreader_and_assessor(lipreader_lrw_softmax, lrw_correct_one_hot_y_arg, lrw_assessor_preds, collect_type="val", assessor_threshold=0.5):
+
+    global this_assessor_save_dir, this_assessor_model
+
+    lipreader_lrw_precision_w, lipreader_lrw_recall_w, lipreader_lrw_avg_precision_w = \
+        my_precision_recall(lipreader_lrw_softmax, lrw_correct_one_hot_y_arg)
+
+    lipreader_lrw_precision_at_k_averaged_across_words = np.mean(lipreader_lrw_precision_w, axis=1)[:50]
+    lipreader_lrw_recall_at_k_averaged_across_words = np.mean(lipreader_lrw_recall_w, axis=1)[:50]
+
+    lrw_rejection_idx = lrw_assessor_preds <= assessor_threshold
+    filtered_lipreader_lrw_precision_w, filtered_lipreader_lrw_recall_w, filtered_lipreader_lrw_avg_precision_w = \
+        my_precision_recall(lipreader_lrw_softmax, lrw_correct_one_hot_y_arg, critic_removes=lrw_rejection_idx)
+
+    filtered_lrw_precision_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_precision_w, axis=1)[:50]
+    filtered_lrw_recall_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_recall_w, axis=1)[:50]
+
+    # P@K vs K, R@K vs K
+    plot_P_atK_and_R_atK_vs_K(lipreader_lrw_precision_at_k_averaged_across_words, filtered_lrw_precision_at_k_averaged_across_words,
+                              lipreader_lrw_recall_at_k_averaged_across_words, filtered_lrw_recall_at_k_averaged_across_words,
+                              this_assessor_save_dir=this_assessor_save_dir, this_assessor_model=this_assessor_model,
+                              lrw_type=collect_type, assessor_threshold=assessor_threshold)
+
+    # P-R curve
+    plot_P_atK_vs_R_atK(lipreader_lrw_precision_at_k_averaged_across_words, filtered_lrw_precision_at_k_averaged_across_words,
+                        lipreader_lrw_recall_at_k_averaged_across_words, filtered_lrw_recall_at_k_averaged_across_words,
+                        this_assessor_save_dir=this_assessor_save_dir, this_assessor_model=this_assessor_model,
+                        lrw_type=collect_type, assessor_threshold=assessor_threshold)
+
+    # PRECISION GIF
+    plot_lrw_property_image(lipreader_lrw_avg_precision_w, title="Average Precision (@K) - LRW "+collect_type, cmap='gray', clim=[0, 1],
+        save=True, this_assessor_save_dir=this_assessor_save_dir, this_assessor_model=this_assessor_model, file_name="avg_precision", lrw_type=collect_type,
+        filtered_using_assessor=False)
+
+    plot_lrw_property_image(filtered_lipreader_lrw_avg_precision_w, title="Average Precision (@K) - LRW "+collect_type+" - filtered using assessor", cmap='gray', clim=[0, 1],
+        save=True, this_assessor_save_dir=this_assessor_save_dir, this_assessor_model=this_assessor_model, file_name="avg_precision", lrw_type=collect_type,
+        filtered_using_assessor=True)
 
 
 def my_precision_recall(lrw_lipreader_preds_softmax, lrw_correct_one_hot_y_arg, critic_removes=None):
@@ -48,6 +240,7 @@ def plot_ROC_with_OP(fpr, tpr, roc_auc, fpr_op, tpr_op, this_assessor_save_dir, 
         print("Saving ROC:", os.path.join(this_assessor_save_dir, this_assessor_model+"_ROC_thresh"+str(assessor_threshold)+".png"))
         plt.savefig(os.path.join(this_assessor_save_dir, this_assessor_model+"_ROC_thresh"+str(assessor_threshold)+".png"))
         plt.close()
+        time.sleep(.5)
 
 
 def plot_assessor_PR_curve(recall, precision, average_precision, this_assessor_save_dir, this_assessor_model, lrw_type="val", save_and_close=False):
@@ -135,7 +328,9 @@ def plot_lrw_property_image(lrw_property, title="?????????????", cmap='jet', cli
     if save:
         fig_title = os.path.join(this_assessor_save_dir, this_assessor_model+"_lipreader_"+file_name+"_"+lrw_type)
         if filtered_using_assessor:
-            fig_title = fig_title + "_assessor_filtered.png"
+            fig_title += "_assessor_filtered.png"
+        else:
+            fig_title += ".png"
         print("Saving lrw_property_image:", fig_title)
         plt.savefig(fig_title)
     else:
