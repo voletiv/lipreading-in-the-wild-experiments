@@ -15,7 +15,7 @@ from assessor_params import *
 
 
 def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect_type="val",
-                                   shuffle=True, equal_classes=False, use_CNN_LSTM=True,
+                                   shuffle=True, equal_classes=False, use_CNN_LSTM=True, use_head_pose=True,
                                    grayscale_images=False, random_crop=True, random_flip=False,
                                    verbose=False, skip_batches=0):
 
@@ -31,8 +31,9 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
         # Read start_frames_per_sample
         lrw_start_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=START_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
 
-        # Read head_poses_per_sample
-        lrw_head_poses_per_sample = read_head_poses(collect_type=collect_type, collect_by='sample')
+        if use_head_pose:
+            # Read head_poses_per_sample
+            lrw_head_poses_per_sample = read_head_poses(collect_type=collect_type, collect_by='sample')
 
     # Read n_of_frames_per_sample
     lrw_n_of_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
@@ -50,7 +51,8 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
     if use_CNN_LSTM:
         full_lrw_word_set_num_txt_file_names = list(lrw_word_set_num_txt_file_names)
         full_lrw_start_frames_per_sample = list(lrw_start_frames_per_sample)
-        full_lrw_head_poses_per_sample = list(lrw_head_poses_per_sample)
+        if use_head_pose:
+            full_lrw_head_poses_per_sample = list(lrw_head_poses_per_sample)
     full_lrw_n_of_frames_per_sample = list(lrw_n_of_frames_per_sample)
     full_lrw_lipreader_dense = np.array(lrw_lipreader_dense)
     full_lrw_lipreader_softmax = np.array(lrw_lipreader_softmax)
@@ -86,7 +88,8 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
         if use_CNN_LSTM:
             lrw_word_set_num_txt_file_names = [full_lrw_word_set_num_txt_file_names[i] for i in full_index_list[idx_list_within_full_idx_list]]
             lrw_start_frames_per_sample = [full_lrw_start_frames_per_sample[i] for i in full_index_list[idx_list_within_full_idx_list]]
-            lrw_head_poses_per_sample = [full_lrw_head_poses_per_sample[i] for i in full_index_list[idx_list_within_full_idx_list]]
+            if use_head_pose:
+                lrw_head_poses_per_sample = [full_lrw_head_poses_per_sample[i] for i in full_index_list[idx_list_within_full_idx_list]]
         lrw_n_of_frames_per_sample = [full_lrw_n_of_frames_per_sample[i] for i in full_index_list[idx_list_within_full_idx_list]]
         lrw_lipreader_dense = full_lrw_lipreader_dense[full_index_list[idx_list_within_full_idx_list]]
         lrw_lipreader_softmax = full_lrw_lipreader_softmax[full_index_list[idx_list_within_full_idx_list]]
@@ -112,14 +115,16 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
                 # Batch start frames per sample
                 batch_start_frames_per_sample = lrw_start_frames_per_sample[batch*batch_size:(batch + 1)*batch_size]
 
-                # Batch head poses
-                batch_head_poses_per_sample = lrw_head_poses_per_sample[batch*batch_size:(batch + 1)*batch_size]
-
                 # Batch mouth images (X)
                 batch_mouth_images = np.zeros((batch_size, TIME_STEPS, MOUTH_H, MOUTH_W, MOUTH_CHANNELS))
 
-                # Batch head poses for training (H)
-                batch_head_poses_per_sample_for_training = np.zeros((batch_size, TIME_STEPS, 3))
+                if use_head_pose:
+
+                    # Batch head poses
+                    batch_head_poses_per_sample = lrw_head_poses_per_sample[batch*batch_size:(batch + 1)*batch_size]
+
+                    # Batch head poses for training (H)
+                    batch_head_poses_per_sample_for_training = np.zeros((batch_size, TIME_STEPS, 3))
 
             # Batch number of frames per sample (F)
             batch_n_of_frames_per_sample = lrw_n_of_frames_per_sample[batch*batch_size:(batch + 1)*batch_size]
@@ -209,8 +214,9 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
                             # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
                             batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W, MOUTH_CHANNELS))
 
-                            # Add head pose
-                            batch_head_poses_per_sample_for_training[sample_idx_within_batch][-frame_0_start_index-1] = batch_head_poses_per_sample[sample_idx_within_batch][frame_0_start_index]
+                            if use_head_pose:
+                                # Add head pose
+                                batch_head_poses_per_sample_for_training[sample_idx_within_batch][-frame_0_start_index-1] = batch_head_poses_per_sample[sample_idx_within_batch][frame_0_start_index]
 
             # Batch number of frames per sample (F)
             batch_n_of_frames_per_sample = np.reshape(np.array(batch_n_of_frames_per_sample)/float(MAX_FRAMES_PER_WORD), (len(batch_n_of_frames_per_sample), 1))
@@ -219,8 +225,10 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
             batch_lipreader_correct_or_wrong = np.array(np.argmax(batch_softmax_per_sample, axis=1) == batch_lipreader_one_hot_y_arg_per_sample, dtype=float)
 
             # Yield X, H, F, D, S, Y
-            if use_CNN_LSTM:
+            if use_CNN_LSTM and use_head_pose:
                 yield [batch_mouth_images, batch_head_poses_per_sample_for_training, batch_n_of_frames_per_sample, batch_dense_per_sample, batch_softmax_per_sample], [batch_lipreader_correct_or_wrong]
+            elif use_CNN_LSTM and not use_head_pose:
+                yield [batch_mouth_images, batch_n_of_frames_per_sample, batch_dense_per_sample, batch_softmax_per_sample], [batch_lipreader_correct_or_wrong]
             else:
                 yield [batch_n_of_frames_per_sample, batch_dense_per_sample, batch_softmax_per_sample], [batch_lipreader_correct_or_wrong]
 
