@@ -7,8 +7,9 @@ import tensorflow as tf
 # np.random.seed(29)
 tf.set_random_seed(29)
 
+from keras import backend as K
 from keras.models import Model, Sequential, model_from_json, model_from_yaml
-from keras.layers import Masking, TimeDistributed, Conv2D, BatchNormalization, Activation, MaxPooling2D
+from keras.layers import Masking, TimeDistributed, Conv2D, BatchNormalization, Activation, MaxPooling2D, AveragePooling2D
 from keras.layers import Flatten, Dense, Input, Reshape, Add, Concatenate, LSTM, Dropout
 from keras.regularizers import l2
 from keras.callbacks import Callback
@@ -22,15 +23,16 @@ from resnet import ResnetBuilder
 #########################################################
 
 
-def my_assessor_model(use_CNN_LSTM=True, mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, dense_fc_1=128, dense_fc_2=64,
+def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, dense_fc_1=128, dense_fc_2=64,
                       conv_f_1=32, conv_f_2=64, conv_f_3=128, dropout_p=0.2, grayscale_images=False):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
 
-    mouth_input_shape = (MOUTH_H, MOUTH_W, MOUTH_CHANNELS)
-    my_input_mouth_images = Input(shape=(TIME_STEPS, *mouth_input_shape))
-    my_input_head_poses = Input(shape=(TIME_STEPS, 3))
+    if use_CNN_LSTM:
+        mouth_input_shape = (MOUTH_H, MOUTH_W, MOUTH_CHANNELS)
+        my_input_mouth_images = Input(shape=(TIME_STEPS, *mouth_input_shape))
+        my_input_head_poses = Input(shape=(TIME_STEPS, 3))
     my_input_n_of_frames = Input(shape=(1,))
     my_input_lipreader_dense = Input(shape=(1024,))
     my_input_lipreader_softmax = Input(shape=(500,))
@@ -39,6 +41,8 @@ def my_assessor_model(use_CNN_LSTM=True, mouth_nn='cnn', mouth_features_dim=512,
 
         if mouth_nn == 'cnn':
             mouth_feature_model = my_timedistributed_cnn_model((TIME_STEPS, *mouth_input_shape), conv_f_1, conv_f_2, conv_f_3, mouth_features_dim)
+        elif mouth_nn == 'resCNN':
+            mouth_feature_model = my_resnet_like_timeDistributed_CNN((TIME_STEPS, *mouth_input_shape), conv_f_1, conv_f_2, conv_f_3, mouth_features_dim)
         elif mouth_nn == 'resnet18':
             mouth_feature_model = ResnetBuilder.build_resnet_18((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
         elif mouth_nn == 'resnet34':
@@ -54,7 +58,10 @@ def my_assessor_model(use_CNN_LSTM=True, mouth_nn='cnn', mouth_features_dim=512,
 
         cnn_features = mouth_feature_model(my_input_mouth_images)
 
-        lstm_input = Concatenate()([cnn_features, my_input_head_poses])
+        if use_head_pose:
+            lstm_input = Concatenate()([cnn_features, my_input_head_poses])
+        else:
+            lstm_input = cnn_features
 
         lstm_output = LSTM(lstm_units_1, activation='tanh', kernel_regularizer=l2(1.e-4), return_sequences=False)(lstm_input)
 
@@ -77,12 +84,127 @@ def my_assessor_model(use_CNN_LSTM=True, mouth_nn='cnn', mouth_features_dim=512,
 
     assessor_output = Dense(1, activation='sigmoid')(dp2)
 
-    assessor = Model(inputs=[my_input_mouth_images, my_input_head_poses, my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax],
-                     outputs=assessor_output)
+    if use_CNN_LSTM:
+        if use_head_pose:
+            assessor = Model(inputs=[my_input_mouth_images, my_input_head_poses, my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax],
+                             outputs=assessor_output)
+        else:
+            assessor = Model(inputs=[my_input_mouth_images, my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax],
+                             outputs=assessor_output)
+    else:
+        assessor = Model(inputs=[my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax], outputs=assessor_output)
 
     assessor.summary()
 
     return assessor
+
+
+#########################################################
+# MY RESNET-like CNN
+#########################################################
+
+
+def my_resnet_like_timeDistributed_CNN(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_dense_fc_1):
+
+    _handle_dim_ordering()
+
+    model = Sequential()
+
+    # First
+    model.add(TimeDistributed(Conv2D(filters=conv_f_1, kernel_size=(7, 7), strides=(2, 2), padding='same', kernel_regularizer=l2(1.e-4)), input_shape=input_shape))
+    model.add(TimeDistributed(BatchNormalization(axis=CHANNEL_AXIS)))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding="same")))
+
+    # Residual-like block
+    model.add(TimeDistributed(Conv2D(filters=conv_f_2, kernel_size=(3, 3), strides=(1, 1), padding="same", kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))))
+    model.add(TimeDistributed(BatchNormalization(axis=CHANNEL_AXIS)))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(Conv2D(filters=conv_f_2, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_regularizer=l2(1.e-4))))
+
+    # Residual-like block
+    model.add(TimeDistributed(BatchNormalization()))
+    model.add(TimeDistributed(Conv2D(filters=conv_f_3, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_regularizer=l2(1.e-4))))
+    model.add(TimeDistributed(BatchNormalization(axis=CHANNEL_AXIS)))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(Conv2D(filters=conv_f_3, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_regularizer=l2(1.e-4))))
+
+    # End
+    model.add(TimeDistributed(BatchNormalization()))
+    model.add(TimeDistributed(Activation('relu')))
+
+    # Classifier-like block
+    model.add(TimeDistributed(AveragePooling2D(pool_size=(model.output_shape[ROW_AXIS], model.output_shape[COL_AXIS]), strides=(1, 1))))
+    model.add(TimeDistributed(Flatten()))
+    model.add(TimeDistributed(Dense(units=cnn_dense_fc_1, kernel_initializer="he_normal", activation='relu')))
+    model.add(TimeDistributed(BatchNormalization()))
+
+    return model
+
+
+def my_small_resnet(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_dense_fc_1):
+
+    _handle_dim_ordering()
+
+    model = Sequential()
+
+    # First
+    model.add(TimeDistributed(Conv2D(filters=conv_f_1, kernel_size=(7, 7), strides=(2, 2), padding='same', kernel_regularizer=l2(1.e-4)), input_shape=input_shape))
+    model.add(TimeDistributed(BatchNormalization(axis=CHANNEL_AXIS)))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding="same")))
+
+    # Residual-like block
+    model.add(TimeDistributed(Conv2D(filters=conv_f_2, kernel_size=(3, 3), strides=(1, 1), padding="same", kernel_initializer="he_normal", kernel_regularizer=l2(1e-4))))
+    model.add(TimeDistributed(BatchNormalization(axis=CHANNEL_AXIS)))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(Conv2D(filters=conv_f_2, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_regularizer=l2(1.e-4))))
+    model.add()
+
+    # Residual-like block
+    model.add(TimeDistributed(BatchNormalization()))
+    model.add(TimeDistributed(Conv2D(filters=conv_f_3, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_regularizer=l2(1.e-4))))
+    model.add(TimeDistributed(BatchNormalization(axis=CHANNEL_AXIS)))
+    model.add(TimeDistributed(Activation('relu')))
+    model.add(TimeDistributed(Conv2D(filters=conv_f_3, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_regularizer=l2(1.e-4))))
+
+    # End
+    model.add(TimeDistributed(BatchNormalization()))
+    model.add(TimeDistributed(Activation('relu')))
+
+    # Classifier-like block
+    model.add(TimeDistributed(AveragePooling2D(pool_size=(model.output_shape[ROW_AXIS], model.output_shape[COL_AXIS]), strides=(1, 1))))
+    model.add(TimeDistributed(Flatten()))
+    model.add(TimeDistributed(Dense(units=cnn_dense_fc_1, kernel_initializer="he_normal", activation='relu')))
+    model.add(TimeDistributed(BatchNormalization()))
+
+    return model
+
+
+def _handle_dim_ordering(time_distributed=True, verbose=False):
+    global ROW_AXIS
+    global COL_AXIS
+    global CHANNEL_AXIS
+    if verbose:
+        print("_handle_dim_ordering")
+    if time_distributed:
+        if K.image_dim_ordering() == 'tf':
+            ROW_AXIS = 2
+            COL_AXIS = 3
+            CHANNEL_AXIS = -1
+        else:
+            CHANNEL_AXIS = 2
+            ROW_AXIS = 3
+            COL_AXIS = 4
+    else:
+        if K.image_dim_ordering() == 'tf':
+            ROW_AXIS = 1
+            COL_AXIS = 2
+            CHANNEL_AXIS = 3
+        else:
+            CHANNEL_AXIS = 1
+            ROW_AXIS = 2
+            COL_AXIS = 3
 
 
 #########################################################
