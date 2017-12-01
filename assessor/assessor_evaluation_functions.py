@@ -1,6 +1,9 @@
+import os
+if 'voleti.vikram' in os.getcwd():
+    import matplotlib
+    matplotlib.use('Agg')
+
 import glob
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -9,8 +12,8 @@ import time
 from sklearn.metrics import confusion_matrix, roc_curve, auc, average_precision_score, precision_recall_curve
 
 from assessor_functions import *
-from assessor_params import *
 from assessor_model import *
+from assessor_params import *
 from assessor_train_params import *
 
 

@@ -4,10 +4,16 @@ from assessor_functions import *
 from assessor_model import *
 from assessor_train_params import *
 
-
 ######################################################
 # DIR, PARAMS
 ######################################################
+
+this_assessor_model, this_assessor_save_dir = make_this_assessor_model_and_save_dir_names(experiment_number,
+                                                                                          equal_classes, use_CNN_LSTM, grayscale_images,
+                                                                                          mouth_nn, conv_f_1, conv_f_2, conv_f_3,
+                                                                                          mouth_features_dim, use_head_pose, lstm_units_1,
+                                                                                          dense_fc_1, dense_fc_2, dropout_p,
+                                                                                          optimizer_name)
 
 # Make the dir if it doesn't exist
 if not os.path.exists(this_assessor_save_dir):
@@ -44,6 +50,7 @@ val_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=d
 
 assessor = my_assessor_model(use_CNN_LSTM=use_CNN_LSTM, use_head_pose=use_head_pose, mouth_nn=mouth_nn,
                              conv_f_1=conv_f_1, conv_f_2=conv_f_2, conv_f_3=conv_f_3,
+                             my_resnet_repetitions=my_resnet_repetitions,
                              mouth_features_dim=mouth_features_dim, lstm_units_1=lstm_units_1,
                              dense_fc_1=dense_fc_1, dense_fc_2=dense_fc_2,
                              grayscale_images=grayscale_images)

@@ -1,5 +1,8 @@
-import matplotlib
-matplotlib.use('Agg')
+import os
+if 'voleti.vikram' in os.getcwd():
+    import matplotlib
+    matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -15,7 +18,7 @@ from keras.regularizers import l2
 from keras.callbacks import Callback
 
 from assessor_params import *
-from resnet import ResnetBuilder
+from resnet import *
 
 
 #########################################################
@@ -23,11 +26,15 @@ from resnet import ResnetBuilder
 #########################################################
 
 
-def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', mouth_features_dim=512, lstm_units_1=32, dense_fc_1=128, dense_fc_2=64,
-                      conv_f_1=32, conv_f_2=64, conv_f_3=128, dropout_p=0.2, grayscale_images=False):
+def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', trainable_syncnet=False, mouth_features_dim=512, lstm_units_1=32,
+                      dense_fc_1=128, dense_fc_2=64, conv_f_1=32, conv_f_2=64, conv_f_3=128, dropout_p=0.2, use_softmax=True,
+                      grayscale_images=False, my_resnet_repetitions=[2, 2, 2, 2]):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
+
+    if mouth_nn == 'syncnet':
+        MOUTH_CHANNELS = 5
 
     if use_CNN_LSTM:
         mouth_input_shape = (MOUTH_H, MOUTH_W, MOUTH_CHANNELS)
@@ -53,8 +60,16 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', mou
             mouth_feature_model = ResnetBuilder.build_resnet_101((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
         elif mouth_nn == 'resnet152':
             mouth_feature_model = ResnetBuilder.build_resnet_152((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
+        elif mouth_nn == 'my_resnet':
+            mouth_feature_model = ResnetBuilder.build((TIME_STEPS, *mouth_input_shape), mouth_features_dim, basic_block, my_resnet_repetitions, time_distributed=True)
         elif mouth_nn == 'flatten':
             mouth_feature_model = Reshape((TIME_STEPS, -1), input_shape=(TIME_STEPS, *mouth_input_shape))
+        elif mouth_nn == 'syncnet':
+            mouth_feature_model = make_time_distributed_simple(load_pretrained_syncnet_model(version='v4', mode='lip', verbose=False), TIME_STEPS, mouth_input_shape)
+            if not trainable_syncnet:
+                mouth_feature_model.trainable = False
+                for layer in mouth_feature_model.layers:
+                    layer.trainable = False
 
         cnn_features = mouth_feature_model(my_input_mouth_images)
 
@@ -65,7 +80,10 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', mou
 
         lstm_output = LSTM(lstm_units_1, activation='tanh', kernel_regularizer=l2(1.e-4), return_sequences=False)(lstm_input)
 
-        concatenated_features = Concatenate()([lstm_output, my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax])
+        if use_softmax:
+            concatenated_features = Concatenate()([lstm_output, my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax])
+        else:
+            concatenated_features = Concatenate()([lstm_output, my_input_n_of_frames, my_input_lipreader_dense])
 
     else:
         concatenated_features = Concatenate()([my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax])
@@ -296,7 +314,7 @@ def my_cnn_model(input_shape, conv_f_1, conv_f_2, conv_f_3, cnn_dense_fc_1):
 def make_time_distributed_simple(model, TIME_STEPS, input_shape):
     time_distributed_model = Sequential()
     for model_layer_index in range(len(model.layers)):
-        print(model_layer_index)
+        # print(model_layer_index)
         if model_layer_index == 0:
             time_distributed_model.add(TimeDistributed(model.layers[model_layer_index], input_shape=(TIME_STEPS, *input_shape)))
         else:

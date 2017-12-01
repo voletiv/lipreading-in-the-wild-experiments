@@ -28,6 +28,20 @@ if LRW_HEAD_POSE_DIR not in sys.path:
 # from process_lrw_functions import *
 
 #############################################################
+# SYNCNET FUNCTIONS
+#############################################################
+
+if 'voletiv' in os.getcwd():
+    # voletiv
+    SYNCNET_DIR = '/home/voletiv/GitHubRepos/syncnet-in-keras'
+elif 'voleti.vikram' in os.getcwd():
+    # fusor
+    SYNCNET_DIR = '/shared/fusor/home/voleti.vikram/syncnet-in-keras'
+
+if SYNCNET_DIR not in sys.path:
+    sys.path.append(SYNCNET_DIR)
+
+#############################################################
 # PARAMS
 #############################################################
 

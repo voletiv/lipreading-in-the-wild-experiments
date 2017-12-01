@@ -14,13 +14,16 @@ from assessor_params import *
 #############################################################
 
 
-def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect_type="val",
-                                   shuffle=True, equal_classes=False, use_CNN_LSTM=True, use_head_pose=True,
-                                   grayscale_images=False, random_crop=True, random_flip=False,
+def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect_type="val", shuffle=True,
+                                   equal_classes=False, use_CNN_LSTM=True, use_head_pose=True, use_softmax=True,
+                                   syncnet=False, grayscale_images=False, random_crop=True, random_flip=False,
                                    verbose=False, skip_batches=0):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
+
+    if syncnet:
+        MOUTH_CHANNELS = 5
 
     print("Loading LRW", collect_type, "init vars for generation...")
 
@@ -132,8 +135,9 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
             # Batch dense (D)
             batch_dense_per_sample = lrw_lipreader_dense[batch*batch_size:(batch + 1)*batch_size]
 
-            # Batch softmax (S)
-            batch_softmax_per_sample = lrw_lipreader_softmax[batch*batch_size:(batch + 1)*batch_size]
+            if use_softmax:
+                # Batch softmax (S)
+                batch_softmax_per_sample = lrw_lipreader_softmax[batch*batch_size:(batch + 1)*batch_size]
 
             # Batch lipreader one_hot_y
             batch_lipreader_one_hot_y_arg_per_sample = lrw_correct_one_hot_y_arg[batch*batch_size:(batch + 1)*batch_size]
@@ -210,9 +214,23 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
                             if flip:
                                 mouth_image = mouth_image[:, ::-1]
 
-                            # Add this image in reverse order into X
-                            # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
-                            batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W, MOUTH_CHANNELS))
+                            if syncnet:
+                                # Add this image in reverse order into X
+                                # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
+                                batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1][:, :, 2] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                if frame_0_start_index - 1 >= 0:
+                                    batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 1][:, :, 1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                if frame_0_start_index - 2 >= 0:
+                                    batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 2][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                if frame_0_start_index + 1 < TIME_STEPS:
+                                    batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 1][:, :, 3] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                if frame_0_start_index + 2 < TIME_STEPS:
+                                    batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 2][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+
+                            else:
+                                # Add this image in reverse order into X
+                                # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
+                                batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W, MOUTH_CHANNELS))
 
                             if use_head_pose:
                                 # Add head pose
@@ -225,12 +243,18 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
             batch_lipreader_correct_or_wrong = np.array(np.argmax(batch_softmax_per_sample, axis=1) == batch_lipreader_one_hot_y_arg_per_sample, dtype=float)
 
             # Yield X, H, F, D, S, Y
-            if use_CNN_LSTM and use_head_pose:
+            if use_CNN_LSTM and use_head_pose and use_softmax:
                 yield [batch_mouth_images, batch_head_poses_per_sample_for_training, batch_n_of_frames_per_sample, batch_dense_per_sample, batch_softmax_per_sample], [batch_lipreader_correct_or_wrong]
-            elif use_CNN_LSTM and not use_head_pose:
+            elif use_CNN_LSTM and not use_head_pose and use_softmax:
                 yield [batch_mouth_images, batch_n_of_frames_per_sample, batch_dense_per_sample, batch_softmax_per_sample], [batch_lipreader_correct_or_wrong]
-            else:
+            elif use_CNN_LSTM and use_head_pose and not use_softmax:
+                yield [batch_mouth_images, batch_head_poses_per_sample_for_training, batch_n_of_frames_per_sample, batch_dense_per_sample], [batch_lipreader_correct_or_wrong]
+            elif use_CNN_LSTM and not use_head_pose and not use_softmax:
+                yield [batch_mouth_images, batch_n_of_frames_per_sample, batch_dense_per_sample], [batch_lipreader_correct_or_wrong]
+            elif not use_CNN_LSTM and use_softmax:
                 yield [batch_n_of_frames_per_sample, batch_dense_per_sample, batch_softmax_per_sample], [batch_lipreader_correct_or_wrong]
+            elif not use_CNN_LSTM and not use_softmax:
+                yield [batch_n_of_frames_per_sample, batch_dense_per_sample], [batch_lipreader_correct_or_wrong]
 
 
 def robust_imread(jpg_name, cv_option=cv2.IMREAD_COLOR):
