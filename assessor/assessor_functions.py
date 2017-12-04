@@ -135,9 +135,8 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
             # Batch dense (D)
             batch_dense_per_sample = lrw_lipreader_dense[batch*batch_size:(batch + 1)*batch_size]
 
-            if use_softmax:
-                # Batch softmax (S)
-                batch_softmax_per_sample = lrw_lipreader_softmax[batch*batch_size:(batch + 1)*batch_size]
+            # Batch softmax (S)
+            batch_softmax_per_sample = lrw_lipreader_softmax[batch*batch_size:(batch + 1)*batch_size]
 
             # Batch lipreader one_hot_y
             batch_lipreader_one_hot_y_arg_per_sample = lrw_correct_one_hot_y_arg[batch*batch_size:(batch + 1)*batch_size]

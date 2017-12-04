@@ -20,7 +20,7 @@ print("Experiment number:", experiment_number)
 ######################################################
 
 # BATCH SIZE
-batch_size = 64
+batch_size = 32
 
 # Data
 data_dir = LRW_DATA_DIR
@@ -57,16 +57,20 @@ dropout_p = 0.2
 if mouth_nn == 'syncnet':
     # Params
     trainable_syncnet = False
-    use_head_pose = False
-    lstm_units_1 = 32
-    dense_fc_1 = 16
-    dense_fc_2 = 16
+    use_head_pose = True
+    lstm_units_1 = 128
+    dense_fc_1 = 8
+    dense_fc_2 = 8
     dropout_p = 0.2
-    use_softmax = False
+    use_softmax = True
     # Constants
     grayscale_images = True
     use_CNN_LSTM = True
     mouth_features_dim = 128
+
+# Use Resnet in the last layer
+last_fc = 'resnet152'
+# last_fc = None
 
 # Compile
 optimizer_name = 'adam'
@@ -77,7 +81,7 @@ train_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect
 # train_steps_per_epoch = len(train_lrw_word_set_num_txt_file_names) // batch_size
 train_steps_per_epoch = 20     # Set less value so as not to take too much time computing on full train set
 
-n_epochs = 200
+n_epochs = 1000
 
 # Val
 val_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=val_collect_type, collect_by='sample')
@@ -104,9 +108,10 @@ else:
 # THIS MODEL
 ######################################################
 
-def make_this_assessor_save_dir_and_model(experiment_number, equal_classes, use_CNN_LSTM, grayscale_images, mouth_nn,
-                                          conv_f_1, conv_f_2, conv_f_3, mouth_features_dim, use_head_pose, lstm_units_1,
-                                          dense_fc_1, dense_fc_2, dropout_p, optimizer_name):
+
+def make_this_assessor_model_and_save_dir_names(experiment_number, equal_classes, use_CNN_LSTM, grayscale_images, mouth_nn, trainable_syncnet,
+                                                conv_f_1, conv_f_2, conv_f_3, mouth_features_dim, use_head_pose, lstm_units_1,
+                                                dense_fc_1, dense_fc_2, dropout_p, use_softmax, last_fc, optimizer_name):
     # THIS MODEL NAME
     this_assessor_model = str(experiment_number) + "_assessor"
 
@@ -116,6 +121,10 @@ def make_this_assessor_save_dir_and_model(experiment_number, equal_classes, use_
     if use_CNN_LSTM:
         if mouth_nn == 'syncnet':
             this_assessor_model += "_syncnet"
+            if trainable_syncnet:
+                this_assessor_model += "Trainable"
+            else:
+                this_assessor_model += "Untrainable"
 
         else:
             if grayscale_images:
@@ -137,7 +146,10 @@ def make_this_assessor_save_dir_and_model(experiment_number, equal_classes, use_
     if use_softmax:
         this_assessor_model += "_LRsoftmax"
 
-    this_assessor_model += "_1fc" + str(dense_fc_1) + "_bn_dp" + str(dropout_p) + "_2fc" + str(dense_fc_2) + "_bn_dp" + str(dropout_p) + "_" + optimizer
+    if last_fc == None:
+        this_assessor_model += "_1fc" + str(dense_fc_1) + "_bn_dp" + str(dropout_p) + "_2fc" + str(dense_fc_2) + "_bn_dp" + str(dropout_p) + "_" + optimizer
+    else:
+        this_assessor_model += "_" + last_fc
 
     print("this_assessor_model:", this_assessor_model)
 

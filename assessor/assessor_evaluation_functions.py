@@ -16,7 +16,6 @@ from assessor_model import *
 from assessor_params import *
 from assessor_train_params import *
 
-
 ######################################################
 # DEFINE SAVE_DIR and MODEL
 ######################################################

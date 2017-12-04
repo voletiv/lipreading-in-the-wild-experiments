@@ -19,7 +19,7 @@ from keras.callbacks import Callback
 
 from assessor_params import *
 from resnet import *
-
+from syncnet_functions import *
 
 #########################################################
 # MODEL
@@ -28,7 +28,7 @@ from resnet import *
 
 def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', trainable_syncnet=False, mouth_features_dim=512, lstm_units_1=32,
                       dense_fc_1=128, dense_fc_2=64, conv_f_1=32, conv_f_2=64, conv_f_3=128, dropout_p=0.2, use_softmax=True,
-                      grayscale_images=False, my_resnet_repetitions=[2, 2, 2, 2]):
+                      grayscale_images=False, my_resnet_repetitions=[2, 2, 2, 2], last_fc=None):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
@@ -88,29 +88,54 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', tra
     else:
         concatenated_features = Concatenate()([my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax])
 
-    fc1 = Dense(dense_fc_1, activation='relu', kernel_regularizer=l2(1.e-4))(concatenated_features)
+    if last_fc is None:
 
-    bn1 = BatchNormalization()(fc1)
+        fc1 = Dense(dense_fc_1, kernel_regularizer=l2(1.e-4))(concatenated_features)
+        bn1 = BatchNormalization()(fc1)
+        ac1 = Activation('relu')(bn1)
+        dp1 = Dropout(dropout_p)(ac1)
 
-    dp1 = Dropout(dropout_p)(bn1)
+        fc2 = Dense(dense_fc_2, kernel_regularizer=l2(1.e-4))(dp1)
+        bn2 = BatchNormalization()(fc2)
+        ac2 = Activation('relu')(bn2)
+        dp2 = Dropout(dropout_p)(ac2)
 
-    fc2 = Dense(dense_fc_2, activation='relu', kernel_regularizer=l2(1.e-4))(dp1)
+        assessor_output = Dense(1, activation='sigmoid')(dp2)
 
-    bn2 = BatchNormalization()(fc2)
+    elif 'resnet' in last_fc:
 
-    dp2 = Dropout(dropout_p)(bn2)
+        if last_fc == 'resnet18':
+            last_fc_model = ResnetBuilder.build_resnet_18((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
+        elif last_fc == 'resnet34'
+            last_fc_model = ResnetBuilder.build_resnet_34((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
+        elif last_fc == 'resnet50'
+            last_fc_model = ResnetBuilder.build_resnet_50((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
+        elif last_fc == 'resnet101'
+            last_fc_model = ResnetBuilder.build_resnet_101((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
+        elif last_fc == 'resnet152'
+            last_fc_model = ResnetBuilder.build_resnet_152((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
 
-    assessor_output = Dense(1, activation='sigmoid')(dp2)
+        fc_input = Reshape((int(concatenated_features.shape[1]), 1, 1), input_shape=(int(concatenated_features.shape[1]),))(concatenated_features)
+        resnet_output = last_fc_model(fc_input)
+
+        assessor_output = Dense(1, activation='sigmoid')(resnet_output)
 
     if use_CNN_LSTM:
-        if use_head_pose:
+        if use_head_pose and use_softmax:
             assessor = Model(inputs=[my_input_mouth_images, my_input_head_poses, my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax],
                              outputs=assessor_output)
-        else:
+        elif not use_head_pose and use_softmax:
             assessor = Model(inputs=[my_input_mouth_images, my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax],
                              outputs=assessor_output)
+        elif use_head_pose and not use_softmax:
+            assessor = Model(inputs=[my_input_mouth_images, my_input_head_poses, my_input_n_of_frames, my_input_lipreader_dense], outputs=assessor_output)
+        else:
+            assessor = Model(inputs=[my_input_mouth_images, my_input_n_of_frames, my_input_lipreader_dense], outputs=assessor_output)
     else:
-        assessor = Model(inputs=[my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax], outputs=assessor_output)
+        if use_softmax:
+            assessor = Model(inputs=[my_input_n_of_frames, my_input_lipreader_dense, my_input_lipreader_softmax], outputs=assessor_output)
+        else:
+            assessor = Model(inputs=[my_input_n_of_frames, my_input_lipreader_dense], outputs=assessor_output)
 
     assessor.summary()
 
