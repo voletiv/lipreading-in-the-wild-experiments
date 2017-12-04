@@ -58,7 +58,7 @@ if mouth_nn == 'syncnet':
     # Params
     trainable_syncnet = False
     use_head_pose = True
-    lstm_units_1 = 128
+    lstm_units_1 = 256
     dense_fc_1 = 8
     dense_fc_2 = 8
     dropout_p = 0.2

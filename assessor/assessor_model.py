@@ -106,13 +106,13 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', tra
 
         if last_fc == 'resnet18':
             last_fc_model = ResnetBuilder.build_resnet_18((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
-        elif last_fc == 'resnet34'
+        elif last_fc == 'resnet34':
             last_fc_model = ResnetBuilder.build_resnet_34((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
-        elif last_fc == 'resnet50'
+        elif last_fc == 'resnet50':
             last_fc_model = ResnetBuilder.build_resnet_50((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
-        elif last_fc == 'resnet101'
+        elif last_fc == 'resnet101':
             last_fc_model = ResnetBuilder.build_resnet_101((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
-        elif last_fc == 'resnet152'
+        elif last_fc == 'resnet152':
             last_fc_model = ResnetBuilder.build_resnet_152((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
 
         fc_input = Reshape((int(concatenated_features.shape[1]), 1, 1), input_shape=(int(concatenated_features.shape[1]),))(concatenated_features)
