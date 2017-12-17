@@ -55,6 +55,18 @@ from keras.regularizers import l2
 from keras import backend as K
 
 
+def make_time_distributed_simple(model, TIME_STEPS, input_shape):
+    time_distributed_model = Sequential()
+    for model_layer_index in range(len(model.layers)):
+        # print(model_layer_index)
+        if model_layer_index == 0:
+            time_distributed_model.add(TimeDistributed(model.layers[model_layer_index], input_shape=(TIME_STEPS, *input_shape)))
+        else:
+            time_distributed_model.add(TimeDistributed(model.layers[model_layer_index]))
+    # Return
+    return time_distributed_model
+
+
 def _bn_relu(input, time_distributed=False, verbose=False):
     """Helper to build a BN -> relu block
     """
