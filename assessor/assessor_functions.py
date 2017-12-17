@@ -329,22 +329,22 @@ def collect_all_lrw_word_set_num_txt_file_names(data_dir=LRW_DATA_DIR):
 def read_lrw_word_set_num_file_names(collect_type="train", collect_by='sample'):
     if collect_by == 'sample':
         if 'test' in collect_type:
-            return read_txt_file_as_list('lrw_word_set_num_txt_file_names_test.txt')
+            return read_txt_file_as_list(os.path.join(LRW_ASSESSOR_DIR, 'lrw_word_set_num_txt_file_names_test.txt'))
         elif 'train' in collect_type:
-            return read_txt_file_as_list('lrw_word_set_num_txt_file_names_train.txt')
+            return read_txt_file_as_list(os.path.join(LRW_ASSESSOR_DIR,'lrw_word_set_num_txt_file_names_train.txt'))
         elif 'val' in collect_type:
-            return read_txt_file_as_list('lrw_word_set_num_txt_file_names_val.txt')
+            return read_txt_file_as_list(os.path.join(LRW_ASSESSOR_DIR,'lrw_word_set_num_txt_file_names_val.txt'))
         else:
-            return read_txt_file_as_list('lrw_word_set_num_txt_file_names.txt')
+            return read_txt_file_as_list(os.path.join(LRW_ASSESSOR_DIR,'lrw_word_set_num_txt_file_names.txt'))
     elif collect_by == 'vocab_word':
         if 'test' in collect_type:
-            return read_txt_file_as_list_per_vocab_word('lrw_word_set_num_txt_file_names_test.txt')
+            return read_txt_file_as_list_per_vocab_word(os.path.join(LRW_ASSESSOR_DIR, 'lrw_word_set_num_txt_file_names_test.txt'))
         elif 'train' in collect_type:
-            return read_txt_file_as_list_per_vocab_word('lrw_word_set_num_txt_file_names_train.txt')
+            return read_txt_file_as_list_per_vocab_word(os.path.join(LRW_ASSESSOR_DIR, 'lrw_word_set_num_txt_file_names_train.txt'))
         elif 'val' in collect_type:
-            return read_txt_file_as_list_per_vocab_word('lrw_word_set_num_txt_file_names_val.txt')
+            return read_txt_file_as_list_per_vocab_word(os.path.join(LRW_ASSESSOR_DIR, 'lrw_word_set_num_txt_file_names_val.txt'))
         else:
-            return read_txt_file_as_list_per_vocab_word('lrw_word_set_num_txt_file_names.txt')
+            return read_txt_file_as_list_per_vocab_word(os.path.join(LRW_ASSESSOR_DIR, 'lrw_word_set_num_txt_file_names.txt'))
 
 
 def write_list_as_txt_file(file_name, the_list):
