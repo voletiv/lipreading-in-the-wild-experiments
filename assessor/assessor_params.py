@@ -84,6 +84,8 @@ def load_lrw_vocab_list(LRW_VOCAB_LIST_FILE):
             lrw_vocab.append(word)
     return lrw_vocab
 
+LRW_DIR = '/shared/fusor/home/voleti.vikram/lipreading-in-the-wild-experiments/'
+
 LRW_VOCAB_LIST_FILE = os.path.join(LRW_DIR, 'lrw_vocabulary.txt')
 
 LRW_VOCAB = load_lrw_vocab_list(LRW_VOCAB_LIST_FILE)
