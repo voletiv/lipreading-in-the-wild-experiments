@@ -30,7 +30,7 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', tra
                       grayscale_images=False, my_resnet_repetitions=[2, 2, 2, 2],
                       conv_f_1=32, conv_f_2=64, conv_f_3=128, mouth_features_dim=512,
                       lstm_units_1=32, use_softmax=True, use_softmax_ratios=False,
-                      individual_dense=False, lr_dense_fc=8, lr_softmax_fc=8, lr_softmax_ratios_fc=4,
+                      individual_dense=False, lr_dense_fc=8, lr_softmax_fc=8,
                       dense_fc_1=128, dropout_p1=0.2, dense_fc_2=64, dropout_p2=0.2, last_fc=None):
 
     if grayscale_images:
@@ -97,6 +97,7 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', tra
             lipreader_softmax_features = my_input_lipreader_softmax
 
     if use_softmax_ratios:
+        my_input_lipreader_softmax_ratios = Input(shape=(2,), name='lipreader_softmax_ratios')
         lipreader_softmax_ratio_features = my_input_lipreader_softmax_ratios
 
     to_concatenate = []
@@ -116,12 +117,12 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', tra
         fc1 = Dense(dense_fc_1, kernel_regularizer=l2(1.e-4))(concatenated_features)
         ac1 = Activation('relu', name='relu_fc1')(fc1)
         bn1 = BatchNormalization()(ac1)
-        dp1 = Dropout(dropout_p1, name='dropout1_p'+str(dropout_p))(bn1)
+        dp1 = Dropout(dropout_p1, name='dropout1_p'+str(dropout_p1))(bn1)
 
         fc2 = Dense(dense_fc_2, kernel_regularizer=l2(1.e-4))(bn1)
         ac2 = Activation('relu', name='relu_fc2')(fc2)
         bn2 = BatchNormalization()(ac2)
-        dp2 = Dropout(dropout_p2, name='dropout2_p'+str(dropout_p))(bn2)
+        dp2 = Dropout(dropout_p2, name='dropout2_p'+str(dropout_p2))(bn2)
 
         assessor_output = Dense(1, activation='sigmoid', name='sigmoid')(dp2)
 

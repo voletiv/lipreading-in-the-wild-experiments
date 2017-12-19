@@ -178,7 +178,7 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
 
                 # HEAD_POSE
                 if use_head_pose:
-                    for sample_idx_within_batch in range(batch*batch_size, (batch + 1)*batch_size):
+                    for sample_idx_within_batch in range(batch_size):
                         for time_step in range(len(batch_head_poses_per_sample[sample_idx_within_batch])):
                             batch_head_poses_per_sample_for_training[sample_idx_within_batch][-time_step-1] = batch_head_poses_per_sample[sample_idx_within_batch][time_step]
 
