@@ -1,5 +1,7 @@
-import optunity
-import optunity.metrics
+import numpy as np
+# import optunity
+# import optunity.metrics
+import tqdm
 
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
@@ -51,6 +53,10 @@ train_y = lipreader_lrw_val_correct_or_wrong
 X_test = np.hstack((np.reshape(lrw_test_n_of_frames, (len(lrw_test_n_of_frames), 1)), lipreader_lrw_test_dense))
 y_test = lipreader_lrw_test_correct_or_wrong
 
+# Default
+X_train = train_features
+y_train = train_y
+
 # Split train into train and val
 X_train, X_val, y_train, y_val = train_test_split(train_features, train_y, test_size=0.33, random_state=0)
 
@@ -77,7 +83,7 @@ clf = RandomForestClassifier(n_estimators=10, random_state=0)
 # kf.get_n_splits(X)
 kf = KFold(n_splits=10)
 # gkf.get_n_splits(X_train, y_train)
-for train_index, test_index in kf.split(X_train, y_train):
+for train_index, test_index in tqdm.tqdm(kf.split(X_train, y_train)):
     clf.fit(X_train[train_index], y_train[train_index])
 
 # clf.fit(X_train, y_train)

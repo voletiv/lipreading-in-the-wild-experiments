@@ -1,5 +1,7 @@
 import os
 
+from keras.utils import plot_model
+
 from assessor_functions import *
 from assessor_model import *
 from assessor_train_params import *
@@ -8,12 +10,13 @@ from assessor_train_params import *
 # DIR, PARAMS
 ######################################################
 
-this_assessor_model, this_assessor_save_dir = make_this_assessor_model_and_save_dir_names(experiment_number,
-                                                                                          equal_classes, use_CNN_LSTM, grayscale_images,
-                                                                                          mouth_nn, trainable_syncnet, conv_f_1, conv_f_2, conv_f_3,
-                                                                                          mouth_features_dim, use_head_pose, lstm_units_1,
-                                                                                          dense_fc_1, dense_fc_2, dropout_p, use_softmax,
-                                                                                          last_fc, optimizer_name)
+this_assessor_model_name, this_assessor_save_dir = make_this_assessor_model_name_and_save_dir_name(experiment_number,
+                                                                                                   equal_classes, use_CNN_LSTM, grayscale_images,
+                                                                                                   mouth_nn, trainable_syncnet, conv_f_1, conv_f_2, conv_f_3,
+                                                                                                   mouth_features_dim, use_head_pose, lstm_units_1,
+                                                                                                   individual_dense, lr_dense_fc, lr_softmax_fc,
+                                                                                                   last_fc, dense_fc_1, dense_fc_2, dropout_p, use_softmax,
+                                                                                                   optimizer_name, adam_decay)
 
 # Make the dir if it doesn't exist
 if not os.path.exists(this_assessor_save_dir):
@@ -51,12 +54,15 @@ val_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=d
 assessor = my_assessor_model(use_CNN_LSTM=use_CNN_LSTM, use_head_pose=use_head_pose, mouth_nn=mouth_nn, trainable_syncnet=trainable_syncnet,
                              conv_f_1=conv_f_1, conv_f_2=conv_f_2, conv_f_3=conv_f_3, mouth_features_dim=mouth_features_dim, lstm_units_1=lstm_units_1,
                              dense_fc_1=dense_fc_1, dense_fc_2=dense_fc_2, dropout_p=dropout_p, use_softmax=use_softmax,
-                             grayscale_images=grayscale_images, my_resnet_repetitions=my_resnet_repetitions, last_fc=last_fc)
+                             grayscale_images=grayscale_images, my_resnet_repetitions=my_resnet_repetitions, last_fc=last_fc,
+                             individual_dense=individual_dense, lr_dense_fc=lr_dense_fc, lr_softmax_fc=lr_softmax_fc)
 
 assessor.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
-write_model_architecture(assessor, file_type='json', file_name=os.path.join(this_assessor_save_dir, this_assessor_model))
-write_model_architecture(assessor, file_type='yaml', file_name=os.path.join(this_assessor_save_dir, this_assessor_model))
+write_model_architecture(assessor, file_type='json', file_name=os.path.join(this_assessor_save_dir, this_assessor_model_name))
+write_model_architecture(assessor, file_type='yaml', file_name=os.path.join(this_assessor_save_dir, this_assessor_model_name))
+
+plot_model(assessor, to_file=os.path.join(this_assessor_save_dir, this_assessor_model_name+'.png'), show_shapes=True)
 
 ######################################################
 # CALLBACKS
@@ -66,7 +72,7 @@ write_model_architecture(assessor, file_type='yaml', file_name=os.path.join(this
 
 early_stopper = EarlyStopping(min_delta=0.001, patience=150)
 
-checkpointAndMakePlots = CheckpointAndMakePlots(file_name_pre=this_assessor_model, this_assessor_save_dir=this_assessor_save_dir)
+checkpointAndMakePlots = CheckpointAndMakePlots(file_name_pre=this_assessor_model_name, this_assessor_save_dir=this_assessor_save_dir)
 
 ######################################################
 # TRAIN
@@ -88,13 +94,13 @@ try:
                            initial_epoch=0)
 
 except KeyboardInterrupt:
-    print("Saving latest weights as", os.path.join(this_assessor_save_dir, this_assessor_model+"_assessor.hdf5"), "...")
-    assessor.save_weights(os.path.join(this_assessor_save_dir, this_assessor_model+"_assessor.hdf5"))
+    print("Saving latest weights as", os.path.join(this_assessor_save_dir, this_assessor_model_name+"_assessor.hdf5"), "...")
+    assessor.save_weights(os.path.join(this_assessor_save_dir, this_assessor_model_name+"_assessor.hdf5"))
     saved_final_model = True
 
 if not saved_final_model:
-    print("Saving latest weights as", os.path.join(this_assessor_save_dir, this_assessor_model+"_assessor.hdf5"), "...")
-    assessor.save_weights(os.path.join(this_assessor_save_dir, this_assessor_model+"_assessor.hdf5"))
+    print("Saving latest weights as", os.path.join(this_assessor_save_dir, this_assessor_model_name+"_assessor.hdf5"), "...")
+    assessor.save_weights(os.path.join(this_assessor_save_dir, this_assessor_model_name+"_assessor.hdf5"))
     saved_final_model = True
 
 print("Done.")
