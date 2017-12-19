@@ -39,6 +39,7 @@ random_crop = True
 random_flip = True
 verbose = False
 use_softmax = True
+use_softmax_ratios = False
 
 # Assessor
 mouth_nn = 'syncnet'
@@ -52,11 +53,13 @@ conv_f_3 = 16
 mouth_features_dim = 32
 lstm_units_1 = 2
 dense_fc_1 = 16
+dropout_p1 = 0.2
 dense_fc_2 = 16
-dropout_p = 0.2
+dropout_p2 = 0.2
 individual_dense=False
 lr_dense_fc=8
 lr_softmax_fc=8
+lr_softmax_ratios_fc=4
 
 if mouth_nn == 'syncnet':
     # Params
@@ -65,15 +68,37 @@ if mouth_nn == 'syncnet':
     lstm_units_1 = 8
     individual_dense = True
     lr_dense_fc = 8
-    lr_softmax_fc = 8
-    dense_fc_1 = 8
-    dense_fc_2 = 8
-    dropout_p = 0.2
     use_softmax = True
+    lr_softmax_fc = 8
+    use_softmax_ratios = False
+    lr_softmax_ratios_fc=4
+    dense_fc_1 = 8
+    dropout_p1 = 0.2
+    dense_fc_2 = 8
+    dropout_p2 = 0.2
     # Constants
     grayscale_images = True
     use_CNN_LSTM = True
     mouth_features_dim = 128
+elif mouth_nn == 'syncnet_preds':
+    # Params
+    use_head_pose = True
+    lstm_units_1 = 8
+    individual_dense = True
+    lr_dense_fc = 8
+    use_softmax = True
+    lr_softmax_fc = 8
+    use_softmax_ratios = False
+    lr_softmax_ratios_fc=4
+    dense_fc_1 = 16
+    dropout_p1 = 0.2
+    dense_fc_2 = 16
+    dropout_p2 = 0.2
+    # Constants
+    grayscale_images = True
+    use_CNN_LSTM = True
+    mouth_features_dim = 128
+    trainable_syncnet = False
 
 # Use Resnet in the last layer
 # last_fc = 'resnet152'
@@ -81,8 +106,8 @@ last_fc = None
 
 # Compile
 optimizer_name = 'adam'
-adam_lr = 5e-4
-adam_decay = 1e-3
+adam_lr = 1e-3
+adam_lr_decay = 1e-3
 loss = 'binary_crossentropy'
 
 # Train
@@ -111,7 +136,7 @@ else:
 if optimizer_name == 'sgd':
     optimizer = SGD(lr=0.01, momentum=0.5, decay=0.005)
 elif optimizer_name == 'adam':
-    optimizer = Adam(lr=adam_lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=adam_decay)
+    optimizer = Adam(lr=adam_lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=adam_lr_decay)
 else:
     optimizer = optimizer_name
 
@@ -120,11 +145,13 @@ else:
 ######################################################
 
 
-def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_classes, use_CNN_LSTM, grayscale_images, mouth_nn, trainable_syncnet,
-                                                    conv_f_1, conv_f_2, conv_f_3, mouth_features_dim, use_head_pose, lstm_units_1,
-                                                    individual_dense, lr_dense_fc, lr_softmax_fc,
-                                                    last_fc, dense_fc_1, dense_fc_2, dropout_p, use_softmax,
-                                                    optimizer_name, adam_decay):
+def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_classes, use_CNN_LSTM,
+                                                    mouth_nn, trainable_syncnet, grayscale_images,
+                                                    conv_f_1, conv_f_2, conv_f_3, mouth_features_dim,
+                                                    use_head_pose, lstm_units_1, use_softmax, use_softmax_ratios,
+                                                    individual_dense, lr_dense_fc, lr_softmax_fc, lr_softmax_ratios_fc,
+                                                    last_fc, dense_fc_1, dropout_p1, dense_fc_2, dropout_p2,
+                                                    optimizer_name, adam_lr=1e-3, adam_lr_decay=1e-3):
     # THIS MODEL NAME
     this_assessor_model_name = str(experiment_number) + "_assessor"
 
@@ -138,6 +165,8 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
                 this_assessor_model_name += "Trainable"
             else:
                 this_assessor_model_name += "Untrainable"
+        elif mouth_nn == 'syncnet_preds':
+            this_assessor_model_name += "_syncnetPreds"
 
         else:
             if grayscale_images:
@@ -165,14 +194,14 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
             this_assessor_model_name += "_fc" + str(lr_softmax_fc)
 
     if last_fc == None:
-        this_assessor_model_name += "_1fc" + str(dense_fc_1) + "_bn_dp" + str(dropout_p) + "_2fc" + str(dense_fc_2) + "_bn_dp" + str(dropout_p)
+        this_assessor_model_name += "_1fc" + str(dense_fc_1) + "_bn_dp" + str(dropout_p1) + "_2fc" + str(dense_fc_2) + "_bn_dp" + str(dropout_p2)
     else:
         this_assessor_model_name += "_" + last_fc
 
     this_assessor_model_name += "_" + optimizer_name
     if optimizer_name == 'adam':
         this_assessor_model_name += "_lr" + str(adam_lr)
-        this_assessor_model_name += "_decay" + str(adam_decay)
+        this_assessor_model_name += "_lrDecay" + str(adam_lr_decay)
 
     print("this_assessor_model_name:", this_assessor_model_name)
 
