@@ -49,6 +49,7 @@ mouth_nn = 'syncnet'
 # Params
 use_head_pose = False
 use_softmax = False
+use_softmax_ratios = False
 # Constants
 grayscale_images = True
 use_CNN_LSTM = True
@@ -63,9 +64,8 @@ train_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect
 n_batches = len(train_lrw_word_set_num_txt_file_names) // batch_size + 1
 
 train_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=train_collect_type, shuffle=shuffle, equal_classes=equal_classes,
-                                                 use_CNN_LSTM=use_CNN_LSTM, mouth_nn="syncnet", use_head_pose=use_head_pose, use_softmax=use_softmax,
-                                                 grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip,
-                                                 verbose=verbose, skip_batches=0, get_last_smaller_batch=get_last_smaller_batch)
+                                                 use_CNN_LSTM=use_CNN_LSTM, mouth_nn="syncnet", grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip, use_head_pose=use_head_pose,
+                                                 use_softmax=use_softmax, use_softmax_ratios=use_softmax_ratios, verbose=verbose, skip_batches=0, get_last_smaller_batch=get_last_smaller_batch)
 
 # Y
 train_Y = np.empty((0, TIME_STEPS, 128))
@@ -75,6 +75,8 @@ for batch in tqdm.tqdm(range(n_batches)):
     ((X, _, _), _) = next(train_generator)
     y = syncnet_model.predict(X)
     train_Y = np.vstack((train_Y, y))
+    if batch % 10 == 0:
+        np.save('/shared/fusor/home/voleti.vikram/LRW_val_syncnet_preds', train_Y)
 
 np.save('/shared/fusor/home/voleti.vikram/LRW_val_syncnet_preds', train_Y)
 
@@ -84,9 +86,8 @@ val_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_t
 n_batches = len(val_lrw_word_set_num_txt_file_names) // batch_size + 1
 
 val_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=val_collect_type, shuffle=shuffle, equal_classes=equal_classes,
-                                                 use_CNN_LSTM=use_CNN_LSTM, syncnet=(mouth_nn=="syncnet"), use_head_pose=use_head_pose, use_softmax=use_softmax,
-                                                 grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip,
-                                                 verbose=verbose, skip_batches=0, get_last_smaller_batch=get_last_smaller_batch)
+                                               use_CNN_LSTM=use_CNN_LSTM, mouth_nn="syncnet", grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip, use_head_pose=use_head_pose,
+                                               use_softmax=use_softmax, use_softmax_ratios=use_softmax_ratios, verbose=verbose, skip_batches=0, get_last_smaller_batch=get_last_smaller_batch)
 
 # Y
 val_Y = np.empty((0, TIME_STEPS, 128))
