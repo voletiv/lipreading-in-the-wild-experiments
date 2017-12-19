@@ -14,15 +14,14 @@ from assessor_params import *
 #############################################################
 
 
-def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect_type="val", shuffle=True,
-                                   equal_classes=False, use_CNN_LSTM=True, use_head_pose=True, use_softmax=True,
-                                   syncnet=False, grayscale_images=False, random_crop=True, random_flip=False,
-                                   verbose=False, skip_batches=0, get_last_smaller_batch=False):
+def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect_type="val", shuffle=True, equal_classes=False,
+                                   use_CNN_LSTM=True, mouth_nn='cnn', grayscale_images=False, random_crop=True, random_flip=False, use_head_pose=True,
+                                   use_softmax=True, use_softmax_ratios=True, verbose=False, skip_batches=0, get_last_smaller_batch=False):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
 
-    if syncnet:
+    if mouth_nn == 'syncnet':
         MOUTH_CHANNELS = 5
 
     print("Loading LRW", collect_type, "init vars for generation...")
@@ -33,6 +32,9 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
 
         # Read start_frames_per_sample
         lrw_start_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=START_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
+
+        if mouth_nn == 'syncnet_preds':
+            lrw_syncnet_preds = load_syncnet_preds(collect_type=collect_type)
 
         if use_head_pose:
             # Read head_poses_per_sample
@@ -47,6 +49,9 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
     # Lipreader correct (True) or wrong (False)
     lrw_lipreader_correct_or_wrong = np.argmax(lrw_lipreader_softmax, axis=1) == lrw_correct_one_hot_y_arg
 
+    if use_softmax_ratios:
+        lrw_lipreader_softmax_ratios = load_softmax_ratios(collect_type=collect_type)
+
     print("Loaded.")
 
     np.random.seed(29)
@@ -54,11 +59,15 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
     if use_CNN_LSTM:
         full_lrw_word_set_num_txt_file_names = list(lrw_word_set_num_txt_file_names)
         full_lrw_start_frames_per_sample = list(lrw_start_frames_per_sample)
+        if mouth_nn == 'syncnet_preds':
+            full_lrw_syncnet_preds = np.array(lrw_syncnet_preds)
         if use_head_pose:
             full_lrw_head_poses_per_sample = list(lrw_head_poses_per_sample)
     full_lrw_n_of_frames_per_sample = list(lrw_n_of_frames_per_sample)
     full_lrw_lipreader_dense = np.array(lrw_lipreader_dense)
     full_lrw_lipreader_softmax = np.array(lrw_lipreader_softmax)
+    if use_softmax_ratios:
+        full_lrw_lipreader_softmax_ratios = np.array(lrw_lipreader_softmax_ratios)
     full_lrw_correct_one_hot_y_arg = np.array(lrw_correct_one_hot_y_arg)
     full_lrw_lipreader_correct_or_wrong = np.array(lrw_lipreader_correct_or_wrong)
 
@@ -91,11 +100,15 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
         if use_CNN_LSTM:
             lrw_word_set_num_txt_file_names = [full_lrw_word_set_num_txt_file_names[i] for i in full_index_list[idx_list_within_full_idx_list]]
             lrw_start_frames_per_sample = [full_lrw_start_frames_per_sample[i] for i in full_index_list[idx_list_within_full_idx_list]]
+            if mouth_nn == 'syncnet_preds':
+                lrw_syncnet_preds = full_lrw_syncnet_preds[full_index_list[idx_list_within_full_idx_list]]
             if use_head_pose:
                 lrw_head_poses_per_sample = [full_lrw_head_poses_per_sample[i] for i in full_index_list[idx_list_within_full_idx_list]]
         lrw_n_of_frames_per_sample = [full_lrw_n_of_frames_per_sample[i] for i in full_index_list[idx_list_within_full_idx_list]]
         lrw_lipreader_dense = full_lrw_lipreader_dense[full_index_list[idx_list_within_full_idx_list]]
         lrw_lipreader_softmax = full_lrw_lipreader_softmax[full_index_list[idx_list_within_full_idx_list]]
+        if use_softmax_ratios:
+            lrw_lipreader_softmax_ratios = full_lrw_lipreader_softmax_ratios[full_index_list[idx_list_within_full_idx_list]]
         lrw_correct_one_hot_y_arg = full_lrw_correct_one_hot_y_arg[full_index_list[idx_list_within_full_idx_list]]
         lrw_lipreader_correct_or_wrong = full_lrw_lipreader_correct_or_wrong[full_index_list[idx_list_within_full_idx_list]]
 
@@ -124,11 +137,15 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
                 # Batch word_txt_files
                 batch_lrw_word_set_num_txt_file_names = lrw_word_set_num_txt_file_names[batch*batch_size:(batch + 1)*batch_size]
 
-                # Batch start frames per sample
-                batch_start_frames_per_sample = lrw_start_frames_per_sample[batch*batch_size:(batch + 1)*batch_size]
+                if mouth_nn == 'syncnet_preds':
+                    batch_syncnet_preds = np.zeros((batch_size, TIME_STEPS, lrw_syncnet_preds.shape[-1]))
 
-                # Batch mouth images (X)
-                batch_mouth_images = np.zeros((batch_size, TIME_STEPS, MOUTH_H, MOUTH_W, MOUTH_CHANNELS))
+                else:
+                    # Batch start frames per sample
+                    batch_start_frames_per_sample = lrw_start_frames_per_sample[batch*batch_size:(batch + 1)*batch_size]
+
+                    # Batch mouth images (X)
+                    batch_mouth_images = np.zeros((batch_size, TIME_STEPS, MOUTH_H, MOUTH_W, MOUTH_CHANNELS))
 
                 if use_head_pose:
 
@@ -147,6 +164,10 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
             # Batch softmax (S)
             batch_softmax_per_sample = lrw_lipreader_softmax[batch*batch_size:(batch + 1)*batch_size]
 
+            if use_softmax_ratios:
+                # Batch softmax_ratios (R)
+                batch_softmax_ratios_per_sample = lrw_lipreader_softmax_ratios[batch*batch_size:(batch + 1)*batch_size]
+
             # Batch lipreader one_hot_y
             batch_lipreader_one_hot_y_arg_per_sample = lrw_correct_one_hot_y_arg[batch*batch_size:(batch + 1)*batch_size]
 
@@ -155,94 +176,105 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
 
             if use_CNN_LSTM:
 
-                # GENERATE SET OF IMAGES PER WORD
-                # For each WORD
-                for sample_idx_within_batch, word_txt_file in enumerate(batch_lrw_word_set_num_txt_file_names):
+                # HEAD_POSE
+                if use_head_pose:
+                    for sample_idx_within_batch in range(batch*batch_size, (batch + 1)*batch_size):
+                        for time_step in range(len(batch_head_poses_per_sample[sample_idx_within_batch])):
+                            batch_head_poses_per_sample_for_training[sample_idx_within_batch][-time_step-1] = batch_head_poses_per_sample[sample_idx_within_batch][time_step]
 
-                    if verbose:
-                        print("Sample", sample_idx_within_batch+1, "of", batch_size)
+                if mouth_nn == 'syncnet_preds':
+                    batch_syncnet_preds = lrw_syncnet_preds[batch*batch_size:(batch + 1)*batch_size]
+                    batch_mouth_images = batch_syncnet_preds    # Just for continuity in naming
 
-                    # Word frame numbers
-                    word_frame_numbers = range(batch_start_frames_per_sample[sample_idx_within_batch],
-                                               batch_start_frames_per_sample[sample_idx_within_batch] + batch_n_of_frames_per_sample[sample_idx_within_batch])
+                else:
 
-                    # For each frame in mouth images
-                    frame_0_start_index = -1
-                    set_crop_offset = True
-                    set_random_flip = True
-                    for jpg_name in sorted(glob.glob('.'.join(word_txt_file.split('.')[:-1]) + '*mouth*.jpg')):
+                    # GENERATE SET OF IMAGES PER WORD
+                    # For each WORD
+                    for sample_idx_within_batch, word_txt_file in enumerate(batch_lrw_word_set_num_txt_file_names):
 
-                        # Frame number
-                        frame_number = int(jpg_name.split('/')[-1].split('.')[0].split('_')[-2])
+                        if verbose:
+                            print("Sample", sample_idx_within_batch+1, "of", batch_size)
 
-                        # Frame in word
-                        if frame_number in word_frame_numbers:
+                        # Word frame numbers
+                        word_frame_numbers = range(batch_start_frames_per_sample[sample_idx_within_batch],
+                                                   batch_start_frames_per_sample[sample_idx_within_batch] + batch_n_of_frames_per_sample[sample_idx_within_batch])
 
-                            # Increment frame count, for saving at right index
-                            frame_0_start_index += 1
+                        # For each frame in mouth images
+                        frame_0_start_index = -1
+                        set_crop_offset = True
+                        set_random_flip = True
+                        for jpg_name in sorted(glob.glob('.'.join(word_txt_file.split('.')[:-1]) + '*mouth*.jpg')):
 
-                            if verbose:
-                                print(jpg_name)
+                            # Frame number
+                            frame_number = int(jpg_name.split('/')[-1].split('.')[0].split('_')[-2])
 
-                            # Set image grayscale option
-                            if grayscale_images:
-                                cv_option = cv2.IMREAD_GRAYSCALE
-                            else:
-                                cv_option = cv2.IMREAD_COLOR
+                            # Frame in word
+                            if frame_number in word_frame_numbers:
 
-                            # Read image
-                            mouth_image = robust_imread(jpg_name, cv_option)
+                                # Increment frame count, for saving at right index
+                                frame_0_start_index += 1
 
-                            if set_crop_offset:
-                                # Images have been saved at 120x120. We need them at MOUTH_HxMOUTH_W
-                                # To crop it
-                                if random_crop:
-                                    h_offset = np.random.randint(low=0, high=mouth_image.shape[0]-MOUTH_H)
-                                    w_offset = np.random.randint(low=0, high=mouth_image.shape[1]-MOUTH_W)
-                                else:
-                                    h_offset = (mouth_image.shape[0] - MOUTH_H) // 2
-                                    w_offset = (mouth_image.shape[1] - MOUTH_W) // 2
                                 if verbose:
-                                    print("Crop offsets (h, w):", h_offset, w_offset)
-                                # Reset
-                                set_crop_offset = False
+                                    print(jpg_name)
 
-                            # Crop image
-                            mouth_image = mouth_image[h_offset:h_offset+MOUTH_H, w_offset:w_offset+MOUTH_W]
-
-                            # Set whether to flip or not
-                            if set_random_flip:
-                                if random_flip and np.random.choice(2):
-                                    flip = True
+                                # Set image grayscale option
+                                if grayscale_images:
+                                    cv_option = cv2.IMREAD_GRAYSCALE
                                 else:
-                                    flip = False
-                                set_random_flip = False
+                                    cv_option = cv2.IMREAD_COLOR
 
-                            # Flip
-                            if flip:
-                                mouth_image = mouth_image[:, ::-1]
+                                # Read image
+                                mouth_image = robust_imread(jpg_name, cv_option)
 
-                            if syncnet:
-                                # Add this image in reverse order into X
-                                # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
-                                batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1][:, :, 2] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                if frame_0_start_index - 1 >= 0:
-                                    batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 1][:, :, 1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                if frame_0_start_index - 2 >= 0:
-                                    batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 2][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                if frame_0_start_index + 1 < TIME_STEPS:
-                                    batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 1][:, :, 3] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                if frame_0_start_index + 2 < TIME_STEPS:
-                                    batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 2][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                if mouth_nn != 'syncnet':
+                                    mouth_image /= 255.
 
-                            else:
-                                # Add this image in reverse order into X
-                                # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
-                                batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W, MOUTH_CHANNELS))
+                                if set_crop_offset:
+                                    # Images have been saved at 120x120. We need them at MOUTH_HxMOUTH_W
+                                    # To crop it
+                                    if random_crop:
+                                        h_offset = np.random.randint(low=0, high=mouth_image.shape[0]-MOUTH_H)
+                                        w_offset = np.random.randint(low=0, high=mouth_image.shape[1]-MOUTH_W)
+                                    else:
+                                        h_offset = (mouth_image.shape[0] - MOUTH_H) // 2
+                                        w_offset = (mouth_image.shape[1] - MOUTH_W) // 2
+                                    if verbose:
+                                        print("Crop offsets (h, w):", h_offset, w_offset)
+                                    # Reset
+                                    set_crop_offset = False
 
-                            if use_head_pose:
-                                # Add head pose
-                                batch_head_poses_per_sample_for_training[sample_idx_within_batch][-frame_0_start_index-1] = batch_head_poses_per_sample[sample_idx_within_batch][frame_0_start_index]
+                                # Crop image
+                                mouth_image = mouth_image[h_offset:h_offset+MOUTH_H, w_offset:w_offset+MOUTH_W]
+
+                                # Set whether to flip or not
+                                if set_random_flip:
+                                    if random_flip and np.random.choice(2):
+                                        flip = True
+                                    else:
+                                        flip = False
+                                    set_random_flip = False
+
+                                # Flip
+                                if flip:
+                                    mouth_image = mouth_image[:, ::-1]
+
+                                if mouth_nn == 'syncnet':
+                                    # Add this image in reverse order into X
+                                    # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
+                                    batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1][:, :, 2] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    if frame_0_start_index - 1 >= 0:
+                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 1][:, :, 1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    if frame_0_start_index - 2 >= 0:
+                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 2][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    if frame_0_start_index + 1 < TIME_STEPS:
+                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 1][:, :, 3] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    if frame_0_start_index + 2 < TIME_STEPS:
+                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 2][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+
+                                else:
+                                    # Add this image in reverse order into X
+                                    # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
+                                    batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W, MOUTH_CHANNELS))
 
             # Batch number of frames per sample (F)
             batch_n_of_frames_per_sample = np.reshape(np.array(batch_n_of_frames_per_sample)/float(MAX_FRAMES_PER_WORD), (len(batch_n_of_frames_per_sample), 1))
@@ -261,26 +293,28 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
                     batch_dense_per_sample = batch_dense_per_sample[:curr_batch_size]
                     if use_softmax:
                         batch_softmax_per_sample = batch_softmax_per_sample[:curr_batch_size]
+                    if use_softmax_ratios:
+                        batch_softmax_ratios_per_sample = batch_softmax_ratios_per_sample[:curr_batch_size]
                     batch_lipreader_correct_or_wrong = batch_lipreader_correct_or_wrong[:curr_batch_size]
 
-            # Yield X, H, F, D, S, Y
-            if use_CNN_LSTM and use_head_pose and use_softmax:
-                yield [batch_mouth_images, batch_head_poses_per_sample_for_training, batch_n_of_frames_per_sample, batch_dense_per_sample, batch_softmax_per_sample], [batch_lipreader_correct_or_wrong]
-            elif use_CNN_LSTM and not use_head_pose and use_softmax:
-                yield [batch_mouth_images, batch_n_of_frames_per_sample, batch_dense_per_sample, batch_softmax_per_sample], [batch_lipreader_correct_or_wrong]
-            elif use_CNN_LSTM and use_head_pose and not use_softmax:
-                yield [batch_mouth_images, batch_head_poses_per_sample_for_training, batch_n_of_frames_per_sample, batch_dense_per_sample], [batch_lipreader_correct_or_wrong]
-            elif use_CNN_LSTM and not use_head_pose and not use_softmax:
-                yield [batch_mouth_images, batch_n_of_frames_per_sample, batch_dense_per_sample], [batch_lipreader_correct_or_wrong]
-            elif not use_CNN_LSTM and use_softmax:
-                yield [batch_n_of_frames_per_sample, batch_dense_per_sample, batch_softmax_per_sample], [batch_lipreader_correct_or_wrong]
-            elif not use_CNN_LSTM and not use_softmax:
-                yield [batch_n_of_frames_per_sample, batch_dense_per_sample], [batch_lipreader_correct_or_wrong]
+            # Yield (X, H, F, D, S, R), Y
+            X = []
+            if use_CNN_LSTM:
+                X += [batch_mouth_images]
+                if use_head_pose:
+                    X += [batch_head_poses_per_sample_for_training]
+            X += [batch_n_of_frames_per_sample, batch_dense_per_sample]
+            if use_softmax:
+                X += [batch_softmax_per_sample]
+            if use_softmax_ratios:
+                X += [batch_softmax_ratios_per_sample]
+            y = batch_lipreader_correct_or_wrong
+            yield (X, y)
 
 
 def robust_imread(jpg_name, cv_option=cv2.IMREAD_COLOR):
     try:
-        image = cv2.imread(jpg_name, cv_option) / 255.
+        image = cv2.imread(jpg_name, cv_option)
         return image
     except TypeError:
         return robust_imread(jpg_name, cv_option)
@@ -399,6 +433,15 @@ def read_txt_file_as_list_per_vocab_word(file_name):
 
 
 #############################################################
+# SYNCNET_PREDS
+#############################################################
+
+
+def load_syncnet_preds(collect_type):
+    return np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_syncnet_preds.npy'))
+
+
+#############################################################
 # DENSE, SOFTMAX, Y
 #############################################################
 
@@ -409,6 +452,15 @@ def load_dense_softmax_y(collect_type):
     lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_softmax']
     lrw_one_hot_y_rg = lrw_lipreader_dense_softmax_y['lrw_correct_one_hot_arg']
     return lrw_lipreader_dense, lrw_lipreader_softmax, lrw_one_hot_y_rg
+
+
+#############################################################
+# SOFTMAX_RATIOS
+#############################################################
+
+
+def load_softmax_ratios(collect_type):
+    return np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_lipreader_softmax_ratios.npy'))
 
 
 #############################################################
