@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 from assessor_functions import *
 
 lrw_n_of_frames_per_sample_val = np.array(load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='val', collect_by='sample'))
@@ -13,44 +15,44 @@ lrw_lipreader_correct_or_wrong_test = np.argmax(lrw_lipreader_softmax_test, axis
 
 range_of_n_of_frames = np.arange(lrw_n_of_frames_per_sample_val.min(), lrw_n_of_frames_per_sample_val.max()+1)
 
-def n_of_frames_eval(range_of_n_of_frames, lrw_n_of_frames_per_sample, lrw_lipreader_correct_or_wrong):
+def eval(range_of_feature, lrw_feature, lrw_lipreader_correct_or_wrong):
     num_of_samples = []
     num_of_correct_in_samples = []
-    for n in range_of_n_of_frames:
-        bool_of_samples_of_n_frames = lrw_n_of_frames_per_sample == n
+    for n in range_of_feature:
+        bool_of_samples_of_n_frames = lrw_feature == n
         num_of_samples_of_n_frames = np.sum(bool_of_samples_of_n_frames)
         num_of_correct_in_samples_of_n_frames = np.sum(lrw_lipreader_correct_or_wrong[bool_of_samples_of_n_frames])
         num_of_samples.append(num_of_samples_of_n_frames)
         num_of_correct_in_samples.append(num_of_correct_in_samples_of_n_frames)
     return num_of_samples, num_of_correct_in_samples
 
-num_of_samples_val, num_of_correct_in_samples_val = n_of_frames_eval(range_of_n_of_frames, lrw_n_of_frames_per_sample_val, lrw_lipreader_correct_or_wrong_val)
-num_of_samples_test, num_of_correct_in_samples_test = n_of_frames_eval(range_of_n_of_frames, lrw_n_of_frames_per_sample_test, lrw_lipreader_correct_or_wrong_test)
+num_of_samples_val, num_of_correct_in_samples_val = eval(range_of_n_of_frames, lrw_n_of_frames_per_sample_val, lrw_lipreader_correct_or_wrong_val)
+num_of_samples_test, num_of_correct_in_samples_test = eval(range_of_n_of_frames, lrw_n_of_frames_per_sample_test, lrw_lipreader_correct_or_wrong_test)
 
 
-def plot_samples_correct_predictions(range_of_n_of_frames, num_of_samples, num_of_correct_in_samples, collect_type="val"):
-    percentage_of_correct_samples = np.array(num_of_correct_in_samples)/np.array(num_of_samples)*100
+def plot_samples_correct_predictions(range_of_feature, num_of_samples, num_of_correct_in_samples, collect_type="val", x_label="# of frames in sample)"):
+    percentage_of_correct_samples = np.array(num_of_correct_in_samples)/(np.array(num_of_samples) + 1e-8)*100
     plt.subplot(121)
-    plt.bar(range_of_n_of_frames, num_of_samples, label="Total samples")
-    plt.bar(range_of_n_of_frames, num_of_correct_in_samples, label="Lipreader correct predictions")
+    plt.bar(range_of_feature, num_of_samples, label="Total samples")
+    plt.bar(range_of_feature, num_of_correct_in_samples, label="Lipreader correct predictions")
     plt.title("LRW " + collect_type + " total samples,\n# of correct predictions")
     plt.legend(fontsize=7)
-    plt.xlabel("word duration")
+    plt.xlabel(x_label)
     plt.subplot(122)
-    plt.scatter(range_of_n_of_frames, percentage_of_correct_samples)
+    plt.scatter(range_of_feature, percentage_of_correct_samples)
     plt.yticks(np.arange(0, 101, 10))
     plt.gca().yaxis.grid(True)
-    plt.xlabel("(# of frames in sample)")
+    plt.xlabel(x_label)
     plt.title("% of samples predicted\ncorrectly by lipreader")
     plt.show()
 
-plot_samples_correct_predictions(range_of_n_of_frames, num_of_samples_val, num_of_correct_in_samples_val, collect_type="val")
-plot_samples_correct_predictions(range_of_n_of_frames, num_of_samples_test, num_of_correct_in_samples_test, collect_type="test")
+plot_samples_correct_predictions(range_of_n_of_frames, num_of_samples_val, num_of_correct_in_samples_val, collect_type="val", x_label="# of frames in sample")
+plot_samples_correct_predictions(range_of_n_of_frames, num_of_samples_test, num_of_correct_in_samples_test, collect_type="test", x_label="# of frames in sample")
 
 
 # LIPREADER PREDS vs BILABIALS
 
-b_or_not = np.repeat(np.load('bilabial_or_not'), 50)
+b_or_not = np.repeat(np.load('bilabial_or_not.npy'), 50)
 
 percentage_lipreader_correct_among_bilabials = np.mean(lrw_lipreader_correct_or_wrong_val[b_or_not == 1])*100
 percentage_lipreader_correct_among_non_bilabials = np.mean(lrw_lipreader_correct_or_wrong_val[b_or_not == 0])*100
@@ -61,22 +63,59 @@ percentage_lipreader_correct_among_non_bilabials = np.mean(lrw_lipreader_correct
 
 range_of_bilabials = np.arange(b_or_not.min(), b_or_not.max()+1)
 
-n_of_b_or_not_val, n_of_correct_in_b_or_not_val = n_of_frames_eval(range_of_bilabials, b_or_not, lrw_lipreader_correct_or_wrong_val)
-n_of_b_or_not_test, n_of_correct_in_b_or_not_test = n_of_frames_eval(range_of_bilabials, b_or_not, lrw_lipreader_correct_or_wrong_test)
+n_of_b_or_not_val, n_of_correct_in_b_or_not_val = eval(range_of_bilabials, b_or_not, lrw_lipreader_correct_or_wrong_val)
+n_of_b_or_not_test, n_of_correct_in_b_or_not_test = eval(range_of_bilabials, b_or_not, lrw_lipreader_correct_or_wrong_test)
 
-plot_samples_correct_predictions(range_of_bilabials, n_of_b_or_not_val, n_of_correct_in_b_or_not_val, collect_type="val")
-plot_samples_correct_predictions(range_of_bilabials, n_of_b_or_not_test, n_of_correct_in_b_or_not_test, collect_type="test")
+plot_samples_correct_predictions(range_of_bilabials, n_of_b_or_not_val, n_of_correct_in_b_or_not_val, collect_type="val", x_label="bilabial (1) or not (0)")
+plot_samples_correct_predictions(range_of_bilabials, n_of_b_or_not_test, n_of_correct_in_b_or_not_test, collect_type="test", x_label="bilabial (1) or not (0)")
 
 
 # LIPREADER PREDS vs SYLLABLES
 
-n_of_syllables = np.repeat(np.load('n_of_syllables'))
+n_of_syllables = np.repeat(np.load('n_of_syllables.npy'), 50)
 
 range_of_syllables = np.arange(n_of_syllables.min(), n_of_syllables.max()+1)
 
-n_of_syllables_val, n_of_correct_in_syllables_val = n_of_frames_eval(range_of_syllables, n_of_syllables, lrw_lipreader_correct_or_wrong_val)
-n_of_syllables_test, n_of_correct_in_syllables_test = n_of_frames_eval(range_of_syllables, n_of_syllables, lrw_lipreader_correct_or_wrong_test)
+n_of_syllables_val, n_of_correct_in_syllables_val = eval(range_of_syllables, n_of_syllables, lrw_lipreader_correct_or_wrong_val)
+n_of_syllables_test, n_of_correct_in_syllables_test = eval(range_of_syllables, n_of_syllables, lrw_lipreader_correct_or_wrong_test)
 
-plot_samples_correct_predictions(range_of_syllables, n_of_syllables_val, n_of_correct_in_syllables_val, collect_type="val")
-plot_samples_correct_predictions(range_of_syllables, n_of_syllables_test, n_of_correct_in_syllables_test, collect_type="test")
+plot_samples_correct_predictions(range_of_syllables, n_of_syllables_val, n_of_correct_in_syllables_val, collect_type="val", x_label="n_of_syllables")
+plot_samples_correct_predictions(range_of_syllables, n_of_syllables_test, n_of_correct_in_syllables_test, collect_type="test", x_label="n_of_syllables")
 
+
+# LIPREADER PREDS vs SOFTMAX RATIOS
+
+def calc_softmax_ratios(lrw_lipreader_softmax):
+    lrw_lipreader_softmax_sorted = np.sort(lrw_lipreader_softmax, axis=1)[:, ::-1]
+    lrw_lipreader_softmax_sorted_ratios = lrw_lipreader_softmax_sorted[:, :5] / lrw_lipreader_softmax_sorted[:, 1:6]
+    lrw_lipreader_softmax_sorted_ratios = lrw_lipreader_softmax_sorted_ratios / np.reshape(np.sum(lrw_lipreader_softmax_sorted_ratios, axis=1), (len(lrw_lipreader_softmax_sorted_ratios), 1))
+    return lrw_lipreader_softmax_sorted_ratios
+
+lrw_lipreader_softmax_val_sorted_ratios = calc_softmax_ratios(lrw_lipreader_softmax_val)
+lrw_lipreader_softmax_test_sorted_ratios = calc_softmax_ratios(lrw_lipreader_softmax_test)
+
+lrw_lipreader_softmax_val_sorted_ratios = np.array(lrw_lipreader_softmax_val_sorted_ratios*100, dtype=int) / 100.
+lrw_lipreader_softmax_test_sorted_ratios = np.array(lrw_lipreader_softmax_test_sorted_ratios*100, dtype=int) / 100.
+
+range_of_softmax_ratios = np.arange(0, 1.01, .01)
+
+# 1st ratio
+n_of_softmax_ratios_1_val, n_of_correct_in_softmax_ratios_1_val = eval(range_of_softmax_ratios, lrw_lipreader_softmax_val_sorted_ratios[:, 0], lrw_lipreader_correct_or_wrong_val)
+n_of_softmax_ratios_1_test, n_of_correct_in_softmax_ratios_1_test = eval(range_of_softmax_ratios, lrw_lipreader_softmax_test_sorted_ratios[:, 0], lrw_lipreader_correct_or_wrong_test)
+plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_1_val, n_of_correct_in_softmax_ratios_1_val, collect_type="val", x_label="Softmax Ratio 1")
+plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_1_test, n_of_correct_in_softmax_ratios_1_test, collect_type="test", x_label="Softmax Ratio 1")
+
+# 2nd ratio
+n_of_softmax_ratios_2_val, n_of_correct_in_softmax_ratios_2_val = eval(range_of_softmax_ratios, lrw_lipreader_softmax_val_sorted_ratios[:, 1], lrw_lipreader_correct_or_wrong_val)
+n_of_softmax_ratios_2_test, n_of_correct_in_softmax_ratios_2_test = eval(range_of_softmax_ratios, lrw_lipreader_softmax_test_sorted_ratios[:, 1], lrw_lipreader_correct_or_wrong_test)
+plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_2_val, n_of_correct_in_softmax_ratios_2_val, collect_type="val", x_label="Softmax Ratio 2")
+plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_2_test, n_of_correct_in_softmax_ratios_2_test, collect_type="test", x_label="Softmax Ratio 2")
+
+# 3rd ratio
+n_of_softmax_ratios_3_val, n_of_correct_in_softmax_ratios_3_val = eval(range_of_softmax_ratios, lrw_lipreader_softmax_val_sorted_ratios[:, 3], lrw_lipreader_correct_or_wrong_val)
+n_of_softmax_ratios_3_test, n_of_correct_in_softmax_ratios_3_test = eval(range_of_softmax_ratios, lrw_lipreader_softmax_test_sorted_ratios[:, 3], lrw_lipreader_correct_or_wrong_test)
+plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_3_val, n_of_correct_in_softmax_ratios_3_val, collect_type="val", x_label="Softmax Ratio 3")
+plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_3_test, n_of_correct_in_softmax_ratios_3_test, collect_type="test", x_label="Softmax Ratio 3")
+
+np.save('LRW_val_lipreader_softmax_ratios', lrw_lipreader_softmax_val_sorted_ratios[:, :2])
+np.save('LRW_test_lipreader_softmax_ratios', lrw_lipreader_softmax_test_sorted_ratios[:, :2])
