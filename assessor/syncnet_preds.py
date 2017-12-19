@@ -63,7 +63,7 @@ train_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect
 n_batches = len(train_lrw_word_set_num_txt_file_names) // batch_size + 1
 
 train_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=train_collect_type, shuffle=shuffle, equal_classes=equal_classes,
-                                                 use_CNN_LSTM=use_CNN_LSTM, syncnet=(mouth_nn=="syncnet"), use_head_pose=use_head_pose, use_softmax=use_softmax,
+                                                 use_CNN_LSTM=use_CNN_LSTM, mouth_nn="syncnet", use_head_pose=use_head_pose, use_softmax=use_softmax,
                                                  grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip,
                                                  verbose=verbose, skip_batches=0, get_last_smaller_batch=get_last_smaller_batch)
 
