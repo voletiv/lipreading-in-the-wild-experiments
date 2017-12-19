@@ -17,7 +17,7 @@ from assessor_params import *
 def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect_type="val", shuffle=True,
                                    equal_classes=False, use_CNN_LSTM=True, use_head_pose=True, use_softmax=True,
                                    syncnet=False, grayscale_images=False, random_crop=True, random_flip=False,
-                                   verbose=False, skip_batches=0):
+                                   verbose=False, skip_batches=0, get_last_smaller_batch=False):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
@@ -99,17 +99,26 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
         lrw_correct_one_hot_y_arg = full_lrw_correct_one_hot_y_arg[full_index_list[idx_list_within_full_idx_list]]
         lrw_lipreader_correct_or_wrong = full_lrw_lipreader_correct_or_wrong[full_index_list[idx_list_within_full_idx_list]]
 
-        n_batches = len(lrw_lipreader_correct_or_wrong) // batch_size
+        n_batches = len(lrw_word_set_num_txt_file_names) // batch_size
+
+        if get_last_smaller_batch:
+            if len(lrw_word_set_num_txt_file_names) > n_batches * batch_size:
+                n_batches += 1
+
+        if verbose:
+            print("Total =", len(lrw_lipreader_correct_or_wrong), "; batch_size =", batch_size, "; n_batches =", n_batches, "; skip", skip_batches, "batches")
 
         # For each batch
         for batch in range(n_batches):
 
-            # Skip some if mentioned
-            if batch < skip_batches:
-                continue
-
             if verbose:
                 print("Batch", batch+1, "of", n_batches)
+
+            # Skip some if mentioned
+            if batch < skip_batches:
+                if verbose:
+                    print("Skipping it.")
+                continue
 
             if use_CNN_LSTM:
                 # Batch word_txt_files
@@ -240,6 +249,19 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
 
             # Correct_or_wrong
             batch_lipreader_correct_or_wrong = np.array(np.argmax(batch_softmax_per_sample, axis=1) == batch_lipreader_one_hot_y_arg_per_sample, dtype=float)
+
+            if get_last_smaller_batch:
+                if batch+1 == n_batches:
+                    curr_batch_size = len(lrw_word_set_num_txt_file_names) - batch*batch_size
+                    if use_CNN_LSTM:
+                        batch_mouth_images = batch_mouth_images[:curr_batch_size]
+                        if use_head_pose:
+                            batch_head_poses_per_sample_for_training = batch_head_poses_per_sample_for_training[curr_batch_size]
+                    batch_n_of_frames_per_sample = batch_n_of_frames_per_sample[:curr_batch_size]
+                    batch_dense_per_sample = batch_dense_per_sample[:curr_batch_size]
+                    if use_softmax:
+                        batch_softmax_per_sample = batch_softmax_per_sample[:curr_batch_size]
+                    batch_lipreader_correct_or_wrong = batch_lipreader_correct_or_wrong[:curr_batch_size]
 
             # Yield X, H, F, D, S, Y
             if use_CNN_LSTM and use_head_pose and use_softmax:
