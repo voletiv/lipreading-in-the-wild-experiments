@@ -23,7 +23,7 @@ Codes and files --- considering the lipreader as an image retrieval system
 
 Codes and files --- to compute head pose in all frames in LRW dataset (extracted using _process-lrw_)
 
-Head pose is determined using [voletiv/deepgaze](https://github.com/voletiv/deepgaze) (my fork of [deepgaze](https://github.com/mpatacchiola/deepgaze).
+Head pose is determined using [voletiv/deepgaze](https://github.com/voletiv/deepgaze) (my fork of [deepgaze](https://github.com/mpatacchiola/deepgaze)).
 
 Instructions are provided in README file in directory.
 
