@@ -59,7 +59,6 @@ dropout_p2 = 0.2
 individual_dense=False
 lr_dense_fc=8
 lr_softmax_fc=8
-lr_softmax_ratios_fc=4
 
 if mouth_nn == 'syncnet':
     # Params
@@ -70,11 +69,10 @@ if mouth_nn == 'syncnet':
     lr_dense_fc = 8
     use_softmax = True
     lr_softmax_fc = 8
-    use_softmax_ratios = False
-    lr_softmax_ratios_fc=4
+    use_softmax_ratios = True
     dense_fc_1 = 8
     dropout_p1 = 0.2
-    dense_fc_2 = 8
+    dense_fc_2 = 16
     dropout_p2 = 0.2
     # Constants
     grayscale_images = True
@@ -89,7 +87,6 @@ elif mouth_nn == 'syncnet_preds':
     use_softmax = True
     lr_softmax_fc = 8
     use_softmax_ratios = False
-    lr_softmax_ratios_fc=4
     dense_fc_1 = 16
     dropout_p1 = 0.2
     dense_fc_2 = 16
@@ -149,7 +146,7 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
                                                     mouth_nn, trainable_syncnet, grayscale_images,
                                                     conv_f_1, conv_f_2, conv_f_3, mouth_features_dim,
                                                     use_head_pose, lstm_units_1, use_softmax, use_softmax_ratios,
-                                                    individual_dense, lr_dense_fc, lr_softmax_fc, lr_softmax_ratios_fc,
+                                                    individual_dense, lr_dense_fc, lr_softmax_fc,
                                                     last_fc, dense_fc_1, dropout_p1, dense_fc_2, dropout_p2,
                                                     optimizer_name, adam_lr=1e-3, adam_lr_decay=1e-3):
     # THIS MODEL NAME
@@ -192,6 +189,9 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
         this_assessor_model_name += "_LRsoftmax"
         if individual_dense:
             this_assessor_model_name += "_fc" + str(lr_softmax_fc)
+
+    if use_softmax_ratios:
+        this_assessor_model_name += "_LRsoftmaxRatios"
 
     if last_fc == None:
         this_assessor_model_name += "_1fc" + str(dense_fc_1) + "_bn_dp" + str(dropout_p1) + "_2fc" + str(dense_fc_2) + "_bn_dp" + str(dropout_p2)
