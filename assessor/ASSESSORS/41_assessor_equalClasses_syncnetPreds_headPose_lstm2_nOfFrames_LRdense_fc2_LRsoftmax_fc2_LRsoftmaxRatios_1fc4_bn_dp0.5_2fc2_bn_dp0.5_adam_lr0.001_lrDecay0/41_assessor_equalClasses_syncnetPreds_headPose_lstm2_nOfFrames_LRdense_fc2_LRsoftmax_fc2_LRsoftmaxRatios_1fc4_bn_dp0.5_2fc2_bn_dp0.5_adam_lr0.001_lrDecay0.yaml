@@ -1,0 +1,440 @@
+backend: tensorflow
+class_name: Model
+config:
+  input_layers:
+  - [syncnet_preds, 0, 0]
+  - [head_poses, 0, 0]
+  - [n_of_frames, 0, 0]
+  - [lipreader_middle, 0, 0]
+  - [lipreader_softmax, 0, 0]
+  - [lipreader_softmax_ratios, 0, 0]
+  layers:
+  - class_name: InputLayer
+    config:
+      batch_input_shape: !!python/tuple [null, 1024]
+      dtype: float32
+      name: lipreader_middle
+      sparse: false
+    inbound_nodes: []
+    name: lipreader_middle
+  - class_name: InputLayer
+    config:
+      batch_input_shape: !!python/tuple [null, 500]
+      dtype: float32
+      name: lipreader_softmax
+      sparse: false
+    inbound_nodes: []
+    name: lipreader_softmax
+  - class_name: InputLayer
+    config:
+      batch_input_shape: !!python/tuple [null, 21, 128]
+      dtype: float32
+      name: syncnet_preds
+      sparse: false
+    inbound_nodes: []
+    name: syncnet_preds
+  - class_name: InputLayer
+    config:
+      batch_input_shape: !!python/tuple [null, 21, 3]
+      dtype: float32
+      name: head_poses
+      sparse: false
+    inbound_nodes: []
+    name: head_poses
+  - class_name: Dense
+    config:
+      activation: linear
+      activity_regularizer: null
+      bias_constraint: null
+      bias_initializer:
+        class_name: Zeros
+        config: {}
+      bias_regularizer: null
+      kernel_constraint: null
+      kernel_initializer:
+        class_name: VarianceScaling
+        config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
+      kernel_regularizer:
+        class_name: L1L2
+        config: {l1: 0.0, l2: 9.999999747378752e-05}
+      name: dense_1
+      trainable: true
+      units: 2
+      use_bias: true
+    inbound_nodes:
+    - - - lipreader_middle
+        - 0
+        - 0
+        - {}
+    name: dense_1
+  - class_name: Dense
+    config:
+      activation: linear
+      activity_regularizer: null
+      bias_constraint: null
+      bias_initializer:
+        class_name: Zeros
+        config: {}
+      bias_regularizer: null
+      kernel_constraint: null
+      kernel_initializer:
+        class_name: VarianceScaling
+        config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
+      kernel_regularizer:
+        class_name: L1L2
+        config: {l1: 0.0, l2: 9.999999747378752e-05}
+      name: dense_2
+      trainable: true
+      units: 2
+      use_bias: true
+    inbound_nodes:
+    - - - lipreader_softmax
+        - 0
+        - 0
+        - {}
+    name: dense_2
+  - class_name: Concatenate
+    config: {axis: -1, name: concatenate_1, trainable: true}
+    inbound_nodes:
+    - - - syncnet_preds
+        - 0
+        - 0
+        - &id001 {}
+      - - head_poses
+        - 0
+        - 0
+        - *id001
+    name: concatenate_1
+  - class_name: Activation
+    config: {activation: relu, name: relu_lr_dense, trainable: true}
+    inbound_nodes:
+    - - - dense_1
+        - 0
+        - 0
+        - {}
+    name: relu_lr_dense
+  - class_name: Activation
+    config: {activation: relu, name: relu_lr_softmax, trainable: true}
+    inbound_nodes:
+    - - - dense_2
+        - 0
+        - 0
+        - {}
+    name: relu_lr_softmax
+  - class_name: LSTM
+    config:
+      activation: tanh
+      activity_regularizer: null
+      bias_constraint: null
+      bias_initializer:
+        class_name: Zeros
+        config: {}
+      bias_regularizer: null
+      dropout: 0.0
+      go_backwards: false
+      implementation: 1
+      kernel_constraint: null
+      kernel_initializer:
+        class_name: VarianceScaling
+        config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
+      kernel_regularizer:
+        class_name: L1L2
+        config: {l1: 0.0, l2: 9.999999747378752e-05}
+      name: lstm_1
+      recurrent_activation: hard_sigmoid
+      recurrent_constraint: null
+      recurrent_dropout: 0.0
+      recurrent_initializer:
+        class_name: Orthogonal
+        config: {gain: 1.0, seed: null}
+      recurrent_regularizer: null
+      return_sequences: false
+      return_state: false
+      stateful: false
+      trainable: true
+      unit_forget_bias: true
+      units: 2
+      unroll: false
+      use_bias: true
+    inbound_nodes:
+    - - - concatenate_1
+        - 0
+        - 0
+        - {}
+    name: lstm_1
+  - class_name: InputLayer
+    config:
+      batch_input_shape: !!python/tuple [null, 1]
+      dtype: float32
+      name: n_of_frames
+      sparse: false
+    inbound_nodes: []
+    name: n_of_frames
+  - class_name: BatchNormalization
+    config:
+      axis: -1
+      beta_constraint: null
+      beta_initializer:
+        class_name: Zeros
+        config: {}
+      beta_regularizer: null
+      center: true
+      epsilon: 0.001
+      gamma_constraint: null
+      gamma_initializer:
+        class_name: Ones
+        config: {}
+      gamma_regularizer: null
+      momentum: 0.99
+      moving_mean_initializer:
+        class_name: Zeros
+        config: {}
+      moving_variance_initializer:
+        class_name: Ones
+        config: {}
+      name: batch_normalization_1
+      scale: true
+      trainable: true
+    inbound_nodes:
+    - - - relu_lr_dense
+        - 0
+        - 0
+        - {}
+    name: batch_normalization_1
+  - class_name: BatchNormalization
+    config:
+      axis: -1
+      beta_constraint: null
+      beta_initializer:
+        class_name: Zeros
+        config: {}
+      beta_regularizer: null
+      center: true
+      epsilon: 0.001
+      gamma_constraint: null
+      gamma_initializer:
+        class_name: Ones
+        config: {}
+      gamma_regularizer: null
+      momentum: 0.99
+      moving_mean_initializer:
+        class_name: Zeros
+        config: {}
+      moving_variance_initializer:
+        class_name: Ones
+        config: {}
+      name: batch_normalization_2
+      scale: true
+      trainable: true
+    inbound_nodes:
+    - - - relu_lr_softmax
+        - 0
+        - 0
+        - {}
+    name: batch_normalization_2
+  - class_name: InputLayer
+    config:
+      batch_input_shape: !!python/tuple [null, 2]
+      dtype: float32
+      name: lipreader_softmax_ratios
+      sparse: false
+    inbound_nodes: []
+    name: lipreader_softmax_ratios
+  - class_name: Concatenate
+    config: {axis: -1, name: concatenate_2, trainable: true}
+    inbound_nodes:
+    - - - lstm_1
+        - 0
+        - 0
+        - &id002 {}
+      - - n_of_frames
+        - 0
+        - 0
+        - *id002
+      - - batch_normalization_1
+        - 0
+        - 0
+        - *id002
+      - - batch_normalization_2
+        - 0
+        - 0
+        - *id002
+      - - lipreader_softmax_ratios
+        - 0
+        - 0
+        - *id002
+    name: concatenate_2
+  - class_name: Dense
+    config:
+      activation: linear
+      activity_regularizer: null
+      bias_constraint: null
+      bias_initializer:
+        class_name: Zeros
+        config: {}
+      bias_regularizer: null
+      kernel_constraint: null
+      kernel_initializer:
+        class_name: VarianceScaling
+        config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
+      kernel_regularizer:
+        class_name: L1L2
+        config: {l1: 0.0, l2: 9.999999747378752e-05}
+      name: dense_3
+      trainable: true
+      units: 4
+      use_bias: true
+    inbound_nodes:
+    - - - concatenate_2
+        - 0
+        - 0
+        - {}
+    name: dense_3
+  - class_name: Activation
+    config: {activation: relu, name: relu_fc1, trainable: true}
+    inbound_nodes:
+    - - - dense_3
+        - 0
+        - 0
+        - {}
+    name: relu_fc1
+  - class_name: BatchNormalization
+    config:
+      axis: -1
+      beta_constraint: null
+      beta_initializer:
+        class_name: Zeros
+        config: {}
+      beta_regularizer: null
+      center: true
+      epsilon: 0.001
+      gamma_constraint: null
+      gamma_initializer:
+        class_name: Ones
+        config: {}
+      gamma_regularizer: null
+      momentum: 0.99
+      moving_mean_initializer:
+        class_name: Zeros
+        config: {}
+      moving_variance_initializer:
+        class_name: Ones
+        config: {}
+      name: batch_normalization_3
+      scale: true
+      trainable: true
+    inbound_nodes:
+    - - - relu_fc1
+        - 0
+        - 0
+        - {}
+    name: batch_normalization_3
+  - class_name: Dropout
+    config: {name: dropout1_p0.5, noise_shape: null, rate: 0.5, seed: null, trainable: true}
+    inbound_nodes:
+    - - - batch_normalization_3
+        - 0
+        - 0
+        - {}
+    name: dropout1_p0.5
+  - class_name: Dense
+    config:
+      activation: linear
+      activity_regularizer: null
+      bias_constraint: null
+      bias_initializer:
+        class_name: Zeros
+        config: {}
+      bias_regularizer: null
+      kernel_constraint: null
+      kernel_initializer:
+        class_name: VarianceScaling
+        config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
+      kernel_regularizer:
+        class_name: L1L2
+        config: {l1: 0.0, l2: 9.999999747378752e-05}
+      name: dense_4
+      trainable: true
+      units: 2
+      use_bias: true
+    inbound_nodes:
+    - - - dropout1_p0.5
+        - 0
+        - 0
+        - {}
+    name: dense_4
+  - class_name: Activation
+    config: {activation: relu, name: relu_fc2, trainable: true}
+    inbound_nodes:
+    - - - dense_4
+        - 0
+        - 0
+        - {}
+    name: relu_fc2
+  - class_name: BatchNormalization
+    config:
+      axis: -1
+      beta_constraint: null
+      beta_initializer:
+        class_name: Zeros
+        config: {}
+      beta_regularizer: null
+      center: true
+      epsilon: 0.001
+      gamma_constraint: null
+      gamma_initializer:
+        class_name: Ones
+        config: {}
+      gamma_regularizer: null
+      momentum: 0.99
+      moving_mean_initializer:
+        class_name: Zeros
+        config: {}
+      moving_variance_initializer:
+        class_name: Ones
+        config: {}
+      name: batch_normalization_4
+      scale: true
+      trainable: true
+    inbound_nodes:
+    - - - relu_fc2
+        - 0
+        - 0
+        - {}
+    name: batch_normalization_4
+  - class_name: Dropout
+    config: {name: dropout2_p0.5, noise_shape: null, rate: 0.5, seed: null, trainable: true}
+    inbound_nodes:
+    - - - batch_normalization_4
+        - 0
+        - 0
+        - {}
+    name: dropout2_p0.5
+  - class_name: Dense
+    config:
+      activation: sigmoid
+      activity_regularizer: null
+      bias_constraint: null
+      bias_initializer:
+        class_name: Zeros
+        config: {}
+      bias_regularizer: null
+      kernel_constraint: null
+      kernel_initializer:
+        class_name: VarianceScaling
+        config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
+      kernel_regularizer: null
+      name: sigmoid
+      trainable: true
+      units: 1
+      use_bias: true
+    inbound_nodes:
+    - - - dropout2_p0.5
+        - 0
+        - 0
+        - {}
+    name: sigmoid
+  name: model_1
+  output_layers:
+  - [sigmoid, 0, 0]
+keras_version: 2.1.2
