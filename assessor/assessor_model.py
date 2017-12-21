@@ -31,7 +31,8 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', tra
                       conv_f_1=32, conv_f_2=64, conv_f_3=128, mouth_features_dim=512,
                       lstm_units_1=32, use_softmax=True, use_softmax_ratios=False,
                       individual_dense=False, lr_dense_fc=8, lr_softmax_fc=8,
-                      dense_fc_1=128, dropout_p1=0.2, dense_fc_2=64, dropout_p2=0.2, last_fc=None):
+                      dense_fc_1=128, dropout_p1=0.2, dense_fc_2=64, dropout_p2=0.2, last_fc=None,
+                      residual_part=False, res_fc_1=2, res_fc_2=2):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
@@ -119,12 +120,21 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', tra
         bn1 = BatchNormalization()(ac1)
         dp1 = Dropout(dropout_p1, name='dropout1_p'+str(dropout_p1))(bn1)
 
-        fc2 = Dense(dense_fc_2, kernel_regularizer=l2(1.e-4))(bn1)
+        fc2 = Dense(dense_fc_2, kernel_regularizer=l2(1.e-4))(dp1)
         ac2 = Activation('relu', name='relu_fc2')(fc2)
         bn2 = BatchNormalization()(ac2)
         dp2 = Dropout(dropout_p2, name='dropout2_p'+str(dropout_p2))(bn2)
 
-        assessor_output = Dense(1, activation='sigmoid', name='sigmoid')(dp2)
+        if residual_part:
+            res_fc1 = Dense(res_fc_1, kernel_regularizer=l2(1.e-4), name='res_fc1')(dp2)
+            res_ac1 = Activation('relu', name='res_relu_fc1')(res_fc1)
+            res_fc1 = Dense(res_fc_2, kernel_regularizer=l2(1.e-4), name='res_fc2')(res_ac1)
+            res_ac2 = Activation('relu', name='res_relu_fc2')(res_fc1)
+            clf_input = Add()([dp2, res_ac2])
+        else:
+            clf_input = dp2
+
+        assessor_output = Dense(1, activation='sigmoid', name='sigmoid')(clf_input)
 
     elif 'resnet' in last_fc:
 

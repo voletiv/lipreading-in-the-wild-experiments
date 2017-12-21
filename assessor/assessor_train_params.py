@@ -1,6 +1,6 @@
 import os
 
-from keras.optimizers import SGD, Adam
+from keras.optimizers import SGD, Adam, RMSprop
 from keras.callbacks import ReduceLROnPlateau, CSVLogger, EarlyStopping
 
 from assessor_functions import *
@@ -20,7 +20,7 @@ print("Experiment number:", experiment_number)
 ######################################################
 
 # BATCH SIZE
-batch_size = 32
+batch_size = 128
 
 # Data
 data_dir = LRW_DATA_DIR
@@ -42,7 +42,7 @@ use_softmax = True
 use_softmax_ratios = False
 
 # Assessor
-mouth_nn = 'syncnet'
+mouth_nn = 'syncnet_preds'
 # doesn't matter:
 my_resnet_repetitions = [1, 1]
 use_CNN_LSTM = True
@@ -59,6 +59,11 @@ dropout_p2 = 0.2
 individual_dense=False
 lr_dense_fc=8
 lr_softmax_fc=8
+residual_part=False
+res_fc_1=2
+res_dropout_p1=0.5
+res_fc_2=2
+res_dropout_p2=0.5
 
 if mouth_nn == 'syncnet':
     # Params
@@ -86,11 +91,14 @@ elif mouth_nn == 'syncnet_preds':
     lr_dense_fc = 8
     use_softmax = True
     lr_softmax_fc = 8
-    use_softmax_ratios = False
-    dense_fc_1 = 16
-    dropout_p1 = 0.2
-    dense_fc_2 = 16
-    dropout_p2 = 0.2
+    use_softmax_ratios = True
+    dense_fc_1 = 8
+    dropout_p1 = 0.5
+    dense_fc_2 = 4
+    dropout_p2 = 0.5
+    residual_part=True
+    res_fc_1=4
+    res_fc_2=4
     # Constants
     grayscale_images = True
     use_CNN_LSTM = True
@@ -104,13 +112,13 @@ last_fc = None
 # Compile
 optimizer_name = 'adam'
 adam_lr = 1e-3
-adam_lr_decay = 1e-3
+adam_lr_decay = 0
 loss = 'binary_crossentropy'
 
 # Train
 train_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=train_collect_type, collect_by='sample')
-# train_steps_per_epoch = len(train_lrw_word_set_num_txt_file_names) // batch_size
-train_steps_per_epoch = 20     # Set less value so as not to take too much time computing on full train set
+train_steps_per_epoch = len(train_lrw_word_set_num_txt_file_names) // batch_size
+# train_steps_per_epoch = train_steps_per_epoch // 8     # Set less value so as not to take too much time computing on full train set
 
 n_epochs = 1000
 
@@ -148,9 +156,13 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
                                                     use_head_pose, lstm_units_1, use_softmax, use_softmax_ratios,
                                                     individual_dense, lr_dense_fc, lr_softmax_fc,
                                                     last_fc, dense_fc_1, dropout_p1, dense_fc_2, dropout_p2,
-                                                    optimizer_name, adam_lr=1e-3, adam_lr_decay=1e-3):
+                                                    optimizer_name, adam_lr=1e-3, adam_lr_decay=1e-3,
+                                                    finetune=False):
     # THIS MODEL NAME
     this_assessor_model_name = str(experiment_number) + "_assessor"
+
+    if finetune:
+        this_assessor_model_name += "_FINETUNE"
 
     if equal_classes:
         this_assessor_model_name += "_equalClasses"
