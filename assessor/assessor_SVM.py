@@ -32,9 +32,22 @@ lipreader_lrw_test_correct_or_wrong = np.argmax(lipreader_lrw_test_softmax, axis
 #####################################
 
 # train model on the full training set with tuned hyperparameters
+SVM_linear = SVC(kernel='linear', class_weight='balanced').fit(lipreader_lrw_val_dense[:1000], lipreader_lrw_val_correct_or_wrong[:1000])
+
+# Save
+joblib.dump(SVM_linear, os.path.join(ASSESSOR_SAVE_DIR, 'SVM_linear_optimal.pkl'), compress=3) 
+
+# Acc
+SVM_linear_optimal.score(lipreader_lrw_val_dense, lipreader_lrw_val_correct_or_wrong)
+SVM_linear_optimal.score(lipreader_lrw_test_dense, lipreader_lrw_test_correct_or_wrong)
+
+
+#####################################
+# RBF UNOPT
+#####################################
+
+# train model on the full training set with tuned hyperparameters
 SVM_linear_optimal = SVC(kernel='linear', class_weight='balanced').fit(lipreader_lrw_val_dense[:1000], lipreader_lrw_val_correct_or_wrong[:1000])
-
-
 
 # Save
 joblib.dump(SVM_linear_optimal, os.path.join(ASSESSOR_SAVE_DIR, 'SVM_linear_optimal.pkl'), compress=3) 
