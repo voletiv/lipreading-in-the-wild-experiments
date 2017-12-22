@@ -175,22 +175,27 @@ def evaluate_avg_precision_plot_PR_curve(lipreader_correct_or_wrong, lrw_assesso
 ######################################################
 
 
-def compare_PR_of_lipreader_and_assessor(lipreader_lrw_softmax, lrw_correct_one_hot_y_arg, lrw_assessor_preds, collect_type="val", assessor_threshold=0.5):
+def compare_PR_of_lipreader_and_assessor(lipreader_lrw_softmax, lrw_correct_args, lrw_assessor_preds, collect_type="val", assessor_threshold=0.5):
 
     global this_assessor_save_dir, this_assessor_model_name
 
-    lipreader_lrw_precision_w, lipreader_lrw_recall_w, lipreader_lrw_avg_precision_w = \
-        my_precision_recall(lipreader_lrw_softmax, lrw_correct_one_hot_y_arg)
+    # Total samples must be a multiple of the number of words,
+    # i.e. each word must have same number of samples, in alphabetic order
+    total_samples = len(lipreader_lrw_softmax)
+    samples_per_word = total_samples // 500
 
-    lipreader_lrw_precision_at_k_averaged_across_words = np.mean(lipreader_lrw_precision_w, axis=1)[:50]
-    lipreader_lrw_recall_at_k_averaged_across_words = np.mean(lipreader_lrw_recall_w, axis=1)[:50]
+    lipreader_lrw_precision_w, lipreader_lrw_recall_w, lipreader_lrw_avg_precision_w = \
+        my_precision_recall(lipreader_lrw_softmax, lrw_correct_args)
+
+    lipreader_lrw_precision_at_k_averaged_across_words = np.mean(lipreader_lrw_precision_w, axis=1)[:samples_per_word]
+    lipreader_lrw_recall_at_k_averaged_across_words = np.mean(lipreader_lrw_recall_w, axis=1)[:samples_per_word]
 
     lrw_rejection_idx = lrw_assessor_preds <= assessor_threshold
     filtered_lipreader_lrw_precision_w, filtered_lipreader_lrw_recall_w, filtered_lipreader_lrw_avg_precision_w = \
-        my_precision_recall(lipreader_lrw_softmax, lrw_correct_one_hot_y_arg, critic_removes=lrw_rejection_idx)
+        my_precision_recall(lipreader_lrw_softmax, lrw_correct_args, critic_removes=lrw_rejection_idx)
 
-    filtered_lrw_precision_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_precision_w, axis=1)[:50]
-    filtered_lrw_recall_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_recall_w, axis=1)[:50]
+    filtered_lrw_precision_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_precision_w, axis=1)[:samples_per_word]
+    filtered_lrw_recall_at_k_averaged_across_words = np.mean(filtered_lipreader_lrw_recall_w, axis=1)[:samples_per_word]
 
     # P@K vs K, R@K vs K
     plot_P_atK_and_R_atK_vs_K(lipreader_lrw_precision_at_k_averaged_across_words, filtered_lrw_precision_at_k_averaged_across_words,
@@ -214,31 +219,35 @@ def compare_PR_of_lipreader_and_assessor(lipreader_lrw_softmax, lrw_correct_one_
         filtered_using_assessor=True)
 
 
-def my_precision_recall(lrw_lipreader_preds_softmax, lrw_correct_one_hot_y_arg, critic_removes=None):
-    lrw_lipreader_preds_correct_or_wrong = np.zeros((25000, 500))
+def my_precision_recall(lrw_lipreader_preds_softmax, lrw_correct_args, critic_removes=None):
+    # Total samples must be a multiple of the number of words,
+    # i.e. each word must have same number of samples, in alphabetic order
+    total_samples = len(lrw_lipreader_preds_softmax)
+    samples_per_word = total_samples // 500
+    actual_word_or_not = np.zeros((total_samples, 500))
     # Correct or wrong
     for w in range(500):
-        lrw_lipreader_preds_correct_or_wrong[w*50:(w+1)*50, lrw_correct_one_hot_y_arg[w*50]] = 1
+        actual_word_or_not[w*samples_per_word:(w+1)*samples_per_word, int(lrw_correct_args[w*samples_per_word])] = 1
     # P-R
-    lrw_lipreader_precision_w = np.zeros((25000, 500))
-    lrw_lipreader_recall_w = np.zeros((25000, 500))
+    lrw_lipreader_precision_w = np.zeros((total_samples, 500))
+    lrw_lipreader_recall_w = np.zeros((total_samples, 500))
     lrw_lipreader_avg_precision_w = np.zeros((500))
     for w in range(500):
         # Sort softmax for that word
-        lrw_lipreader_preds_softmax_argsort_w = np.argsort(lrw_lipreader_preds_softmax[:, lrw_correct_one_hot_y_arg[w*50]])[::-1]
+        lrw_lipreader_preds_softmax_argsort_w = np.argsort(lrw_lipreader_preds_softmax[:, int(lrw_correct_args[w*samples_per_word])])[::-1]
         # Sort correct_or_wrong
-        lrw_lipreader_preds_correct_or_wrong_sorted_w = lrw_lipreader_preds_correct_or_wrong[:, lrw_correct_one_hot_y_arg[w*50]][lrw_lipreader_preds_softmax_argsort_w]
+        lrw_lipreader_preds_correct_or_wrong_sorted_w = actual_word_or_not[:, int(lrw_correct_args[w*samples_per_word])][lrw_lipreader_preds_softmax_argsort_w]
         if critic_removes is not None:
             critic_removes_w = critic_removes[lrw_lipreader_preds_softmax_argsort_w]
             lrw_lipreader_preds_correct_or_wrong_sorted_w_selects = lrw_lipreader_preds_correct_or_wrong_sorted_w[np.logical_not(critic_removes_w)]
             lrw_lipreader_preds_correct_or_wrong_sorted_w_rejects = lrw_lipreader_preds_correct_or_wrong_sorted_w[critic_removes_w]
-            lrw_lipreader_preds_correct_or_wrong_sorted_w = np.concatenate([lrw_lipreader_preds_correct_or_wrong_sorted_w_selects[:50],
+            lrw_lipreader_preds_correct_or_wrong_sorted_w = np.concatenate([lrw_lipreader_preds_correct_or_wrong_sorted_w_selects[:samples_per_word],
                                                                         lrw_lipreader_preds_correct_or_wrong_sorted_w_rejects,
-                                                                        lrw_lipreader_preds_correct_or_wrong_sorted_w_selects[50:]])
+                                                                        lrw_lipreader_preds_correct_or_wrong_sorted_w_selects[samples_per_word:]])
         # P-R
-        lrw_lipreader_precision_w[:, w] = np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w)/(np.arange(500*50)+1)
-        lrw_lipreader_recall_w[:, w] = np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w)/50
-        lrw_lipreader_avg_precision_w[w] = np.sum(np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w) / (np.arange(500*50)+1) * lrw_lipreader_preds_correct_or_wrong_sorted_w)/50
+        lrw_lipreader_precision_w[:, w] = np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w)/(np.arange(total_samples)+1)
+        lrw_lipreader_recall_w[:, w] = np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w)/samples_per_word
+        lrw_lipreader_avg_precision_w[w] = np.sum(np.cumsum(lrw_lipreader_preds_correct_or_wrong_sorted_w) / (np.arange(total_samples)+1) * lrw_lipreader_preds_correct_or_wrong_sorted_w)/samples_per_word
     # Array
     return lrw_lipreader_precision_w, lrw_lipreader_recall_w, lrw_lipreader_avg_precision_w
 
@@ -278,10 +287,11 @@ def plot_P_atK_and_R_atK_vs_K(lipreader_precision_at_k_averaged_across_words, fi
                               lipreader_recall_at_k_averaged_across_words, filtered_recall_at_k_averaged_across_words,
                               this_assessor_save_dir=".", this_assessor_model_name="assessor_cnn_adam", lrw_type="val", assessor_threshold=.5):
     # P@K vs K, R@K vs K
-    plt.plot(np.arange(50)+1, lipreader_precision_at_k_averaged_across_words, label='Precision @K')
-    plt.plot(np.arange(50)+1, filtered_precision_at_k_averaged_across_words, label='Assessor-filtered Precision @K')
-    plt.plot(np.arange(50)+1, lipreader_recall_at_k_averaged_across_words, label='Recall @K')
-    plt.plot(np.arange(50)+1, filtered_recall_at_k_averaged_across_words, label='Assessor-filteredd Recall @K')
+    K = len(lipreader_precision_at_k_averaged_across_words)
+    plt.plot(np.arange(K)+1, lipreader_precision_at_k_averaged_across_words, label='Precision @K')
+    plt.plot(np.arange(K)+1, filtered_precision_at_k_averaged_across_words, label='Assessor-filtered Precision @K')
+    plt.plot(np.arange(K)+1, lipreader_recall_at_k_averaged_across_words, label='Recall @K')
+    plt.plot(np.arange(K)+1, filtered_recall_at_k_averaged_across_words, label='Assessor-filteredd Recall @K')
     plt.ylim([0, 1])
     plt.legend()
     plt.xlabel("K = # of documents")
@@ -295,6 +305,7 @@ def plot_P_atK_and_R_atK_vs_K(lipreader_precision_at_k_averaged_across_words, fi
 def plot_P_atK_vs_R_atK(lipreader_precision_at_k_averaged_across_words, filtered_precision_at_k_averaged_across_words,
                         lipreader_recall_at_k_averaged_across_words, filtered_recall_at_k_averaged_across_words,
                         this_assessor_save_dir=".", this_assessor_model_name="assessor_cnn_adam", lrw_type="val", assessor_threshold=.5):
+    K = len(lipreader_precision_at_k_averaged_across_words)
     plt.plot(lipreader_recall_at_k_averaged_across_words, lipreader_precision_at_k_averaged_across_words, label="lipreader")
     plt.fill_between(lipreader_recall_at_k_averaged_across_words, lipreader_precision_at_k_averaged_across_words, step='post', alpha=0.2)
     plt.plot(filtered_recall_at_k_averaged_across_words, filtered_precision_at_k_averaged_across_words, label="Assessor-filtered lipreader")
@@ -304,7 +315,7 @@ def plot_P_atK_vs_R_atK(lipreader_precision_at_k_averaged_across_words, filtered
     plt.ylim([0, 1])
     plt.xlabel("Recall at K")
     plt.ylabel("Precision at K")
-    plt.title("P@K vs R@K curve of lipreader on LRW "+lrw_type+", till K=50")
+    plt.title("P@K vs R@K curve of lipreader on LRW "+lrw_type+", till K="+str(K))
     print("Saving P@K vs R@K:", os.path.join(this_assessor_save_dir, this_assessor_model_name+"_P@K_R@K_curve_LRW_"+lrw_type+"_thresh"+str(assessor_threshold)+".png"))
     plt.savefig(os.path.join(this_assessor_save_dir, this_assessor_model_name+"_P@K_vs_R@K_LRW_"+lrw_type+"_thresh"+str(assessor_threshold)+".png"))
     plt.close()
@@ -339,7 +350,10 @@ def plot_lrw_property_image(lrw_property, title="?????????????", cmap='jet', cli
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     # ax.grid()
-    plt.title(title)
+    if filtered_using_assessor:
+        plt.title(title, bbox=dict(facecolor='C1'))
+    else:
+        plt.title(title, bbox=dict(facecolor='C0'))
     if save:
         fig_title = os.path.join(this_assessor_save_dir, this_assessor_model_name+"_lipreader_"+file_name+"_"+lrw_type)
         if filtered_using_assessor:
