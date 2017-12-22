@@ -20,7 +20,8 @@ this_assessor_model_name, this_assessor_save_dir = make_this_assessor_model_name
                                                                                                    use_head_pose, lstm_units_1, use_softmax, use_softmax_ratios,
                                                                                                    individual_dense, lr_dense_fc, lr_softmax_fc,
                                                                                                    last_fc, dense_fc_1, dropout_p1, dense_fc_2, dropout_p2,
-                                                                                                   optimizer_name, adam_lr=adam_lr, adam_lr_decay=adam_lr_decay)
+                                                                                                   optimizer_name, adam_lr=adam_lr, adam_lr_decay=adam_lr_decay,
+                                                                                                   residual_part=residual_part)
 
 # Make the dir if it doesn't exist
 if not os.path.exists(this_assessor_save_dir):
@@ -78,17 +79,19 @@ plot_model(assessor, to_file=os.path.join(this_assessor_save_dir, this_assessor_
 
 train_data_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=train_collect_type, shuffle=shuffle, equal_classes=equal_classes,
                                                       use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
-                                                      grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip, verbose=verbose)
+                                                      grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip, verbose=verbose,
+                                                      use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word)
 
 val_data_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=val_collect_type, shuffle=shuffle, equal_classes=equal_classes,
                                                     use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
-                                                    grayscale_images=grayscale_images, random_crop=False, random_flip=False, verbose=verbose)
+                                                    grayscale_images=grayscale_images, random_crop=False, random_flip=False, verbose=verbose,
+                                                    use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word)
 
 ######################################################
 # CALLBACKS
 ######################################################
 
-lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1), patience=3, verbose=1)
+lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1), patience=5, verbose=1)
 
 early_stopper = EarlyStopping(min_delta=0.001, patience=20)
 
@@ -227,7 +230,7 @@ if residual_finetune:
                                                      use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
                                                      grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip, verbose=verbose)
 
-    val_data_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=val_collect_type, shuffle=shuffle, equal_classes=equal_classes,
+    test_data_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=val_collect_type, shuffle=shuffle, equal_classes=equal_classes,
                                                    use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
                                                    grayscale_images=grayscale_images, random_crop=False, random_flip=False, verbose=verbose)
 
@@ -244,7 +247,7 @@ if residual_finetune:
                                # callbacks=[lr_reducer, early_stopper, checkpointAndMakePlots],
                                callbacks=[lr_reducer, checkpointAndMakePlots],
                                # callbacks=[checkpointAndMakePlots],
-                               validation_data=val_data_generator,
+                               validation_data=test_data_generator,
                                validation_steps=val_steps_per_epoch,
                                # validation_steps=1,
                                class_weight=class_weight,

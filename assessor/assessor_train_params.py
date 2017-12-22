@@ -33,13 +33,16 @@ val_collect_type = "test"
 
 # Training
 shuffle = True
-equal_classes = True
+equal_classes = False
+
 grayscale_images=True
 random_crop = True
 random_flip = True
 verbose = False
 use_softmax = True
 use_softmax_ratios = False
+use_LRW_train=True
+train_samples_per_word=50
 
 # Assessor
 mouth_nn = 'syncnet_preds'
@@ -85,7 +88,7 @@ if mouth_nn == 'syncnet':
     mouth_features_dim = 128
 elif mouth_nn == 'syncnet_preds':
     # Params
-    use_head_pose = True
+    use_head_pose = False
     lstm_units_1 = 8
     individual_dense = True
     lr_dense_fc = 8
@@ -117,7 +120,7 @@ loss = 'binary_crossentropy'
 
 # Train
 train_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=train_collect_type, collect_by='sample')
-train_steps_per_epoch = len(train_lrw_word_set_num_txt_file_names) // batch_size
+train_steps_per_epoch = (train_samples_per_word*500 + len(train_lrw_word_set_num_txt_file_names)) // batch_size
 # train_steps_per_epoch = train_steps_per_epoch // 8     # Set less value so as not to take too much time computing on full train set
 
 n_epochs = 1000
@@ -157,7 +160,7 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
                                                     individual_dense, lr_dense_fc, lr_softmax_fc,
                                                     last_fc, dense_fc_1, dropout_p1, dense_fc_2, dropout_p2,
                                                     optimizer_name, adam_lr=1e-3, adam_lr_decay=1e-3,
-                                                    finetune=False):
+                                                    residual_part=False, finetune=False):
     # THIS MODEL NAME
     this_assessor_model_name = str(experiment_number) + "_assessor"
 
@@ -209,6 +212,9 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
         this_assessor_model_name += "_1fc" + str(dense_fc_1) + "_bn_dp" + str(dropout_p1) + "_2fc" + str(dense_fc_2) + "_bn_dp" + str(dropout_p2)
     else:
         this_assessor_model_name += "_" + last_fc
+
+    if residual_part:
+        this_assessor_model_name += "_residual"
 
     this_assessor_model_name += "_" + optimizer_name
     if optimizer_name == 'adam':
