@@ -5,9 +5,11 @@ from assessor_functions import *
 lrw_n_of_frames_per_sample_val = np.array(load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='val', collect_by='sample'))
 lrw_n_of_frames_per_sample_test = np.array(load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='test', collect_by='sample'))
 
+lrw_lipreader_dense_train, lrw_lipreader_softmax_train, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type='train')
 lrw_lipreader_dense_val, lrw_lipreader_softmax_val, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type='val')
 lrw_lipreader_dense_test, lrw_lipreader_softmax_test, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type='test')
 
+lrw_lipreader_correct_or_wrong_train = np.argmax(lrw_lipreader_softmax_train, axis=1) == lrw_correct_one_hot_y_arg
 lrw_lipreader_correct_or_wrong_val = np.argmax(lrw_lipreader_softmax_val, axis=1) == lrw_correct_one_hot_y_arg
 lrw_lipreader_correct_or_wrong_test = np.argmax(lrw_lipreader_softmax_test, axis=1) == lrw_correct_one_hot_y_arg
 
@@ -91,23 +93,29 @@ def calc_softmax_ratios(lrw_lipreader_softmax):
     lrw_lipreader_softmax_sorted_ratios = lrw_lipreader_softmax_sorted_ratios / np.reshape(np.sum(lrw_lipreader_softmax_sorted_ratios, axis=1), (len(lrw_lipreader_softmax_sorted_ratios), 1))
     return lrw_lipreader_softmax_sorted_ratios
 
+lrw_lipreader_softmax_train_sorted_ratios = calc_softmax_ratios(lrw_lipreader_softmax_train)
 lrw_lipreader_softmax_val_sorted_ratios = calc_softmax_ratios(lrw_lipreader_softmax_val)
 lrw_lipreader_softmax_test_sorted_ratios = calc_softmax_ratios(lrw_lipreader_softmax_test)
 
+lrw_lipreader_softmax_train_sorted_ratios = np.array(lrw_lipreader_softmax_train_sorted_ratios*100, dtype=int) / 100.
 lrw_lipreader_softmax_val_sorted_ratios = np.array(lrw_lipreader_softmax_val_sorted_ratios*100, dtype=int) / 100.
 lrw_lipreader_softmax_test_sorted_ratios = np.array(lrw_lipreader_softmax_test_sorted_ratios*100, dtype=int) / 100.
 
 range_of_softmax_ratios = np.arange(0, 1.01, .01)
 
 # 1st ratio
+n_of_softmax_ratios_1_train, n_of_correct_in_softmax_ratios_1_train = eval(range_of_softmax_ratios, lrw_lipreader_softmax_train_sorted_ratios[:, 0], lrw_lipreader_correct_or_wrong_train)
 n_of_softmax_ratios_1_val, n_of_correct_in_softmax_ratios_1_val = eval(range_of_softmax_ratios, lrw_lipreader_softmax_val_sorted_ratios[:, 0], lrw_lipreader_correct_or_wrong_val)
 n_of_softmax_ratios_1_test, n_of_correct_in_softmax_ratios_1_test = eval(range_of_softmax_ratios, lrw_lipreader_softmax_test_sorted_ratios[:, 0], lrw_lipreader_correct_or_wrong_test)
+plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_1_train, n_of_correct_in_softmax_ratios_1_train, collect_type="train", x_label="Softmax Ratio 1")
 plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_1_val, n_of_correct_in_softmax_ratios_1_val, collect_type="val", x_label="Softmax Ratio 1")
 plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_1_test, n_of_correct_in_softmax_ratios_1_test, collect_type="test", x_label="Softmax Ratio 1")
 
 # 2nd ratio
+n_of_softmax_ratios_2_train, n_of_correct_in_softmax_ratios_2_train = eval(range_of_softmax_ratios, lrw_lipreader_softmax_train_sorted_ratios[:, 1], lrw_lipreader_correct_or_wrong_train)
 n_of_softmax_ratios_2_val, n_of_correct_in_softmax_ratios_2_val = eval(range_of_softmax_ratios, lrw_lipreader_softmax_val_sorted_ratios[:, 1], lrw_lipreader_correct_or_wrong_val)
 n_of_softmax_ratios_2_test, n_of_correct_in_softmax_ratios_2_test = eval(range_of_softmax_ratios, lrw_lipreader_softmax_test_sorted_ratios[:, 1], lrw_lipreader_correct_or_wrong_test)
+plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_2_train, n_of_correct_in_softmax_ratios_2_train, collect_type="train", x_label="Softmax Ratio 2")
 plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_2_val, n_of_correct_in_softmax_ratios_2_val, collect_type="val", x_label="Softmax Ratio 2")
 plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_2_test, n_of_correct_in_softmax_ratios_2_test, collect_type="test", x_label="Softmax Ratio 2")
 
@@ -117,5 +125,6 @@ n_of_softmax_ratios_3_test, n_of_correct_in_softmax_ratios_3_test = eval(range_o
 plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_3_val, n_of_correct_in_softmax_ratios_3_val, collect_type="val", x_label="Softmax Ratio 3")
 plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_3_test, n_of_correct_in_softmax_ratios_3_test, collect_type="test", x_label="Softmax Ratio 3")
 
+np.save('LRW_train_lipreader_softmax_ratios', lrw_lipreader_softmax_train_sorted_ratios[:, :2])
 np.save('LRW_val_lipreader_softmax_ratios', lrw_lipreader_softmax_val_sorted_ratios[:, :2])
 np.save('LRW_test_lipreader_softmax_ratios', lrw_lipreader_softmax_test_sorted_ratios[:, :2])
