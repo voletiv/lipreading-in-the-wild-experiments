@@ -114,3 +114,7 @@ head_pose_*.npy
 
 # Abhishek's
 image-retrieval/saved_model_weights_staf*/
+
+# Big pkls
+*LDA*.pkl
+*QDA*.pkl
