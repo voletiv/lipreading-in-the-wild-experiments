@@ -51,3 +51,11 @@
 - With trainable residual
 
 43
+
+- Added 50 samples per word from LRW_train
+
+44
+
+- "equal_classes" deactivated
+
+45
