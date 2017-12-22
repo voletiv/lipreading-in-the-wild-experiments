@@ -16,7 +16,8 @@ from assessor_params import *
 
 def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect_type="val", shuffle=True, equal_classes=False,
                                    use_CNN_LSTM=True, mouth_nn='cnn', grayscale_images=False, random_crop=True, random_flip=False, use_head_pose=True,
-                                   use_softmax=True, use_softmax_ratios=True, verbose=False, skip_batches=0, get_last_smaller_batch=False):
+                                   use_softmax=True, use_softmax_ratios=True, verbose=False, skip_batches=0, get_last_smaller_batch=False,
+                                   use_LRW_train=True, train_samples_per_word=50):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
@@ -28,29 +29,82 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
 
     if use_CNN_LSTM:
         # Read lrw_word_set_num_file_names, to read images
+        print("Loading LRW", collect_type, "lrw_word_set_num_file_names...")
         lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=collect_type, collect_by='sample')
+        if use_LRW_train and collect_type == 'val':
+            print("Loading LRW train lrw_word_set_num_file_names...")
+            lrw_word_set_num_txt_file_names_train_full = read_lrw_word_set_num_file_names(collect_type='train', collect_by='vocab_word')
+            lrw_word_set_num_txt_file_names_train = []
+            for w in range(500):
+                for i in range(train_samples_per_word):
+                    lrw_word_set_num_txt_file_names_train.append(lrw_word_set_num_txt_file_names_train_full[w][i])
+            lrw_word_set_num_txt_file_names = lrw_word_set_num_txt_file_names_train + lrw_word_set_num_txt_file_names
 
         # Read start_frames_per_sample
+        print("Loading LRW", collect_type, "start_frames_per_sample...")
         lrw_start_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=START_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
+        if use_LRW_train and collect_type == 'val':
+            print("Loading LRW train start_frames_per_sample...")
+            lrw_start_frames_per_sample_train_full = load_array_of_var_per_sample_from_csv(csv_file_name=START_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='train', collect_by='vocab_word')
+            lrw_start_frames_per_sample_train = []
+            for w in range(500):
+                for i in range(train_samples_per_word):
+                    lrw_start_frames_per_sample_train.append(lrw_start_frames_per_sample_train_full[w][i])
+            lrw_start_frames_per_sample = lrw_start_frames_per_sample_train + lrw_start_frames_per_sample
 
         if mouth_nn == 'syncnet_preds':
+            print("Loading LRW", collect_type, "syncnet_preds...")
             lrw_syncnet_preds = load_syncnet_preds(collect_type=collect_type)
+            if use_LRW_train and collect_type == 'val':
+                print("Loading LRW train syncnet_preds...")
+                lrw_syncnet_preds_train = load_syncnet_preds(collect_type='train')
+                lrw_syncnet_preds = np.vstack((lrw_syncnet_preds_train, lrw_syncnet_preds))
 
         if use_head_pose:
             # Read head_poses_per_sample
+            print("Loading LRW", collect_type, "head_poses_per_sample...")
             lrw_head_poses_per_sample = read_head_poses(collect_type=collect_type, collect_by='sample')
+            if use_LRW_train and collect_type == 'val':
+                print("Loading LRW train head_poses_per_sample...")
+                lrw_head_poses_per_sample_full = read_lrw_word_set_num_file_names(collect_type='train', collect_by='vocab_word')
+                lrw_head_poses_per_sample_train = []
+                for w in range(500):
+                    for i in range(train_samples_per_word):
+                        lrw_head_poses_per_sample_train.append(lrw_head_poses_per_sample_full[w][i])
+                lrw_head_poses_per_sample = lrw_head_poses_per_sample_train + lrw_head_poses_per_sample
 
     # Read n_of_frames_per_sample
+    print("Loading LRW", collect_type, "n_of_frames_per_sample...")
     lrw_n_of_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
+    if use_LRW_train and collect_type == 'val':
+        print("Loading LRW train n_of_frames_per_sample...")
+        lrw_n_of_frames_per_sample_train_full = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='train', collect_by='vocab_word')
+        lrw_n_of_frames_per_sample_train = []
+        for w in range(500):
+            for i in range(train_samples_per_word):
+                lrw_n_of_frames_per_sample_train.append(lrw_n_of_frames_per_sample_train_full[w][i])
+        lrw_n_of_frames_per_sample = lrw_n_of_frames_per_sample_train + lrw_n_of_frames_per_sample
 
     # Read dense, softmax, one_hot_y
+    print("Loading LRW", collect_type, "dense, softmax, one_hot_y...")
     lrw_lipreader_dense, lrw_lipreader_softmax, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type=collect_type)
+    if use_LRW_train and collect_type == 'val':
+        print("Loading LRW train dense, softmax, one_hot_y...")
+        lrw_lipreader_dense_train, lrw_lipreader_softmax_train, lrw_correct_one_hot_y_arg_train = load_dense_softmax_y(collect_type='train')
+        lrw_lipreader_dense = np.vstack((lrw_lipreader_dense_train, lrw_lipreader_dense))
+        lrw_lipreader_softmax = np.vstack((lrw_lipreader_softmax_train, lrw_lipreader_softmax))
+        lrw_correct_one_hot_y_arg = np.append(lrw_correct_one_hot_y_arg_train, lrw_correct_one_hot_y_arg)
 
     # Lipreader correct (True) or wrong (False)
     lrw_lipreader_correct_or_wrong = np.argmax(lrw_lipreader_softmax, axis=1) == lrw_correct_one_hot_y_arg
 
     if use_softmax_ratios:
+        print("Loading LRW", collect_type, "use_softmax_ratios...")
         lrw_lipreader_softmax_ratios = load_softmax_ratios(collect_type=collect_type)
+        if use_LRW_train and collect_type == 'val':
+            print("Loading LRW train use_softmax_ratios...")
+            lrw_lipreader_softmax_ratios_train = load_softmax_ratios(collect_type='train')
+            lrw_lipreader_softmax_ratios = np.vstack((lrw_lipreader_softmax_ratios, lrw_lipreader_softmax_ratios_train))
 
     print("Loaded.")
 
@@ -450,8 +504,8 @@ def load_dense_softmax_y(collect_type):
     lrw_lipreader_dense_softmax_y = np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_dense_softmax_y.npz'))
     lrw_lipreader_dense = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_dense']
     lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_softmax']
-    lrw_one_hot_y_rg = lrw_lipreader_dense_softmax_y['lrw_correct_one_hot_arg']
-    return lrw_lipreader_dense, lrw_lipreader_softmax, lrw_one_hot_y_rg
+    lrw_one_hot_y_arg = lrw_lipreader_dense_softmax_y['lrw_correct_one_hot_arg']
+    return lrw_lipreader_dense, lrw_lipreader_softmax, lrw_one_hot_y_arg
 
 
 #############################################################
