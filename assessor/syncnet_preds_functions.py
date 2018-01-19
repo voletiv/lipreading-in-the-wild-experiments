@@ -68,10 +68,15 @@ def generate_syncnet_pred_data_batches(batch_size=64, data_dir=".", collect_type
         lrw_n_of_frames_per_sample = [lrw_n_of_frames_per_sample[i] for i in samples_idx]
 
     # Read dense, softmax, one_hot_y
-    # lrw_lipreader_dense, lrw_lipreader_softmax, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type=collect_type)
-    lrw_lipreader_dense = np.zeros((488766, 500))
-    lrw_lipreader_softmax = np.zeros((488766, 500))
-    lrw_correct_one_hot_y_arg = np.zeros((488766))
+    if collect_type != 'train':
+        if verbose:
+            print("Loading LRW", collect_type, "dense, softmax, y")
+        lrw_lipreader_dense, lrw_lipreader_softmax, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type=collect_type)
+    else:
+        lrw_lipreader_dense = np.zeros((488766, 500))
+        lrw_lipreader_softmax = np.zeros((488766, 500))
+        lrw_correct_one_hot_y_arg = np.zeros((488766))
+
     if samples_per_word is not None:
         lrw_lipreader_dense = lrw_lipreader_dense[samples_idx]
         lrw_lipreader_softmax = lrw_lipreader_softmax[samples_idx]
@@ -229,8 +234,17 @@ def generate_syncnet_pred_data_batches(batch_size=64, data_dir=".", collect_type
                             print("Sample", sample_idx_within_batch+1, "of", batch_size)
 
                         # Word frame numbers
-                        word_frame_numbers = range(batch_start_frames_per_sample[sample_idx_within_batch],
-                                                   batch_start_frames_per_sample[sample_idx_within_batch] + batch_n_of_frames_per_sample[sample_idx_within_batch])
+                        if mouth_nn == 'syncnet':
+                            word_frame_numbers = list(range(batch_start_frames_per_sample[sample_idx_within_batch] - 2,
+                                                            batch_start_frames_per_sample[sample_idx_within_batch] + batch_n_of_frames_per_sample[sample_idx_within_batch] + 2))
+                        else:
+                            word_frame_numbers = list(range(batch_start_frames_per_sample[sample_idx_within_batch],
+                                                            batch_start_frames_per_sample[sample_idx_within_batch] + batch_n_of_frames_per_sample[sample_idx_within_batch]))
+
+                        if verbose:
+                            print("Frame numbers:", word_frame_numbers)
+                            if mouth_nn == 'syncnet':
+                                print("EXCLUDING first 2 and last 2")
 
                         # For each frame in mouth images
                         frame_0_start_index = -1
@@ -246,6 +260,11 @@ def generate_syncnet_pred_data_batches(batch_size=64, data_dir=".", collect_type
 
                                 # Increment frame count, for saving at right index
                                 frame_0_start_index += 1
+
+                                # Don't increment frame count in case it's the 2 extra frames before and after actual frames of word
+                                if mouth_nn == 'syncnet':
+                                    if frame_number in [word_frame_numbers[0], word_frame_numbers[1], word_frame_numbers[-1], word_frame_numbers[-2]]:
+                                        frame_0_start_index -= 1
 
                                 if verbose:
                                     print(jpg_name)
@@ -294,15 +313,26 @@ def generate_syncnet_pred_data_batches(batch_size=64, data_dir=".", collect_type
                                 if mouth_nn == 'syncnet':
                                     # Add this image in reverse order into X
                                     # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
-                                    batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1][:, :, 2] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                    if frame_0_start_index - 1 >= 0:
-                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 1][:, :, 1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                    if frame_0_start_index - 2 >= 0:
-                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 2][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                    if frame_0_start_index + 1 < TIME_STEPS:
-                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 1][:, :, 3] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                    if frame_0_start_index + 2 < TIME_STEPS:
-                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 2][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    if frame_number == word_frame_numbers[0]:
+                                        batch_mouth_images[sample_idx_within_batch][-1][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    elif frame_number == word_frame_numbers[1]:
+                                        batch_mouth_images[sample_idx_within_batch][-1][:, :, 1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        batch_mouth_images[sample_idx_within_batch][-2][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    elif frame_number == word_frame_numbers[-1]:
+                                        batch_mouth_images[sample_idx_within_batch][-batch_n_of_frames_per_sample[sample_idx_within_batch]][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    elif frame_number == word_frame_numbers[-2]:
+                                        batch_mouth_images[sample_idx_within_batch][-batch_n_of_frames_per_sample[sample_idx_within_batch]][:, :, 3] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        batch_mouth_images[sample_idx_within_batch][-batch_n_of_frames_per_sample[sample_idx_within_batch]+1][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    else:
+                                        batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1][:, :, 2] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        if frame_0_start_index - 1 >= 0:
+                                            batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 1][:, :, 3] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        if frame_0_start_index - 2 >= 0:
+                                            batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 2][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        if frame_0_start_index + 1 < TIME_STEPS:
+                                            batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 1][:, :, 1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        if frame_0_start_index + 2 < TIME_STEPS:
+                                            batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 2][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
 
                                 else:
                                     # Add this image in reverse order into X
