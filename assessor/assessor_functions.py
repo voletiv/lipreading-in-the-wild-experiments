@@ -17,7 +17,7 @@ from assessor_params import *
 def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect_type="val", shuffle=True, equal_classes=False,
                                    use_CNN_LSTM=True, mouth_nn='cnn', grayscale_images=False, random_crop=True, random_flip=False, use_head_pose=True,
                                    use_softmax=True, use_softmax_ratios=True, verbose=False, skip_batches=0, get_last_smaller_batch=False,
-                                   use_LRW_train=True, train_samples_per_word=50):
+                                   use_LRW_train=True, train_samples_per_word=200):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
@@ -455,6 +455,8 @@ def read_lrw_word_set_num_file_names(collect_type="train", collect_by='sample'):
             return read_txt_file_as_list_per_vocab_word(os.path.join(LRW_ASSESSOR_DIR, 'lrw_word_set_num_txt_file_names_val.txt'))
         else:
             return read_txt_file_as_list_per_vocab_word(os.path.join(LRW_ASSESSOR_DIR, 'lrw_word_set_num_txt_file_names.txt'))
+    else:
+        print("ERROR: Please specify 'collect_by' among 'sample' and 'vocab_word'; got:", collect_by)
 
 
 def write_list_as_txt_file(file_name, the_list):

@@ -77,12 +77,19 @@ def make_and_evaluate_assessor(X_train, y_train, X_test, y_test, LRW_val_X, LRW_
     # assessor_threshold = 0.65
 
     print("Evaluating classifier...")
+
     # Evaluate
+
+    if len(pred_LRW_val) > 500*50:
+        pred_LRW_val = pred_LRW_val[-500*50:]
+        lipreader_lrw_val_softmax = lipreader_lrw_val_softmax[-500*50:]
+        lrw_correct_one_hot_y_arg_val = lrw_correct_one_hot_y_arg_val[-500*50:]
+
     evaluate_assessor(lrw_val_assessor_preds=pred_LRW_val,
                       lrw_test_assessor_preds=pred_LRW_test,
                       assessor=assessor,
                       assessor_save_dir=SAVE_DIR,
-                      assessor_threshold=assessor_threshold,
+                      assessor_threshold=0.7,
                       lipreader_lrw_val_softmax=lipreader_lrw_val_softmax,
                       lipreader_lrw_test_softmax=lipreader_lrw_test_softmax,
                       lrw_correct_one_hot_y_arg_val=lrw_correct_one_hot_y_arg_val,
@@ -94,7 +101,7 @@ def make_and_evaluate_assessor(X_train, y_train, X_test, y_test, LRW_val_X, LRW_
 #####################################
 
 
-def get_lrw_data(use_syncnet_preds=True, use_pca=False, use_dense=True, use_softmax=True, use_softmax_ratios=True, mix=None, use_LRW_train=False, samples_per_word=50):
+def get_lrw_data(use_syncnet_preds=True, use_pca=False, use_dense=True, use_softmax=True, use_softmax_ratios=True, mix=None, use_LRW_train=False, train_samples_per_word=200):
 
     # Number of frames
     lrw_val_n_of_frames = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='val', collect_by='sample')
@@ -103,7 +110,7 @@ def get_lrw_data(use_syncnet_preds=True, use_pca=False, use_dense=True, use_soft
         lrw_train_n_of_frames_by_word = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='train', collect_by='vocab_word')
         lrw_train_n_of_frames = []
         for w in range(500):
-            for i in range(samples_per_word):
+            for i in range(train_samples_per_word):
                 lrw_train_n_of_frames.append(lrw_train_n_of_frames_by_word[w][i])
 
     if use_syncnet_preds:
@@ -132,7 +139,9 @@ def get_lrw_data(use_syncnet_preds=True, use_pca=False, use_dense=True, use_soft
     lipreader_lrw_val_dense, lipreader_lrw_val_softmax, lrw_correct_one_hot_y_arg_val = load_dense_softmax_y(collect_type="val")
     lipreader_lrw_test_dense, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg_test = load_dense_softmax_y(collect_type="test")
     if use_LRW_train:
+        print("Loading lipreader_lrw_train_dense_softmax_y...")
         lipreader_lrw_train_dense, lipreader_lrw_train_softmax, lrw_correct_one_hot_y_arg_train = load_dense_softmax_y(collect_type="train")
+        print("Loaded")
 
     lipreader_lrw_val_correct_or_wrong = np.argmax(lipreader_lrw_val_softmax, axis=1) == lrw_correct_one_hot_y_arg_val
     lipreader_lrw_test_correct_or_wrong = np.argmax(lipreader_lrw_test_softmax, axis=1) == lrw_correct_one_hot_y_arg_test

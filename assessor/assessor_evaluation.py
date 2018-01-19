@@ -22,15 +22,23 @@ def load_preds_for_CNN_assessor(experiment_number, assessor=None, load_best_or_l
 
 
 def evaluate_assessor(lrw_val_assessor_preds=None, lrw_test_assessor_preds=None, assessor='CNN',
-                      assessor_save_dir='/shared/fusor/home/voleti.vikram/ASSESSORS/GBT_full_testSplit0.1/', assessor_threshold=0.5,
+                      # assessor_save_dir='/shared/fusor/home/voleti.vikram/ASSESSORS/GBT_full_testSplit0.1/',
+                      assessor_save_dir=None, experiment_number=None, assessor_threshold=0.5,
                       lipreader_lrw_val_softmax=None, lipreader_lrw_test_softmax=None,
                       lrw_correct_one_hot_y_arg_val=None, lrw_correct_one_hot_y_arg_test=None):
 
     # lrw_assessor_preds is an nx1 probability
+    if assessor_save_dir is None and experiment_number is None:
+        print("Please provide assessor_save_dir or experiment_number!! (Preferably assessor_save_dir)")
+        return
+
+    if assessor_save_dir is not None:
+        define_assessor_save_dir_and_model_name(assessor_save_dir)
+    elif assessor == 'CNN':
+        define_CNN_assessor_save_dir_and_model_name(experiment_number)
 
     # In case of GBT, SVM, RF, etc.
     if assessor != 'CNN':
-        define_assessor_save_dir_and_model_name(assessor_save_dir)
         if lrw_val_assessor_preds is None or lrw_test_assessor_preds is None:
             try:
                 lrw_assessor_preds = np.load(os.path.join(this_assessor_save_dir, this_assessor_model_name+".pkl"))
@@ -44,11 +52,11 @@ def evaluate_assessor(lrw_val_assessor_preds=None, lrw_test_assessor_preds=None,
     if lipreader_lrw_val_softmax is None or lipreader_lrw_test_softmax is None or lrw_correct_one_hot_y_arg_val is None or lrw_correct_one_hot_y_arg_test is None:
         print("Loading softmax, correct_one_hot_y_arg...")
         try:
-            _, lipreader_lrw_train_softmax, lrw_correct_one_hot_y_arg_train = load_dense_softmax_y(collect_type="train")
+            # _, lipreader_lrw_train_softmax, lrw_correct_one_hot_y_arg_train = load_dense_softmax_y(collect_type="train")
             _, lipreader_lrw_val_softmax, lrw_correct_one_hot_y_arg_val = load_dense_softmax_y(collect_type="val")
             _, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg_test = load_dense_softmax_y(collect_type="test")
-            lipreader_lrw_val_softmax = np.vstack((lipreader_lrw_train_softmax, lipreader_lrw_val_softmax))
-            lrw_correct_one_hot_y_arg_val = np.append(lrw_correct_one_hot_y_arg_train, lrw_correct_one_hot_y_arg_val)
+            # lipreader_lrw_val_softmax = np.vstack((lipreader_lrw_train_softmax, lipreader_lrw_val_softmax))
+            # lrw_correct_one_hot_y_arg_val = np.append(lrw_correct_one_hot_y_arg_train, lrw_correct_one_hot_y_arg_val)
         except OSError as err:
             print(err)
             return

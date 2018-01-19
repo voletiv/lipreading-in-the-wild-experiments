@@ -27,7 +27,7 @@ y = np.append(y_train, y_test)
 
 X_train, y_train, X_test, y_test, lipreader_lrw_val_softmax, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg_val, lrw_correct_one_hot_y_arg_test = get_lrw_data()
 
-name = "linearSVM_defaultData"
+name = "linearSVM_correctSyncnet_woLRWtrain"
 assessor = 'linearSVM'
 assessor_threshold = 0.5
 
@@ -193,20 +193,48 @@ make_and_evaluate_assessor(X_train, y_train, X_test, y_test, X_train, X_test,
 #####################################
 
 # 100
-name = "RF_withSyncnetPreds_testFirst0.1_estimators100"
+name = "RF_withCorrectSyncnet_withoutLRWtrain_estimators100"
 assessor = 'RF'
 assessor_threshold = 0.5
 
-test_size = 0.5
+# test_size = 0.5
 n_estimators = 100
 random_state = 0
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+
+# X_train, y_train, X_test, y_test, lipreader_lrw_val_softmax, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg_val, lrw_correct_one_hot_y_arg_test = get_lrw_data(use_LRW_train=True, samples_per_word=200)
+X_train, y_train, X_test, y_test, lipreader_lrw_val_softmax, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg_val, lrw_correct_one_hot_y_arg_test = get_lrw_data()
+LRW_val_X, LRW_test_X = X_train, X_test
 
 make_and_evaluate_assessor(X_train, y_train, X_test, y_test, LRW_val_X, LRW_test_X,
-                           lipreader_lrw_val_softmax, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg,
+                           lipreader_lrw_val_softmax, lipreader_lrw_test_softmax,
+                           lrw_correct_one_hot_y_arg_val, lrw_correct_one_hot_y_arg_test,
                            name=name, assessor=assessor, assessor_threshold=assessor_threshold,
                            n_estimators=n_estimators, random_state=random_state)
+
+
+# 100
+name = "RF_withCorrectSyncnet_withoutLRWtrain_usingSyncnetPredsAndSoftmax_estimators100"
+assessor = 'RF'
+assessor_threshold = 0.5
+
+# test_size = 0.5
+n_estimators = 100
+random_state = 0
+
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+
+# X_train, y_train, X_test, y_test, lipreader_lrw_val_softmax, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg_val, lrw_correct_one_hot_y_arg_test = get_lrw_data(use_LRW_train=True, samples_per_word=200)
+X_train, y_train, X_test, y_test, lipreader_lrw_val_softmax, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg_val, lrw_correct_one_hot_y_arg_test = get_lrw_data(use_dense=False, use_softmax=True, use_softmax_ratios=True)
+LRW_val_X, LRW_test_X = X_train, X_test
+
+make_and_evaluate_assessor(X_train, y_train, X_test, y_test, LRW_val_X, LRW_test_X,
+                           lipreader_lrw_val_softmax, lipreader_lrw_test_softmax,
+                           lrw_correct_one_hot_y_arg_val, lrw_correct_one_hot_y_arg_test,
+                           name=name, assessor=assessor, assessor_threshold=assessor_threshold,
+                           n_estimators=n_estimators, random_state=random_state)
+
 
 # 100
 name = "RF_withSyncnetPreds_defaultTrainTest_estimators100"

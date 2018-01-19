@@ -26,14 +26,15 @@ batch_size = 128
 data_dir = LRW_DATA_DIR
 
 # Train
-train_collect_type = "val"
+train_collect_type = "val" # set use_LRW_train to also use LRW_train
 
 # Val
 val_collect_type = "test"
 
 # Training
 shuffle = True
-equal_classes = False
+equal_classes = True
+use_tanh_not_sigmoid = True
 
 grayscale_images=True
 random_crop = True
@@ -41,8 +42,8 @@ random_flip = True
 verbose = False
 use_softmax = True
 use_softmax_ratios = False
-use_LRW_train=True
-train_samples_per_word=50
+use_LRW_train=False
+train_samples_per_word=200
 
 # Assessor
 mouth_nn = 'syncnet_preds'
@@ -88,25 +89,46 @@ if mouth_nn == 'syncnet':
     mouth_features_dim = 128
 elif mouth_nn == 'syncnet_preds':
     # Params
-    use_head_pose = False
-    lstm_units_1 = 8
+    contrastive = False
+    contrastive_dense_fc_1 = 128
+    contrastive_dropout_p1 = 0.2
+    use_head_pose = True
+    lstm_units_1 = 256
     individual_dense = True
-    lr_dense_fc = 8
+    lr_dense_fc = 128
     use_softmax = True
-    lr_softmax_fc = 8
+    lr_softmax_fc = 64
     use_softmax_ratios = True
-    dense_fc_1 = 8
-    dropout_p1 = 0.5
-    dense_fc_2 = 4
-    dropout_p2 = 0.5
-    residual_part=True
+    dense_fc_1 = 256
+    dropout_p1 = 0.2
+    dense_fc_2 = 128
+    dropout_p2 = 0.2
+    residual_part=False
     res_fc_1=4
     res_fc_2=4
     # Constants
+    syncnet_lstm_preds_dim = 64
     grayscale_images = True
     use_CNN_LSTM = True
     mouth_features_dim = 128
     trainable_syncnet = False
+# elif mouth_nn == 'syncnet_lstm_preds':
+#     # Params
+#     individual_dense = True
+#     lr_dense_fc = 128
+#     use_softmax = True
+#     lr_softmax_fc = 64
+#     use_softmax_ratios = True
+#     contrastive_dense_fc_1 = 128
+#     contrastive_dropout_p1 = 0.2
+#     # Constants
+#     contrastive = True
+#     syncnet_lstm_preds_dim = 64
+#     grayscale_images = True
+#     use_CNN_LSTM = True
+#     mouth_features_dim = 128
+#     trainable_syncnet = False
+
 
 # Use Resnet in the last layer
 # last_fc = 'resnet152'
@@ -115,20 +137,26 @@ last_fc = None
 # Compile
 optimizer_name = 'adam'
 adam_lr = 1e-3
-adam_lr_decay = 0
-loss = 'binary_crossentropy'
+adam_lr_decay = 1e-7
+if contrastive:
+    loss = 'contrastive_loss'
+else:
+    loss = 'binary_crossentropy'
 
 # Train
 train_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=train_collect_type, collect_by='sample')
-train_steps_per_epoch = (train_samples_per_word*500 + len(train_lrw_word_set_num_txt_file_names)) // batch_size
+if use_LRW_train:
+    train_steps_per_epoch = (train_samples_per_word*500 + len(train_lrw_word_set_num_txt_file_names)) // batch_size
+else:
+    train_steps_per_epoch = len(train_lrw_word_set_num_txt_file_names) // batch_size
 # train_steps_per_epoch = train_steps_per_epoch // 8     # Set less value so as not to take too much time computing on full train set
 
 n_epochs = 1000
 
 # Val
 val_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=val_collect_type, collect_by='sample')
-# val_steps_per_epoch = len(val_lrw_word_set_num_txt_file_names) // batch_size
-val_steps_per_epoch = train_steps_per_epoch     # Set less value so as not to take too much time computing on full val set
+val_steps_per_epoch = len(val_lrw_word_set_num_txt_file_names) // batch_size
+# val_steps_per_epoch = train_steps_per_epoch     # Set less value so as not to take too much time computing on full val set
 
 # Class weights
 # The lipreader is correct 70% of the time
@@ -159,6 +187,8 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
                                                     use_head_pose, lstm_units_1, use_softmax, use_softmax_ratios,
                                                     individual_dense, lr_dense_fc, lr_softmax_fc,
                                                     last_fc, dense_fc_1, dropout_p1, dense_fc_2, dropout_p2,
+                                                    syncnet_lstm_preds_dim, contrastive, contrastive_dense_fc_1, contrastive_dropout_p1,
+                                                    use_tanh_not_sigmoid,
                                                     optimizer_name, adam_lr=1e-3, adam_lr_decay=1e-3,
                                                     residual_part=False, finetune=False):
     # THIS MODEL NAME
@@ -179,6 +209,8 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
                 this_assessor_model_name += "Untrainable"
         elif mouth_nn == 'syncnet_preds':
             this_assessor_model_name += "_syncnetPreds"
+        elif mouth_nn == 'syncnet_lstm_preds':
+            this_assessor_model_name += "_syncnetLSTMPreds" + str(syncnet_lstm_preds_dim)
 
         else:
             if grayscale_images:
@@ -192,10 +224,13 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
             elif 'resnet' in mouth_nn:
                 this_assessor_model_name += "_mouth" + str(mouth_features_dim)
 
-        if use_head_pose:
+        if use_head_pose and mouth_nn != 'syncnet_lstm_preds':
             this_assessor_model_name += "_headPose"
 
-        this_assessor_model_name += "_lstm" + str(lstm_units_1) + "_nOfFrames_LRdense"
+        if mouth_nn != 'syncnet_lstm_preds':
+            this_assessor_model_name += "_lstm" + str(lstm_units_1) + "_nOfFrames"
+
+    this_assessor_model_name += "_LRdense"
 
     if individual_dense:
         this_assessor_model_name += "_fc" + str(lr_dense_fc)
@@ -208,13 +243,19 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
     if use_softmax_ratios:
         this_assessor_model_name += "_LRsoftmaxRatios"
 
-    if last_fc == None:
-        this_assessor_model_name += "_1fc" + str(dense_fc_1) + "_bn_dp" + str(dropout_p1) + "_2fc" + str(dense_fc_2) + "_bn_dp" + str(dropout_p2)
+    if contrastive:
+        this_assessor_model_name += "_1fc" + str(contrastive_dense_fc_1) + "_bn_dp" + str(contrastive_dropout_p1) + "_1fc" + str(syncnet_lstm_preds_dim) + "_distance_contrastiveLoss"
     else:
-        this_assessor_model_name += "_" + last_fc
+        if last_fc == None:
+            this_assessor_model_name += "_1fc" + str(dense_fc_1) + "_bn_dp" + str(dropout_p1) + "_2fc" + str(dense_fc_2) + "_bn_dp" + str(dropout_p2)
+        else:
+            this_assessor_model_name += "_" + last_fc
 
-    if residual_part:
-        this_assessor_model_name += "_residual"
+        if residual_part:
+            this_assessor_model_name += "_residual"
+
+    if use_tanh_not_sigmoid:
+        this_assessor_model_name += "_tanh_neg_relu"
 
     this_assessor_model_name += "_" + optimizer_name
     if optimizer_name == 'adam':

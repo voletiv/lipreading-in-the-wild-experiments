@@ -2,16 +2,17 @@ import matplotlib.pyplot as plt
 
 from assessor_functions import *
 
+lrw_n_of_frames_per_sample_train = np.array(load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='train', collect_by='sample'))
 lrw_n_of_frames_per_sample_val = np.array(load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='val', collect_by='sample'))
 lrw_n_of_frames_per_sample_test = np.array(load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='test', collect_by='sample'))
 
-lrw_lipreader_dense_train, lrw_lipreader_softmax_train, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type='train')
-lrw_lipreader_dense_val, lrw_lipreader_softmax_val, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type='val')
-lrw_lipreader_dense_test, lrw_lipreader_softmax_test, lrw_correct_one_hot_y_arg = load_dense_softmax_y(collect_type='test')
+lrw_lipreader_dense_train, lrw_lipreader_softmax_train, lrw_correct_one_hot_y_arg_train = load_dense_softmax_y(collect_type='train')
+lrw_lipreader_dense_val, lrw_lipreader_softmax_val, lrw_correct_one_hot_y_arg_val = load_dense_softmax_y(collect_type='val')
+lrw_lipreader_dense_test, lrw_lipreader_softmax_test, lrw_correct_one_hot_y_arg_test = load_dense_softmax_y(collect_type='test')
 
-lrw_lipreader_correct_or_wrong_train = np.argmax(lrw_lipreader_softmax_train, axis=1) == lrw_correct_one_hot_y_arg
-lrw_lipreader_correct_or_wrong_val = np.argmax(lrw_lipreader_softmax_val, axis=1) == lrw_correct_one_hot_y_arg
-lrw_lipreader_correct_or_wrong_test = np.argmax(lrw_lipreader_softmax_test, axis=1) == lrw_correct_one_hot_y_arg
+lrw_lipreader_correct_or_wrong_train = np.argmax(lrw_lipreader_softmax_train, axis=1) == lrw_correct_one_hot_y_arg_train
+lrw_lipreader_correct_or_wrong_val = np.argmax(lrw_lipreader_softmax_val, axis=1) == lrw_correct_one_hot_y_arg_val
+lrw_lipreader_correct_or_wrong_test = np.argmax(lrw_lipreader_softmax_test, axis=1) == lrw_correct_one_hot_y_arg_test
 
 # LIPREADER PREDS vs N OF FRAMES
 
@@ -120,6 +121,7 @@ plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_2_
 plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_2_test, n_of_correct_in_softmax_ratios_2_test, collect_type="test", x_label="Softmax Ratio 2")
 
 # 3rd ratio
+n_of_softmax_ratios_3_train, n_of_correct_in_softmax_ratios_3_train = eval(range_of_softmax_ratios, lrw_lipreader_softmax_train_sorted_ratios[:, 3], lrw_lipreader_correct_or_wrong_train)
 n_of_softmax_ratios_3_val, n_of_correct_in_softmax_ratios_3_val = eval(range_of_softmax_ratios, lrw_lipreader_softmax_val_sorted_ratios[:, 3], lrw_lipreader_correct_or_wrong_val)
 n_of_softmax_ratios_3_test, n_of_correct_in_softmax_ratios_3_test = eval(range_of_softmax_ratios, lrw_lipreader_softmax_test_sorted_ratios[:, 3], lrw_lipreader_correct_or_wrong_test)
 plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_3_val, n_of_correct_in_softmax_ratios_3_val, collect_type="val", x_label="Softmax Ratio 3")
@@ -128,3 +130,43 @@ plot_samples_correct_predictions(range_of_softmax_ratios, n_of_softmax_ratios_3_
 np.save('LRW_train_lipreader_softmax_ratios', lrw_lipreader_softmax_train_sorted_ratios[:, :2])
 np.save('LRW_val_lipreader_softmax_ratios', lrw_lipreader_softmax_val_sorted_ratios[:, :2])
 np.save('LRW_test_lipreader_softmax_ratios', lrw_lipreader_softmax_test_sorted_ratios[:, :2])
+
+
+# LIPREADER PREDS vs WORD
+
+lrw_train_correct_by_word_full = np.zeros((500, 200))
+lrw_train_correct_by_word = np.zeros(500)
+lrw_val_correct_by_word_full = np.zeros((500, 50))
+lrw_val_correct_by_word = np.zeros(500)
+lrw_test_correct_by_word_full = np.zeros((500, 50))
+lrw_test_correct_by_word = np.zeros(500)
+for i in range(500):
+    lrw_train_correct_by_word[i] = np.mean(lrw_lipreader_correct_or_wrong_train[i:i+200])
+    lrw_val_correct_by_word[i] = np.mean(lrw_lipreader_correct_or_wrong_val[i:i+50])
+    lrw_test_correct_by_word[i] = np.mean(lrw_lipreader_correct_or_wrong_test[i:i+50])
+
+plt.bar(np.arange(500), lrw_train_correct_by_word, label="LRW_train")
+plt.bar(np.arange(500), lrw_val_correct_by_word, label="LRW_val", alpha=.7)
+plt.bar(np.arange(500), lrw_test_correct_by_word, label="LRW_test", alpha=.7)
+plt.yticks(np.arange(0, 1.1, .10))
+plt.gca().yaxis.grid(True)
+plt.legend()
+# plt.xticks(np.arange(500), LRW_VOCAB, rotation='vertical', fontsize=6)
+plt.title("Accuracy of lipreader on LRW")
+plt.show()
+
+
+# ABOUT
+c = lrw_lipreader_correct_or_wrong_val
+sm_true = lrw_lipreader_softmax_val_sorted_ratios[c==True]
+sm_false = lrw_lipreader_softmax_val_sorted_ratios[c==False]
+
+maxarg_to_correctarg = np.zeros(500)
+for i, word in enumerate(LRW_VOCAB):
+    maxarg_to_correctarg[lrw_correct_one_hot_y_arg[i*50]] = i
+
+lipreader_preds_wordargs_val = maxarg_to_correctarg[np.argmax(lrw_lipreader_softmax_val, axis=1)]
+correct_wordargs = maxarg_to_correctarg[lrw_correct_one_hot_y_arg]
+
+
+

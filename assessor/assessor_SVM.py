@@ -14,6 +14,7 @@ from sklearn.externals import joblib
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import decomposition
 
+from assessor_nonDeep_functions import *
 from assessor_evaluation_functions import *
 
 # Number of frames
@@ -31,8 +32,24 @@ lipreader_lrw_test_correct_or_wrong = np.argmax(lipreader_lrw_test_softmax, axis
 # LINEAR UNOPT
 #####################################
 
+X_train, y_train, X_test, y_test, lipreader_lrw_val_softmax, lipreader_lrw_test_softmax, lrw_correct_one_hot_y_arg_val, lrw_correct_one_hot_y_arg_test = get_lrw_data()
+
 # train model on the full training set with tuned hyperparameters
-SVM_linear = SVC(kernel='linear', class_weight='balanced').fit(lipreader_lrw_val_dense[:1000], lipreader_lrw_val_correct_or_wrong[:1000])
+SVM_linear = SVC(kernel='linear', class_weight='balanced').fit(X_train, y_train)
+
+# Save
+joblib.dump(SVM_linear, os.path.join(ASSESSOR_SAVE_DIR, 'SVM_linear_optimal.pkl'), compress=3) 
+
+# Acc
+SVM_linear_optimal.score(lipreader_lrw_val_dense, lipreader_lrw_val_correct_or_wrong)
+SVM_linear_optimal.score(lipreader_lrw_test_dense, lipreader_lrw_test_correct_or_wrong)
+
+#####################################
+# LINEAR UNOPT
+#####################################
+
+# train model on the full training set with tuned hyperparameters
+SVM_linear = SVC(kernel='linear', class_weight='balanced').fit(lipreader_lrw_val_dense, lipreader_lrw_val_correct_or_wrong)
 
 # Save
 joblib.dump(SVM_linear, os.path.join(ASSESSOR_SAVE_DIR, 'SVM_linear_optimal.pkl'), compress=3) 
