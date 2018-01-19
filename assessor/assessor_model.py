@@ -13,7 +13,7 @@ tf.set_random_seed(29)
 from keras import backend as K
 from keras.models import Model, Sequential, model_from_json, model_from_yaml
 from keras.layers import Masking, TimeDistributed, Conv2D, BatchNormalization, Activation, MaxPooling2D, AveragePooling2D
-from keras.layers import Flatten, Dense, Input, Reshape, Add, Concatenate, LSTM, Dropout
+from keras.layers import Flatten, Dense, Input, Reshape, Add, Concatenate, LSTM, Dropout, Lambda
 from keras.regularizers import l2
 from keras.callbacks import Callback
 
@@ -26,13 +26,34 @@ from syncnet_functions import *
 #########################################################
 
 
+def euclidean_distance(vects):
+    x, y = vects
+    return K.sqrt(K.maximum(K.sum(K.square(x - y), axis=1, keepdims=True), K.epsilon()))
+
+
+def eucl_dist_output_shape(shapes):
+    shape1, shape2 = shapes
+    return (shape1[0], 1)
+
+
+def contrastive_loss(y_true, y_pred):
+    '''Contrastive loss from Hadsell-et-al.'06
+    http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+    '''
+    margin = 1
+    return K.mean(y_true * K.square(y_pred) +
+                  (1 - y_true) * K.square(K.maximum(margin - y_pred, 0)))
+
+
 def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', trainable_syncnet=False,
                       grayscale_images=False, my_resnet_repetitions=[2, 2, 2, 2],
                       conv_f_1=32, conv_f_2=64, conv_f_3=128, mouth_features_dim=512,
                       lstm_units_1=32, use_softmax=True, use_softmax_ratios=False,
                       individual_dense=False, lr_dense_fc=8, lr_softmax_fc=8,
                       dense_fc_1=128, dropout_p1=0.2, dense_fc_2=64, dropout_p2=0.2, last_fc=None,
-                      residual_part=False, res_fc_1=2, res_fc_2=2):
+                      residual_part=False, res_fc_1=2, res_fc_2=2,
+                      syncnet_lstm_preds_dim=64, contrastive=False, contrastive_dense_fc_1=128, contrastive_dropout_p1=64,
+                      use_tanh_not_sigmoid=False):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
@@ -45,43 +66,52 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', tra
 
     if use_CNN_LSTM:
 
-        if mouth_nn == 'syncnet_preds':
+        if mouth_nn == 'make_syncnet_lstm_only':
             my_input_mouth_images = Input(shape=(TIME_STEPS, 128), name='syncnet_preds')
-            cnn_features = my_input_mouth_images
+            lstm_output = LSTM(lstm_units_1, activation='tanh', kernel_regularizer=l2(1.e-4), return_sequences=False)(my_input_mouth_images)
+            fc2 = Dense(500, kernel_regularizer=l2(1.e-4), activation='softmax')(lstm_output)
+            return Model(inputs=my_input_mouth_images, outputs=fc2), Model(inputs=my_input_mouth_images, outputs=lstm_output)
+        if mouth_nn == 'syncnet_lstm_preds':
+            my_input_syncnet_lstm_features = Input(shape=(syncnet_lstm_preds_dim,), name='syncnet_lstm_preds')
+            lstm_output = my_input_syncnet_lstm_features
         else:
-            mouth_input_shape = (MOUTH_H, MOUTH_W, MOUTH_CHANNELS)
-            my_input_mouth_images = Input(shape=(TIME_STEPS, *mouth_input_shape), name='mouth_images')
-            if mouth_nn == 'cnn':
-                mouth_feature_model = my_timedistributed_cnn_model((TIME_STEPS, *mouth_input_shape), conv_f_1, conv_f_2, conv_f_3, mouth_features_dim)
-            elif mouth_nn == 'resCNN':
-                mouth_feature_model = my_resnet_like_timeDistributed_CNN((TIME_STEPS, *mouth_input_shape), conv_f_1, conv_f_2, conv_f_3, mouth_features_dim)
-            elif mouth_nn == 'resnet18':
-                mouth_feature_model = ResnetBuilder.build_resnet_18((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
-            elif mouth_nn == 'resnet34':
-                mouth_feature_model = ResnetBuilder.build_resnet_34((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
-            elif mouth_nn == 'resnet50':
-                mouth_feature_model = ResnetBuilder.build_resnet_50((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
-            elif mouth_nn == 'resnet101':
-                mouth_feature_model = ResnetBuilder.build_resnet_101((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
-            elif mouth_nn == 'resnet152':
-                mouth_feature_model = ResnetBuilder.build_resnet_152((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
-            elif mouth_nn == 'my_resnet':
-                mouth_feature_model = ResnetBuilder.build((TIME_STEPS, *mouth_input_shape), mouth_features_dim, basic_block, my_resnet_repetitions, time_distributed=True)
-            elif mouth_nn == 'flatten':
-                mouth_feature_model = Reshape((TIME_STEPS, -1), input_shape=(TIME_STEPS, *mouth_input_shape))
-            elif mouth_nn == 'syncnet':
-                mouth_feature_model = TimeDistributed(load_pretrained_syncnet_model(version='v4', mode='lip', verbose=False), input_shape=(TIME_STEPS, *mouth_input_shape), name='syncnet')
-                if not trainable_syncnet:
-                    mouth_feature_model.layer.trainable = False
-            cnn_features = mouth_feature_model(my_input_mouth_images)
+            if mouth_nn == 'syncnet_preds':
+                my_input_mouth_images = Input(shape=(TIME_STEPS, 128), name='syncnet_preds')
+                cnn_features = my_input_mouth_images
+            else:
+                mouth_input_shape = (MOUTH_H, MOUTH_W, MOUTH_CHANNELS)
+                my_input_mouth_images = Input(shape=(TIME_STEPS, *mouth_input_shape), name='mouth_images')
+                if mouth_nn == 'cnn':
+                    mouth_feature_model = my_timedistributed_cnn_model((TIME_STEPS, *mouth_input_shape), conv_f_1, conv_f_2, conv_f_3, mouth_features_dim)
+                elif mouth_nn == 'resCNN':
+                    mouth_feature_model = my_resnet_like_timeDistributed_CNN((TIME_STEPS, *mouth_input_shape), conv_f_1, conv_f_2, conv_f_3, mouth_features_dim)
+                elif mouth_nn == 'resnet18':
+                    mouth_feature_model = ResnetBuilder.build_resnet_18((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
+                elif mouth_nn == 'resnet34':
+                    mouth_feature_model = ResnetBuilder.build_resnet_34((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
+                elif mouth_nn == 'resnet50':
+                    mouth_feature_model = ResnetBuilder.build_resnet_50((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
+                elif mouth_nn == 'resnet101':
+                    mouth_feature_model = ResnetBuilder.build_resnet_101((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
+                elif mouth_nn == 'resnet152':
+                    mouth_feature_model = ResnetBuilder.build_resnet_152((TIME_STEPS, *mouth_input_shape), mouth_features_dim, time_distributed=True)
+                elif mouth_nn == 'my_resnet':
+                    mouth_feature_model = ResnetBuilder.build((TIME_STEPS, *mouth_input_shape), mouth_features_dim, basic_block, my_resnet_repetitions, time_distributed=True)
+                elif mouth_nn == 'flatten':
+                    mouth_feature_model = Reshape((TIME_STEPS, -1), input_shape=(TIME_STEPS, *mouth_input_shape))
+                elif mouth_nn == 'syncnet':
+                    mouth_feature_model = TimeDistributed(load_pretrained_syncnet_model(version='v4', mode='lip', verbose=False), input_shape=(TIME_STEPS, *mouth_input_shape), name='syncnet')
+                    if not trainable_syncnet:
+                        mouth_feature_model.layer.trainable = False
+                cnn_features = mouth_feature_model(my_input_mouth_images)
 
-        if use_head_pose:
-            my_input_head_poses = Input(shape=(TIME_STEPS, 3), name='head_poses')
-            lstm_input = Concatenate()([cnn_features, my_input_head_poses])
-        else:
-            lstm_input = cnn_features
+            if use_head_pose:
+                my_input_head_poses = Input(shape=(TIME_STEPS, 3), name='head_poses')
+                lstm_input = Concatenate()([cnn_features, my_input_head_poses])
+            else:
+                lstm_input = cnn_features
 
-        lstm_output = LSTM(lstm_units_1, activation='tanh', kernel_regularizer=l2(1.e-4), return_sequences=False)(lstm_input)
+            lstm_output = LSTM(lstm_units_1, activation='tanh', kernel_regularizer=l2(1.e-4), return_sequences=False)(lstm_input)
 
     if individual_dense:
         d1 = Dense(lr_dense_fc, kernel_regularizer=l2(1.e-4))(my_input_lipreader_dense)
@@ -101,72 +131,120 @@ def my_assessor_model(use_CNN_LSTM=True, use_head_pose=True, mouth_nn='cnn', tra
         my_input_lipreader_softmax_ratios = Input(shape=(2,), name='lipreader_softmax_ratios')
         lipreader_softmax_ratio_features = my_input_lipreader_softmax_ratios
 
-    to_concatenate = []
-    if use_CNN_LSTM:
-        to_concatenate += [lstm_output]
-    to_concatenate += [my_input_n_of_frames, lipreader_dense_features]
-    if use_softmax:
-        to_concatenate += [lipreader_softmax_features]
-    if use_softmax_ratios:
-        to_concatenate += [lipreader_softmax_ratio_features]
+    # Contrastive loss
+    if contrastive:
 
-    concatenated_features = Concatenate()(to_concatenate)
+        lipreader_features_to_concatenate = [my_input_n_of_frames, lipreader_dense_features]
+        if use_softmax:
+            lipreader_features_to_concatenate += [lipreader_softmax_features]
+        if use_softmax_ratios:
+            lipreader_features_to_concatenate += [lipreader_softmax_ratio_features]
 
+        lipreader_features = Concatenate()(lipreader_features_to_concatenate)
 
-    if last_fc is None:
-
-        fc1 = Dense(dense_fc_1, kernel_regularizer=l2(1.e-4))(concatenated_features)
+        fc1 = Dense(contrastive_dense_fc_1, kernel_regularizer=l2(1.e-4))(lipreader_features)
         ac1 = Activation('relu', name='relu_fc1')(fc1)
         bn1 = BatchNormalization()(ac1)
-        dp1 = Dropout(dropout_p1, name='dropout1_p'+str(dropout_p1))(bn1)
+        dp1 = Dropout(contrastive_dropout_p1, name='dropout1_p'+str(dropout_p1))(bn1)
 
-        fc2 = Dense(dense_fc_2, kernel_regularizer=l2(1.e-4))(dp1)
-        ac2 = Activation('relu', name='relu_fc2')(fc2)
-        bn2 = BatchNormalization()(ac2)
-        dp2 = Dropout(dropout_p2, name='dropout2_p'+str(dropout_p2))(bn2)
+        fc2 = Dense(syncnet_lstm_preds_dim, kernel_regularizer=l2(1.e-4))(dp1)
 
-        if residual_part:
-            res_fc1 = Dense(res_fc_1, kernel_regularizer=l2(1.e-4), name='res_fc1')(dp2)
-            res_ac1 = Activation('relu', name='res_relu_fc1')(res_fc1)
-            res_fc1 = Dense(res_fc_2, kernel_regularizer=l2(1.e-4), name='res_fc2')(res_ac1)
-            res_ac2 = Activation('relu', name='res_relu_fc2')(res_fc1)
-            clf_input = Add()([dp2, res_ac2])
-        else:
-            clf_input = dp2
+        distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape, name='distance')([lstm_output, fc2])
 
-        assessor_output = Dense(1, activation='sigmoid', name='sigmoid')(clf_input)
+        inputs = []
+        outputs = distance
+        if mouth_nn == 'syncnet_preds':
+            inputs += [my_input_mouth_images]
+        elif mouth_nn == 'syncnet_lstm_preds':
+            inputs += [my_input_syncnet_lstm_features]
+        inputs += [my_input_n_of_frames, my_input_lipreader_dense]
+        if use_softmax:
+            inputs += [my_input_lipreader_softmax]
+        if use_softmax_ratios:
+            inputs += [my_input_lipreader_softmax_ratios]
 
-    elif 'resnet' in last_fc:
+        assessor = Model(inputs=inputs, outputs=outputs)
 
-        if last_fc == 'resnet18':
-            last_fc_model = ResnetBuilder.build_resnet_18((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
-        elif last_fc == 'resnet34':
-            last_fc_model = ResnetBuilder.build_resnet_34((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
-        elif last_fc == 'resnet50':
-            last_fc_model = ResnetBuilder.build_resnet_50((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
-        elif last_fc == 'resnet101':
-            last_fc_model = ResnetBuilder.build_resnet_101((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
-        elif last_fc == 'resnet152':
-            last_fc_model = ResnetBuilder.build_resnet_152((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
 
-        fc_input = Reshape((int(concatenated_features.shape[1]), 1, 1), input_shape=(int(concatenated_features.shape[1]),))(concatenated_features)
-        resnet_output = last_fc_model(fc_input)
+    else:
 
-        assessor_output = Dense(1, activation='sigmoid', name='sigmoid')(resnet_output)
+        to_concatenate = []
+        if use_CNN_LSTM:
+            to_concatenate += [lstm_output]
+        to_concatenate += [my_input_n_of_frames, lipreader_dense_features]
+        if use_softmax:
+            to_concatenate += [lipreader_softmax_features]
+        if use_softmax_ratios:
+            to_concatenate += [lipreader_softmax_ratio_features]
 
-    inputs = []
-    outputs = assessor_output
-    if use_CNN_LSTM:
-        inputs += [my_input_mouth_images]
-        if use_head_pose:
-            inputs += [my_input_head_poses]
-    inputs += [my_input_n_of_frames, my_input_lipreader_dense]
-    if use_softmax:
-        inputs += [my_input_lipreader_softmax]
-    if use_softmax_ratios:
-        inputs += [my_input_lipreader_softmax_ratios]
+        concatenated_features = Concatenate()(to_concatenate)
 
-    assessor = Model(inputs=inputs, outputs=outputs)
+        if last_fc is None:
+
+            fc1 = Dense(dense_fc_1, kernel_regularizer=l2(1.e-4))(concatenated_features)
+            ac1 = Activation('relu', name='relu_fc1')(fc1)
+            bn1 = BatchNormalization()(ac1)
+            dp1 = Dropout(dropout_p1, name='dropout1_p'+str(dropout_p1))(bn1)
+
+            fc2 = Dense(dense_fc_2, kernel_regularizer=l2(1.e-4))(dp1)
+            ac2 = Activation('relu', name='relu_fc2')(fc2)
+            bn2 = BatchNormalization()(ac2)
+            dp2 = Dropout(dropout_p2, name='dropout2_p'+str(dropout_p2))(bn2)
+
+            if residual_part:
+                res_fc1 = Dense(res_fc_1, kernel_regularizer=l2(1.e-4), name='res_fc1')(dp2)
+                res_ac1 = Activation('relu', name='res_relu_fc1')(res_fc1)
+                res_fc1 = Dense(res_fc_2, kernel_regularizer=l2(1.e-4), name='res_fc2')(res_ac1)
+                res_ac2 = Activation('relu', name='res_relu_fc2')(res_fc1)
+                clf_input = Add()([dp2, res_ac2])
+            else:
+                clf_input = dp2
+
+            if use_tanh_not_sigmoid:
+                o1 = Dense(1, activation='tanh', name='last_tanh')(clf_input)
+                # assessor_output = Lambda(lambda x: K.maximum(-x, 0))(o1)
+                o2 = Lambda(lambda x: -x, name='last_negative')(o1)
+                assessor_output = Activation('relu', name='last_relu')(o2)
+            else:
+                assessor_output = Dense(1, activation='sigmoid', name='sigmoid')(clf_input)
+
+        elif 'resnet' in last_fc:
+
+            if last_fc == 'resnet18':
+                last_fc_model = ResnetBuilder.build_resnet_18((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
+            elif last_fc == 'resnet34':
+                last_fc_model = ResnetBuilder.build_resnet_34((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
+            elif last_fc == 'resnet50':
+                last_fc_model = ResnetBuilder.build_resnet_50((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
+            elif last_fc == 'resnet101':
+                last_fc_model = ResnetBuilder.build_resnet_101((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
+            elif last_fc == 'resnet152':
+                last_fc_model = ResnetBuilder.build_resnet_152((int(concatenated_features.shape[1]), 1, 1), 32, time_distributed=False)
+
+            fc_input = Reshape((int(concatenated_features.shape[1]), 1, 1), input_shape=(int(concatenated_features.shape[1]),))(concatenated_features)
+            resnet_output = last_fc_model(fc_input)
+
+            if use_tanh_not_sigmoid:
+                o1 = Dense(1, activation='tanh', name='last_tanh')(resnet_output)
+                # assessor_output = Lambda(lambda x: K.maximum(-x, 0))(o1)
+                o2 = Lambda(lambda x: -x, name='last_negative')(o1)
+                assessor_output = Activation('relu', name='last_relu')(o2)
+            else:
+                assessor_output = Dense(1, activation='sigmoid', name='sigmoid')(resnet_output)
+
+        inputs = []
+        outputs = assessor_output
+        if use_CNN_LSTM:
+            inputs += [my_input_mouth_images]
+            if use_head_pose:
+                inputs += [my_input_head_poses]
+        inputs += [my_input_n_of_frames, my_input_lipreader_dense]
+        if use_softmax:
+            inputs += [my_input_lipreader_softmax]
+        if use_softmax_ratios:
+            inputs += [my_input_lipreader_softmax_ratios]
+
+        assessor = Model(inputs=inputs, outputs=outputs)
 
     assessor.summary()
 
