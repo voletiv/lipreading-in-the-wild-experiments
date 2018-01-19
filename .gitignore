@@ -118,3 +118,6 @@ image-retrieval/saved_model_weights_staf*/
 # Big pkls
 *LDA*.pkl
 *QDA*.pkl
+
+# Big hdf5s
+*.hdf5
