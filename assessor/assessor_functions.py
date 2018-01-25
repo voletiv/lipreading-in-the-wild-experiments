@@ -161,8 +161,9 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
             lrw_lipreader_softmax_ratios = np.vstack((lrw_lipreader_softmax_ratios, lrw_lipreader_softmax_ratios_train))
         if collect_type == "spl_train":
             # TODO
+            print("TO DO softmax_ratios for spl_train")
 
-            # Adjusting lengths
+    # Adjusting lengths
     if collect_type == 'spl_train':
         actual_length = len(lrw_lipreader_dense)
         if use_CNN_LSTM:

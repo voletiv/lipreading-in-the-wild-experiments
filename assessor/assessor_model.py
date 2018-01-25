@@ -18,6 +18,7 @@ from keras.regularizers import l2
 from keras.callbacks import Callback
 
 from assessor_params import *
+from checkpoint_and_make_plots import *
 from resnet import *
 from syncnet_functions import *
 
