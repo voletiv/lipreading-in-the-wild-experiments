@@ -26,7 +26,7 @@ batch_size = 128
 data_dir = LRW_DATA_DIR
 
 # Train
-train_collect_type = "val" # set use_LRW_train to also use LRW_train
+train_collect_type = "spl_train" # set use_LRW_train to also use LRW_train
 
 # Val
 val_collect_type = "test"
@@ -68,6 +68,7 @@ res_fc_1=2
 res_dropout_p1=0.5
 res_fc_2=2
 res_dropout_p2=0.5
+contrastive = False
 
 if mouth_nn == 'syncnet':
     # Params
@@ -93,15 +94,15 @@ elif mouth_nn == 'syncnet_preds':
     contrastive_dense_fc_1 = 128
     contrastive_dropout_p1 = 0.2
     use_head_pose = True
-    lstm_units_1 = 256
+    lstm_units_1 = 128
     individual_dense = True
     lr_dense_fc = 128
     use_softmax = True
     lr_softmax_fc = 64
-    use_softmax_ratios = True
-    dense_fc_1 = 256
+    use_softmax_ratios = False
+    dense_fc_1 = 128
     dropout_p1 = 0.2
-    dense_fc_2 = 128
+    dense_fc_2 = 32
     dropout_p2 = 0.2
     residual_part=False
     res_fc_1=4

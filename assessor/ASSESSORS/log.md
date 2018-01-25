@@ -61,7 +61,7 @@
 45
 
 - Found LRWtrain, found correct syncnet_preds
-- Use LRWtrain of 200*500 samples, contrastive loss! Euclidean distance b/w Syncnet->LSTM->64 bit and lipreader_preds->->64-bit
+- ***Use LRWtrain of 200*500 samples, contrastive loss! Euclidean distance b/w Syncnet->LSTM->64 bit and lipreader_preds->->64-bit
 
 46
 
@@ -69,7 +69,7 @@
 
 47
 
-- Not using contrastive loss! fcs 64, 32, LR 1e-4, 0 decay
+- ***Not using contrastive loss! fcs 64, 32, LR 1e-4, 0 decay
 
 48
 
@@ -85,7 +85,7 @@
 
 51
 
-- Not using LRWtrain
+- ***Not using LRWtrain
 
 52
 
@@ -109,8 +109,17 @@
 
 57
 
+- Good training
 - decreased dropout to 0.2; increased LR to 1e-3, decay 1e-7
 
 58
 
-- 
+- Very good training
+- increased LSTM units to 256, fcs to 128, 64, 256, 128
+
+59
+
+- decreased to 58's config
+- ***TRAINING WITH spl_train: 400 from LRW_train and 25 from LRW_val
+
+60
