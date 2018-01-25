@@ -31,6 +31,7 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
         # Read lrw_word_set_num_file_names, to read images
         print("Loading LRW", collect_type, "lrw_word_set_num_file_names...")
         lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=collect_type, collect_by='sample')
+        # If using some samples_per_word from LRW_train, + LRW_val
         if use_LRW_train and collect_type == 'val':
             print("Loading LRW train lrw_word_set_num_file_names...")
             lrw_word_set_num_txt_file_names_train_full = read_lrw_word_set_num_file_names(collect_type='train', collect_by='vocab_word')
@@ -39,10 +40,22 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
                 for i in range(train_samples_per_word):
                     lrw_word_set_num_txt_file_names_train.append(lrw_word_set_num_txt_file_names_train_full[w][i])
             lrw_word_set_num_txt_file_names = lrw_word_set_num_txt_file_names_train + lrw_word_set_num_txt_file_names
+        # If using 400 samples from LRW_train + 25 samples from LRW_val
+        if collect_type == "spl_train":
+            lrw_word_set_num_txt_file_names = []
+            lrw_word_set_num_txt_file_names_LRW_train = read_lrw_word_set_num_file_names(collect_type='train', collect_by='vocab_word')
+            for w in range(500):
+                for i in range(400):
+                    lrw_word_set_num_txt_file_names.append(lrw_word_set_num_txt_file_names_LRW_train[w][i])
+            lrw_word_set_num_txt_file_names_LRW_val = read_lrw_word_set_num_file_names(collect_type='val', collect_by='vocab_word')
+            for w in range(500):
+                for i in range(25):
+                    lrw_word_set_num_txt_file_names.append(lrw_word_set_num_txt_file_names_LRW_val[w][i])
 
         # Read start_frames_per_sample
         print("Loading LRW", collect_type, "start_frames_per_sample...")
         lrw_start_frames_per_sample = load_array_of_var_per_sample_from_csv(csv_file_name=START_FRAMES_PER_SAMPLE_CSV_FILE, collect_type=collect_type, collect_by='sample')
+        # If using some samples_per_word from LRW_train, + LRW_val
         if use_LRW_train and collect_type == 'val':
             print("Loading LRW train start_frames_per_sample...")
             lrw_start_frames_per_sample_train_full = load_array_of_var_per_sample_from_csv(csv_file_name=START_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='train', collect_by='vocab_word')
@@ -51,7 +64,19 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
                 for i in range(train_samples_per_word):
                     lrw_start_frames_per_sample_train.append(lrw_start_frames_per_sample_train_full[w][i])
             lrw_start_frames_per_sample = lrw_start_frames_per_sample_train + lrw_start_frames_per_sample
+        # If using 400 samples from LRW_train + 25 samples from LRW_val
+        if collect_type == "spl_train":
+            lrw_start_frames_per_sample = []
+            lrw_start_frames_per_sample_LRW_train = load_array_of_var_per_sample_from_csv(csv_file_name=START_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='train', collect_by='vocab_word')
+            for w in range(500):
+                for i in range(400):
+                    lrw_start_frames_per_sample.append(lrw_start_frames_per_sample_LRW_train[w][i])
+            lrw_start_frames_per_sample_LRW_val = load_array_of_var_per_sample_from_csv(csv_file_name=START_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='val', collect_by='vocab_word')
+            for w in range(500):
+                for i in range(25):
+                    lrw_start_frames_per_sample.append(lrw_start_frames_per_sample_LRW_val[w][i])
 
+        # Read syncnet_preds
         if mouth_nn == 'syncnet_preds':
             print("Loading LRW", collect_type, "syncnet_preds...")
             lrw_syncnet_preds = load_syncnet_preds(collect_type=collect_type)
@@ -59,6 +84,24 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
                 print("Loading LRW train syncnet_preds...")
                 lrw_syncnet_preds_train = load_syncnet_preds(collect_type='train')
                 lrw_syncnet_preds = np.vstack((lrw_syncnet_preds_train, lrw_syncnet_preds))
+            # If using 400 samples from LRW_train + 25 samples from LRW_val
+            if collect_type == "spl_train":
+                lrw_syncnet_preds = np.empty((0, 21, 128))
+                lrw_syncnet_preds_LRW_train = load_syncnet_preds(collect_type='train')
+                lrw_syncnet_preds_LRW_val = load_syncnet_preds(collect_type='val')
+                num_of_samples_per_word_LRW_train = []
+                num_of_samples_per_word_LRW_val = []
+                for w in range(500):
+                    num_of_samples_per_word_LRW_train.append(len(lrw_word_set_num_txt_file_names_LRW_train[w]))
+                    num_of_samples_per_word_LRW_val.append(len(lrw_word_set_num_txt_file_names_LRW_val[w]))
+                start_index = 0
+                for w in range(500):
+                    lrw_syncnet_preds = np.vstack((lrw_syncnet_preds, lrw_syncnet_preds_LRW_train[start_index:(start_index + 400)]))
+                    start_index += num_of_samples_per_word_LRW_train[w]
+                start_index = 0
+                for w in range(500):
+                    lrw_syncnet_preds = np.vstack((lrw_syncnet_preds, lrw_syncnet_preds_LRW_val[start_index:(start_index + 25)]))
+                    start_index += num_of_samples_per_word_LRW_val[w]
 
         if use_head_pose:
             # Read head_poses_per_sample
@@ -84,6 +127,17 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
             for i in range(train_samples_per_word):
                 lrw_n_of_frames_per_sample_train.append(lrw_n_of_frames_per_sample_train_full[w][i])
         lrw_n_of_frames_per_sample = lrw_n_of_frames_per_sample_train + lrw_n_of_frames_per_sample
+    # If using 400 samples from LRW_train + 25 samples from LRW_val
+    if collect_type == "spl_train":
+        lrw_n_of_frames_per_sample = []
+        lrw_n_of_frames_per_sample_LRW_train = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='train', collect_by='vocab_word')
+        for w in range(500):
+            for i in range(400):
+                lrw_n_of_frames_per_sample.append(lrw_n_of_frames_per_sample_LRW_train[w][i])
+        lrw_n_of_frames_per_sample_LRW_val = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='val', collect_by='vocab_word')
+        for w in range(500):
+            for i in range(25):
+                lrw_n_of_frames_per_sample.append(lrw_n_of_frames_per_sample_LRW_val[w][i])
 
     # Read dense, softmax, one_hot_y
     print("Loading LRW", collect_type, "dense, softmax, one_hot_y...")
@@ -105,6 +159,17 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
             print("Loading LRW train use_softmax_ratios...")
             lrw_lipreader_softmax_ratios_train = load_softmax_ratios(collect_type='train')
             lrw_lipreader_softmax_ratios = np.vstack((lrw_lipreader_softmax_ratios, lrw_lipreader_softmax_ratios_train))
+        if collect_type == "spl_train":
+            # TODO
+
+            # Adjusting lengths
+    if collect_type == 'spl_train':
+        actual_length = len(lrw_lipreader_dense)
+        if use_CNN_LSTM:
+            lrw_word_set_num_txt_file_names = lrw_word_set_num_txt_file_names[:actual_length]
+            lrw_start_frames_per_sample = lrw_start_frames_per_sample[:actual_length]
+            lrw_syncnet_preds = lrw_syncnet_preds[:actual_length]
+        lrw_n_of_frames_per_sample = lrw_n_of_frames_per_sample[:actual_length]
 
     print("Loaded.")
 
@@ -312,18 +377,30 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
                                 if flip:
                                     mouth_image = mouth_image[:, ::-1]
 
+
                                 if mouth_nn == 'syncnet':
                                     # Add this image in reverse order into X
                                     # eg. If there are 7 frames: 0 0 0 0 0 0 0 7 6 5 4 3 2 1
-                                    batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1][:, :, 2] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                    if frame_0_start_index - 1 >= 0:
-                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 1][:, :, 1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                    if frame_0_start_index - 2 >= 0:
-                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 2][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                    if frame_0_start_index + 1 < TIME_STEPS:
-                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 1][:, :, 3] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
-                                    if frame_0_start_index + 2 < TIME_STEPS:
-                                        batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 2][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    if frame_number == word_frame_numbers[0]:
+                                        batch_mouth_images[sample_idx_within_batch][-1][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    elif frame_number == word_frame_numbers[1]:
+                                        batch_mouth_images[sample_idx_within_batch][-1][:, :, 1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        batch_mouth_images[sample_idx_within_batch][-2][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    elif frame_number == word_frame_numbers[-1]:
+                                        batch_mouth_images[sample_idx_within_batch][-batch_n_of_frames_per_sample[sample_idx_within_batch]][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    elif frame_number == word_frame_numbers[-2]:
+                                        batch_mouth_images[sample_idx_within_batch][-batch_n_of_frames_per_sample[sample_idx_within_batch]][:, :, 3] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        batch_mouth_images[sample_idx_within_batch][-batch_n_of_frames_per_sample[sample_idx_within_batch]+1][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                    else:
+                                        batch_mouth_images[sample_idx_within_batch][-frame_0_start_index-1][:, :, 2] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        if frame_0_start_index - 1 >= 0:
+                                            batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 1][:, :, 3] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        if frame_0_start_index - 2 >= 0:
+                                            batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) + 2][:, :, 4] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        if frame_0_start_index + 1 < TIME_STEPS:
+                                            batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 1][:, :, 1] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
+                                        if frame_0_start_index + 2 < TIME_STEPS:
+                                            batch_mouth_images[sample_idx_within_batch][(-frame_0_start_index-1) - 2][:, :, 0] = np.reshape(mouth_image, (MOUTH_H, MOUTH_W))
 
                                 else:
                                     # Add this image in reverse order into X
@@ -494,7 +571,10 @@ def read_txt_file_as_list_per_vocab_word(file_name):
 
 
 def load_syncnet_preds(collect_type):
-    return np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_syncnet_preds.npy'))
+    if collect_type == 'spl_train':
+        return None
+    else:
+        return np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_syncnet_preds.npy'))
 
 
 #############################################################
@@ -503,10 +583,16 @@ def load_syncnet_preds(collect_type):
 
 
 def load_dense_softmax_y(collect_type):
-    lrw_lipreader_dense_softmax_y = np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_dense_softmax_y.npz'))
-    lrw_lipreader_dense = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_dense']
-    lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_softmax']
-    lrw_one_hot_y_arg = lrw_lipreader_dense_softmax_y['lrw_correct_one_hot_arg']
+    if collect_type == 'spl_train':
+        lrw_lipreader_dense_softmax_y = np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_dense_softmax_y.npz'))
+        lrw_lipreader_dense = lrw_lipreader_dense_softmax_y['syncnetTrainDense']
+        lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y['syncnetTrainSoftmax']
+        lrw_one_hot_y_arg = np.argmax(lrw_lipreader_dense_softmax_y['syncnetTrainY'], axis=1)
+    else:
+        lrw_lipreader_dense_softmax_y = np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_dense_softmax_y.npz'))
+        lrw_lipreader_dense = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_dense']
+        lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_softmax']
+        lrw_one_hot_y_arg = lrw_lipreader_dense_softmax_y['lrw_correct_one_hot_arg']
     return lrw_lipreader_dense, lrw_lipreader_softmax, lrw_one_hot_y_arg
 
 
