@@ -1,5 +1,6 @@
 import sys
 sys.setrecursionlimit(10000)
+sys.path.append('/shared/fusor/home/voleti.vikram/lipreading-in-the-wild-experiments/assessor/')
 
 import os
 os.environ['KERAS_BACKEND']='tensorflow'
@@ -10,6 +11,9 @@ import numpy as np
 import time
 import tqdm
 
+from assessor_functions import *
+from checkpoint_and_make_plots import *
+
 ############################################################################################################
 
 #############################           CNN         ####################################
@@ -19,7 +23,9 @@ import tqdm
 from keras.layers import Input, ZeroPadding3D, Conv3D, BatchNormalization, Activation, MaxPooling3D, Permute, Reshape
 from keras.layers.wrappers import TimeDistributed
 from keras.layers import Dense, MaxPooling1D, Conv1D, AveragePooling1D, Flatten
+from keras.callbacks import ReduceLROnPlateau, EarlyStopping
 from keras.models import Model
+from keras.utils import multi_gpu_model
 
 from keras import backend as K
 K.set_image_dim_ordering('th')
@@ -73,7 +79,13 @@ softy = Activation('softmax')(lin3)
 model1 = Model(inputs=[input1], outputs=[softy])
 model1.summary()
 
-model1.load_weights('/shared/magnetar/datasets/LipReading/stafylakis_lipreader_feature/lipreader/saved_model_weights_stafylakis_important_[working]/save_1_gpu_model.hdf5')
+# model1.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+parallel_model = multi_gpu_model(model1, gpus=4)
+
+parallel_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# model1.load_weights('/shared/magnetar/datasets/LipReading/stafylakis_lipreader_feature/lipreader/saved_model_weights_stafylakis_important_[working]/save_1_gpu_model.hdf5')
 
 ############################################################################################################
 
@@ -87,11 +99,12 @@ model1.load_weights('/shared/magnetar/datasets/LipReading/stafylakis_lipreader_f
 
 ############################################################################################################
 
-x_max_len=29
-batch_size=100;
-flag1=1
-numi4=0
-nb_classes=500
+x_max_len = 29
+batch_size = 100;
+flag1 = 1
+numi4 = 0
+nb_classes = 500
+
 # charlist=open('charsList.txt').readlines()
 def abhishek_generator(allFilenames,batch_size,skip=0,shuffle1=0):
     if shuffle1==1:
@@ -161,12 +174,12 @@ LRW_VOCAB_SIZE = len(LRW_VOCAB)
 
 def vikram_generator(lrw_word_set_num_txt_file_names, batch_size, skip=0, shuffle=False, random_crop=True, random_flip=True):
     allTxtFilenames = np.array(lrw_word_set_num_txt_file_names)
-    x_max_len=29
-    nb_classes=500
-    if shuffle:
-        allTxtFilenames=np.random.shuffle(allTxtFilenames)
+    x_max_len = 29
+    nb_classes = 500
+    n_batches = len(allTxtFilenames) // batch_size
     while 1:
-        n_batches = len(allTxtFilenames) // batch_size + 1
+        if shuffle:
+            np.random.shuffle(allTxtFilenames)
         # For each batch
         for batch in range(n_batches):
             if batch < skip:
@@ -174,18 +187,18 @@ def vikram_generator(lrw_word_set_num_txt_file_names, batch_size, skip=0, shuffl
             this_batch_size = batch_size
             if (batch+1)*batch_size > len(allTxtFilenames):
                 this_batch_size = len(allTxtFilenames) - batch*batch_size
-            X_val = np.zeros(shape=(this_batch_size, x_max_len, 112, 112))
-            Y_val = np.zeros(shape=(this_batch_size, nb_classes))
+            X = np.zeros(shape=(this_batch_size, x_max_len, 112, 112))
+            Y = np.zeros(shape=(this_batch_size, nb_classes))
             for i in range(this_batch_size):
                 rois = np.zeros(shape=(x_max_len, 112, 112))
                 if random_crop:
-                    crop_rand1 = random.randint(0, 8)
-                    crop_rand2 = random.randint(0, 8)
+                    crop_rand1 = np.random.randint(0, 8)
+                    crop_rand2 = np.random.randint(0, 8)
                 else:
                     crop_rand1 = 4
                     crop_rand2 = 4
                 if random_flip:
-                    flip_rand = random.randint(0,1)
+                    flip_rand = np.random.randint(0,1)
                 else:
                     flip_rand = False
                 word_txt_file = allTxtFilenames[batch*batch_size+i]
@@ -200,10 +213,10 @@ def vikram_generator(lrw_word_set_num_txt_file_names, batch_size, skip=0, shuffl
                     img1 = img1 / 255.
                     img1 -= 0.5
                     rois[indxN] = img1
-                X_val[i] = rois
-                Y_val[i][LRW_VOCAB.index(word_txt_file.split('/')[-3])] = 1
-            X_val = np.expand_dims(X_val, axis=1)
-            yield (X_val,Y_val)
+                X[i] = rois
+                Y[i][LRW_VOCAB.index(word_txt_file.split('/')[-3])] = 1
+            X = np.expand_dims(X, axis=1)
+            yield (X,Y)
 
 
 ############################################################################################################
@@ -256,23 +269,79 @@ root='/shared/fusor/home/voleti.vikram/LRW-abhishek/'
 #         allFilenames_test.append(root_image_path)
 
 # MY WAY
-import sys
-sys.path.append('/shared/fusor/home/voleti.vikram/lipreading-in-the-wild-experiments/assessor/')
-from assessor_functions import *
 lrw_word_set_num_txt_file_names_train = read_lrw_word_set_num_file_names(collect_type='train', collect_by='sample')
 lrw_word_set_num_txt_file_names_val = read_lrw_word_set_num_file_names(collect_type='val', collect_by='sample')
 lrw_word_set_num_txt_file_names_test = read_lrw_word_set_num_file_names(collect_type='test', collect_by='sample')
 
+############################################################################################################
 
-# ############################################################################################################
+#############################           Make Spl Order of Files         ####################################
 
-# #############################           Train           ####################################
+############################################################################################################
 
-# ############################################################################################################
-# batchSz=64
-# trainSteps=int(len((allFilenames_train)))/batchSz
-# valSteps=int(len((allFilenames_val)))/batchSz
-# historyLSTM=model1.fit_generator(my_generator(allFilenames_train,batch_size=batchSz,shuffle1=1), steps_per_epoch=trainSteps, validation_data=my_generator(allFilenames_val,batch_size=batchSz,shuffle1=0),nb_epoch=300, verbose=1, nb_worker=1,validation_steps=valSteps, callbacks=[checkpoint])
+lrw_word_set_num_txt_file_names_by_word_train = read_lrw_word_set_num_file_names(collect_type='train', collect_by='vocab_word')
+lrw_word_set_num_txt_file_names_by_word_val = read_lrw_word_set_num_file_names(collect_type='val', collect_by='vocab_word')
+
+# Choose sequential samples
+spl_filenames_train = []
+# Train From LRW_TRAIN: make 400 samples per word, with offset 400
+offset = 400
+samples_per_word = 400
+for w in range(500):
+    for i in range(samples_per_word):
+        spl_filenames_train.append(lrw_word_set_num_txt_file_names_by_word_train[w][offset + i])
+
+# Train From LRW_VAL: make 25 samples per word, with offset 25
+offset = 25
+samples_per_word = 25
+for w in range(500):
+    for i in range(samples_per_word):
+        spl_filenames_train.append(lrw_word_set_num_txt_file_names_by_word_val[w][offset + i])
+
+spl_filenames_val = []
+# Val form LRW_TRAIN:
+offset = 0
+samples_per_word = 25
+for w in range(500):
+    for i in range(samples_per_word):
+        spl_filenames_val.append(lrw_word_set_num_txt_file_names_by_word_train[w][offset + i])
+
+# Val form LRW_VAL:
+offset = 0
+samples_per_word = 25
+for w in range(500):
+    for i in range(samples_per_word):
+        spl_filenames_val.append(lrw_word_set_num_txt_file_names_by_word_val[w][offset + i])
+
+
+############################################################################################################
+
+#############################           Train           ####################################################
+
+############################################################################################################
+
+batch_size = 128
+epochs = 1000
+
+train_generator = vikram_generator(spl_filenames_train, batch_size=batch_size, shuffle=True, random_crop=True, random_flip=True)
+val_generator = vikram_generator(spl_filenames_val, batch_size=batch_size, shuffle=False, random_crop=False, random_flip=False)
+
+train_steps = len((spl_filenames_train)) // batch_size
+val_steps = len((spl_filenames_val)) // batch_size
+
+lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1), patience=5, verbose=1)
+
+early_stopper = EarlyStopping(min_delta=0.001, patience=50)
+
+model_name = 'LRW_LIPREADER_TRAIN400offset400_VAL25OFFSET25'
+save_dir = os.path.join("/shared/fusor/home/voleti.vikram", model_name)
+checkpointAndMakePlots = CheckpointAndMakePlots(file_name_pre=model_name, save_dir=save_dir)
+
+history = model1.fit_generator(train_generator, steps_per_epoch=train_steps, epochs=epochs, verbose=1,
+                                       callbacks=[lr_reducer, early_stopper, checkpointAndMakePlots],
+                                       validation_data=val_generator, validation_steps=val_steps)
+
+
 
 
 ############################################################################################################
@@ -358,3 +427,142 @@ for i in tqdm.tqdm(range(to_skip, n_steps), initial=to_skip, total=n_steps):
     np.savez("/shared/fusor/home/voleti.vikram/LRW_test_dense_softmax_y", testDense=testDense, testSoftmax=testSoftmax, testY=testY)
 
 print("Done")
+
+
+###################################################
+# COMBINE
+###################################################
+
+samples_per_word = 200
+train_D_200samplesPerWord = np.zeros((samples_per_word*500, 1024))
+train_S_200samplesPerWord = np.zeros((samples_per_word*500, 500))
+train_Y_200samplesPerWord = np.zeros((samples_per_word*500), dtype=int)
+
+correct_lrw_softmax_argmax_file = '/shared/fusor/home/voleti.vikram/lipreading-in-the-wild-experiments/assessor/correct_lrw_softmax_argmax.txt'
+correct_lrw_softmax_argmax = []
+with open(correct_lrw_softmax_argmax_file) as f:
+    for line in f:
+        correct_lrw_softmax_argmax.append(int(line.rstrip()))
+
+# 0 to 230
+train_DSY_200samplesPerWord_0to232words = np.load('LRW_train_dense_softmax_y_200samplesPerWord_0offset_0to232words.npz')
+train_D_200samplesPerWord_0to230words = train_DSY_200samplesPerWord_0to232words['trainDense'][:230*200]
+train_S_200samplesPerWord_0to230words = train_DSY_200samplesPerWord_0to232words['trainSoftmax'][:230*200]
+
+
+## 200 samples per word
+for w in range(230):
+    train_D_200samplesPerWord[w*samples_per_word:(w+1)*samples_per_word] = train_D_200samplesPerWord_0to230words[w*200:(w*200+samples_per_word)]
+    train_S_200samplesPerWord[w*samples_per_word:(w+1)*samples_per_word] = train_S_200samplesPerWord_0to230words[w*200:(w*200+samples_per_word)]
+    train_Y_200samplesPerWord[w*samples_per_word:(w+1)*samples_per_word] = correct_lrw_softmax_argmax[w]
+
+# 230 to 500
+train_DSY_20samplesPerWord_0offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_0offset_230to500words.npz')
+train_D_20samplesPerWord_0offset_230to500words = train_DSY_20samplesPerWord_0offset_230to500words['trainDense']
+train_S_20samplesPerWord_0offset_230to500words = train_DSY_20samplesPerWord_0offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_20offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_20offset_230to500words.npz')
+train_D_20samplesPerWord_20offset_230to500words = train_DSY_20samplesPerWord_20offset_230to500words['trainDense']
+train_S_20samplesPerWord_20offset_230to500words = train_DSY_20samplesPerWord_20offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_40offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_40offset_230to500words.npz')
+train_D_20samplesPerWord_40offset_230to500words = train_DSY_20samplesPerWord_40offset_230to500words['trainDense']
+train_S_20samplesPerWord_40offset_230to500words = train_DSY_20samplesPerWord_40offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_60offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_60offset_230to500words.npz')
+train_D_20samplesPerWord_60offset_230to500words = train_DSY_20samplesPerWord_60offset_230to500words['trainDense']
+train_S_20samplesPerWord_60offset_230to500words = train_DSY_20samplesPerWord_60offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_80offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_80offset_230to500words.npz')
+train_D_20samplesPerWord_80offset_230to500words = train_DSY_20samplesPerWord_80offset_230to500words['trainDense']
+train_S_20samplesPerWord_80offset_230to500words = train_DSY_20samplesPerWord_80offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_100offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_100offset_230to500words.npz')
+train_D_20samplesPerWord_100offset_230to500words = train_DSY_20samplesPerWord_100offset_230to500words['trainDense']
+train_S_20samplesPerWord_100offset_230to500words = train_DSY_20samplesPerWord_100offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_120offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_120offset_230to500words.npz')
+train_D_20samplesPerWord_120offset_230to500words = train_DSY_20samplesPerWord_120offset_230to500words['trainDense']
+train_S_20samplesPerWord_120offset_230to500words = train_DSY_20samplesPerWord_120offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_140offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_140offset_230to500words.npz')
+train_D_20samplesPerWord_140offset_230to500words = train_DSY_20samplesPerWord_140offset_230to500words['trainDense']
+train_S_20samplesPerWord_140offset_230to500words = train_DSY_20samplesPerWord_140offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_160offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_160offset_230to500words.npz')
+train_D_20samplesPerWord_160offset_230to500words = train_DSY_20samplesPerWord_160offset_230to500words['trainDense']
+train_S_20samplesPerWord_160offset_230to500words = train_DSY_20samplesPerWord_160offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_180offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_180offset_230to500words.npz')
+train_D_20samplesPerWord_180offset_230to500words = train_DSY_20samplesPerWord_180offset_230to500words['trainDense']
+train_S_20samplesPerWord_180offset_230to500words = train_DSY_20samplesPerWord_180offset_230to500words['trainSoftmax']
+
+for w in range(230, 500):
+    train_D_200samplesPerWord[(w*samples_per_word+00):(w*samples_per_word+20)] = train_D_20samplesPerWord_0offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_D_200samplesPerWord[(w*samples_per_word+20):(w*samples_per_word+40)] = train_D_20samplesPerWord_20offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_D_200samplesPerWord[(w*samples_per_word+40):(w*samples_per_word+60)] = train_D_20samplesPerWord_60offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_D_200samplesPerWord[(w*samples_per_word+60):(w*samples_per_word+80)] = train_D_20samplesPerWord_60offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_D_200samplesPerWord[(w*samples_per_word+80):(w*samples_per_word+100)] = train_D_20samplesPerWord_80offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_D_200samplesPerWord[(w*samples_per_word+100):(w*samples_per_word+120)] = train_D_20samplesPerWord_100offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_D_200samplesPerWord[(w*samples_per_word+120):(w*samples_per_word+140)] = train_D_20samplesPerWord_120offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_D_200samplesPerWord[(w*samples_per_word+140):(w*samples_per_word+160)] = train_D_20samplesPerWord_140offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_D_200samplesPerWord[(w*samples_per_word+160):(w*samples_per_word+180)] = train_D_20samplesPerWord_160offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_D_200samplesPerWord[(w*samples_per_word+180):(w*samples_per_word+200)] = train_D_20samplesPerWord_180offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_S_200samplesPerWord[(w*samples_per_word+00):(w*samples_per_word+20)] = train_S_20samplesPerWord_0offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_S_200samplesPerWord[(w*samples_per_word+20):(w*samples_per_word+40)] = train_S_20samplesPerWord_20offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_S_200samplesPerWord[(w*samples_per_word+40):(w*samples_per_word+60)] = train_S_20samplesPerWord_40offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_S_200samplesPerWord[(w*samples_per_word+60):(w*samples_per_word+80)] = train_S_20samplesPerWord_60offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_S_200samplesPerWord[(w*samples_per_word+80):(w*samples_per_word+100)] = train_S_20samplesPerWord_80offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_S_200samplesPerWord[(w*samples_per_word+100):(w*samples_per_word+120)] = train_S_20samplesPerWord_100offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_S_200samplesPerWord[(w*samples_per_word+120):(w*samples_per_word+140)] = train_S_20samplesPerWord_120offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_S_200samplesPerWord[(w*samples_per_word+140):(w*samples_per_word+160)] = train_S_20samplesPerWord_140offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_S_200samplesPerWord[(w*samples_per_word+160):(w*samples_per_word+180)] = train_S_20samplesPerWord_160offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_S_200samplesPerWord[(w*samples_per_word+180):(w*samples_per_word+200)] = train_S_20samplesPerWord_180offset_230to500words[(w-230)*20:((w-230+1)*20)]
+    train_Y_200samplesPerWord[w*samples_per_word:(w+1)*samples_per_word] = correct_lrw_softmax_argmax[w]
+
+np.savez('LRW_train_dense_softmax_y_200samplesPerWord',
+         lrw_train_dense=train_D_200samplesPerWord,
+         lrw_train_softmax=train_S_200samplesPerWord,
+         lrw_correct_one_hot_arg=train_Y_200samplesPerWord)
+
+
+
+
+
+
+
+## 50 samples per word
+
+for w in range(230):
+    train_D_50samplesPerWord[w*50:(w+1)*50] = train_D_200samplesPerWord_0to230words[w*200:(w*200+50)]
+    train_S_50samplesPerWord[w*50:(w+1)*50] = train_S_200samplesPerWord_0to230words[w*200:(w*200+50)]
+    train_Y_50samplesPerWord[w*50:(w+1)*50] = correct_lrw_softmax_argmax[w]
+
+# 230 to 500
+train_DSY_20samplesPerWord_0offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_0offset_230to500words.npz')
+train_D_20samplesPerWord_0offset_230to500words = train_DSY_20samplesPerWord_0offset_230to500words['trainDense']
+train_S_20samplesPerWord_0offset_230to500words = train_DSY_20samplesPerWord_0offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_20offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_20offset_230to500words.npz')
+train_D_20samplesPerWord_20offset_230to500words = train_DSY_20samplesPerWord_20offset_230to500words['trainDense']
+train_S_20samplesPerWord_20offset_230to500words = train_DSY_20samplesPerWord_20offset_230to500words['trainSoftmax']
+
+train_DSY_20samplesPerWord_40offset_230to500words = np.load('LRW_train_dense_softmax_y_20samplesPerWord_40offset_230to500words.npz')
+train_D_20samplesPerWord_40offset_230to500words = train_DSY_20samplesPerWord_40offset_230to500words['trainDense']
+train_S_20samplesPerWord_40offset_230to500words = train_DSY_20samplesPerWord_40offset_230to500words['trainSoftmax']
+
+for w in range(230, 500):
+    train_D_50samplesPerWord[(w*50+0):(w*50+20)] = train_D_20samplesPerWord_0offset_230to500words[(w-230)*20:(w-230+1)*20]
+    train_D_50samplesPerWord[(w*50+20):(w*50+40)] = train_D_20samplesPerWord_20offset_230to500words[(w-230)*20:(w-230+1)*20]
+    train_D_50samplesPerWord[(w*50+40):(w*50+50)] = train_D_20samplesPerWord_40offset_230to500words[(w-230)*20:((w-230)*20+10)]
+    train_S_50samplesPerWord[(w*50+0):(w*50+20)] = train_S_20samplesPerWord_0offset_230to500words[(w-230)*20:(w-230+1)*20]
+    train_S_50samplesPerWord[(w*50+20):(w*50+40)] = train_S_20samplesPerWord_20offset_230to500words[(w-230)*20:(w-230+1)*20]
+    train_S_50samplesPerWord[(w*50+40):(w*50+50)] = train_S_20samplesPerWord_40offset_230to500words[(w-230)*20:((w-230)*20+10)]
+    train_Y_50samplesPerWord[w*50:(w+1)*50] = correct_lrw_softmax_argmax[w]
+
+np.savez('LRW_train_dense_softmax_y_50samplesPerWord',
+         lrw_train_dense=train_D_50samplesPerWord,
+         lrw_train_softmax=train_S_50samplesPerWord,
+         lrw_correct_one_hot_arg=train_Y_50samplesPerWord)
+
+
