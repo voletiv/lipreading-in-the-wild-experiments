@@ -17,7 +17,7 @@ from assessor_params import *
 def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect_type="val", shuffle=True, equal_classes=False,
                                    use_CNN_LSTM=True, mouth_nn='cnn', grayscale_images=False, random_crop=True, random_flip=False, use_head_pose=True,
                                    use_softmax=True, use_softmax_ratios=True, verbose=False, skip_batches=0, get_last_smaller_batch=False,
-                                   use_LRW_train=True, train_samples_per_word=200):
+                                   use_LRW_train=True, train_samples_per_word=200, test_number_of_words=None):
 
     if grayscale_images:
         MOUTH_CHANNELS = 1
@@ -51,6 +51,13 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
             for w in range(500):
                 for i in range(25):
                     lrw_word_set_num_txt_file_names.append(lrw_word_set_num_txt_file_names_LRW_val[w][i])
+        # If we want only some number of words in test_data (because spl_train data has not been fully generated)
+        if collect_type == 'test' and test_number_of_words is not None:
+            lrw_word_set_num_txt_file_names_LRW_test = read_lrw_word_set_num_file_names(collect_type='test', collect_by='vocab_word')
+            lrw_word_set_num_txt_file_names = []
+            for w in range(test_number_of_words):
+                for i in range(50):
+                    lrw_word_set_num_txt_file_names.append(lrw_word_set_num_txt_file_names_LRW_test[w][i])
 
         # Read start_frames_per_sample
         print("Loading LRW", collect_type, "start_frames_per_sample...")
@@ -75,11 +82,19 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
             for w in range(500):
                 for i in range(25):
                     lrw_start_frames_per_sample.append(lrw_start_frames_per_sample_LRW_val[w][i])
+        # If we want only some number of words in test_data (because spl_train data has not been fully generated)
+        if collect_type == 'test' and test_number_of_words is not None:
+            lrw_start_frames_per_sample_LRW_test = load_array_of_var_per_sample_from_csv(csv_file_name=START_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='test', collect_by='vocab_word')
+            lrw_start_frames_per_sample = []
+            for w in range(test_number_of_words):
+                for i in range(50):
+                    lrw_start_frames_per_sample.append(lrw_start_frames_per_sample_LRW_test[w][i])
 
         # Read syncnet_preds
         if mouth_nn == 'syncnet_preds':
             print("Loading LRW", collect_type, "syncnet_preds...")
-            lrw_syncnet_preds = load_syncnet_preds(collect_type=collect_type)
+            if collect_type != 'spl_train':
+                lrw_syncnet_preds = load_syncnet_preds(collect_type=collect_type)
             if use_LRW_train and collect_type == 'val':
                 print("Loading LRW train syncnet_preds...")
                 lrw_syncnet_preds_train = load_syncnet_preds(collect_type='train')
@@ -102,6 +117,9 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
                 for w in range(500):
                     lrw_syncnet_preds = np.vstack((lrw_syncnet_preds, lrw_syncnet_preds_LRW_val[start_index:(start_index + 25)]))
                     start_index += num_of_samples_per_word_LRW_val[w]
+            # If we want only some number of words in test_data (because spl_train data has not been fully generated)
+            if collect_type == 'test' and test_number_of_words is not None:
+                lrw_syncnet_preds = lrw_syncnet_preds[:test_number_of_words*50]
 
         if use_head_pose:
             # Read head_poses_per_sample
@@ -138,6 +156,13 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
         for w in range(500):
             for i in range(25):
                 lrw_n_of_frames_per_sample.append(lrw_n_of_frames_per_sample_LRW_val[w][i])
+    # If we want only some number of words in test_data (because spl_train data has not been fully generated)
+    if collect_type == 'test' and test_number_of_words is not None:
+        lrw_n_of_frames_per_sample_LRW_test = load_array_of_var_per_sample_from_csv(csv_file_name=N_OF_FRAMES_PER_SAMPLE_CSV_FILE, collect_type='test', collect_by='vocab_word')
+        lrw_n_of_frames_per_sample = []
+        for w in range(test_number_of_words):
+            for i in range(50):
+                lrw_n_of_frames_per_sample.append(lrw_n_of_frames_per_sample_LRW_test[w][i])
 
     # Read dense, softmax, one_hot_y
     print("Loading LRW", collect_type, "dense, softmax, one_hot_y...")
@@ -148,6 +173,11 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
         lrw_lipreader_dense = np.vstack((lrw_lipreader_dense_train, lrw_lipreader_dense))
         lrw_lipreader_softmax = np.vstack((lrw_lipreader_softmax_train, lrw_lipreader_softmax))
         lrw_correct_one_hot_y_arg = np.append(lrw_correct_one_hot_y_arg_train, lrw_correct_one_hot_y_arg)
+    # If we want only some number of words in test_data (because spl_train data has not been fully generated)
+    if collect_type == 'test' and test_number_of_words is not None:
+        lrw_lipreader_dense = lrw_lipreader_dense[:test_number_of_words*50]
+        lrw_lipreader_softmax = lrw_lipreader_softmax[:test_number_of_words*50]
+        lrw_correct_one_hot_y_arg = lrw_correct_one_hot_y_arg[:test_number_of_words*50]
 
     # Lipreader correct (True) or wrong (False)
     lrw_lipreader_correct_or_wrong = np.argmax(lrw_lipreader_softmax, axis=1) == lrw_correct_one_hot_y_arg
@@ -584,16 +614,17 @@ def load_syncnet_preds(collect_type):
 
 
 def load_dense_softmax_y(collect_type):
-    if collect_type == 'spl_train':
-        lrw_lipreader_dense_softmax_y = np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_dense_softmax_y.npz'))
-        lrw_lipreader_dense = lrw_lipreader_dense_softmax_y['syncnetTrainDense']
-        lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y['syncnetTrainSoftmax']
-        lrw_one_hot_y_arg = np.argmax(lrw_lipreader_dense_softmax_y['syncnetTrainY'], axis=1)
-    else:
-        lrw_lipreader_dense_softmax_y = np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_dense_softmax_y.npz'))
-        lrw_lipreader_dense = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_dense']
-        lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y['lrw_'+collect_type+'_softmax']
-        lrw_one_hot_y_arg = lrw_lipreader_dense_softmax_y['lrw_correct_one_hot_arg']
+    lrw_lipreader_dense_softmax_y = np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_dense_softmax_y.npz'))
+    files = lrw_lipreader_dense_softmax_y.files
+    for file in files:
+        if 'ense' in file:
+            lrw_lipreader_dense = lrw_lipreader_dense_softmax_y[file]
+        elif 'oftmax' in file:
+            lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y[file]
+        else:
+            lrw_one_hot_y_arg = lrw_lipreader_dense_softmax_y[file]
+            if len(lrw_one_hot_y_arg.shape) == 2:
+                lrw_one_hot_y_arg = np.argmax(lrw_one_hot_y_arg, axis=1)
     return lrw_lipreader_dense, lrw_lipreader_softmax, lrw_one_hot_y_arg
 
 
