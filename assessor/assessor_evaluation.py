@@ -71,7 +71,6 @@ def evaluate_assessor(lrw_val_assessor_preds=None, lrw_test_assessor_preds=None,
         correct_args_val[w*samples_per_word_val:(w+1)*samples_per_word_val] = lrw_correct_one_hot_y_arg_val[w*50]
         correct_args_test[w*samples_per_word_test:(w+1)*samples_per_word_test] = lrw_correct_one_hot_y_arg_test[w*50]
 
-
     # CORRECT_OR_WRONG
     lipreader_lrw_val_correct_or_wrong = np.argmax(lipreader_lrw_val_softmax, axis=1) == correct_args_val
     lipreader_lrw_test_correct_or_wrong = np.argmax(lipreader_lrw_test_softmax, axis=1) == correct_args_test

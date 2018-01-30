@@ -31,6 +31,10 @@ train_collect_type = "spl_train" # set use_LRW_train to also use LRW_train
 # Val
 val_collect_type = "test"
 
+# Test
+# test_number_of_words = None
+test_number_of_words = 114
+
 # Training
 shuffle = True
 equal_classes = True
@@ -42,8 +46,8 @@ random_flip = True
 verbose = False
 use_softmax = True
 use_softmax_ratios = False
-use_LRW_train=False
-train_samples_per_word=200
+use_LRW_train = False
+train_samples_per_word = 200
 
 # Assessor
 mouth_nn = 'syncnet_preds'
@@ -93,7 +97,7 @@ elif mouth_nn == 'syncnet_preds':
     contrastive = False
     contrastive_dense_fc_1 = 128
     contrastive_dropout_p1 = 0.2
-    use_head_pose = True
+    use_head_pose = False
     lstm_units_1 = 128
     individual_dense = True
     lr_dense_fc = 128
@@ -148,6 +152,8 @@ else:
 train_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=train_collect_type, collect_by='sample')
 if use_LRW_train:
     train_steps_per_epoch = (train_samples_per_word*500 + len(train_lrw_word_set_num_txt_file_names)) // batch_size
+elif train_collect_type == 'spl_train':
+    train_steps_per_epoch = 111000//batch_size
 else:
     train_steps_per_epoch = len(train_lrw_word_set_num_txt_file_names) // batch_size
 # train_steps_per_epoch = train_steps_per_epoch // 8     # Set less value so as not to take too much time computing on full train set
