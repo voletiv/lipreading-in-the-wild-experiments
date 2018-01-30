@@ -103,7 +103,7 @@ train_data_generator = generate_assessor_data_batches(batch_size=batch_size, dat
 val_data_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=val_collect_type, shuffle=shuffle, equal_classes=equal_classes,
                                                     use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
                                                     grayscale_images=grayscale_images, random_crop=False, random_flip=False, verbose=verbose,
-                                                    use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word)
+                                                    use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word, test_number_of_words=test_number_of_words)
 
 ######################################################
 # CALLBACKS
@@ -113,7 +113,7 @@ lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1), patience=5, verbose=1)
 
 early_stopper = EarlyStopping(min_delta=0.001, patience=20)
 
-checkpointAndMakePlots = CheckpointAndMakePlots(file_name_pre=this_assessor_model_name, this_assessor_save_dir=this_assessor_save_dir)
+checkpointAndMakePlots = CheckpointAndMakePlots(file_name_pre=this_assessor_model_name, save_dir=this_assessor_save_dir)
 
 ######################################################
 # TRAIN (Step 1 of PFT)
@@ -173,21 +173,21 @@ except KeyboardInterrupt:
     assessor.save("assessor.hdf5")
     print("Predicting...")
     # Predict val
-    eval_batch_size = 100
-    lrw_val_data_generator = generate_assessor_data_batches(batch_size=eval_batch_size, data_dir=data_dir, collect_type="val", shuffle=False, equal_classes=False,
-                                                            use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
-                                                            grayscale_images=grayscale_images, random_crop=False, random_flip=False, verbose=False,
-                                                            use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word)
-    lrw_val_assessor_preds = np.array([])
-    for i in tqdm.tqdm(range(25000//eval_batch_size)):
-        [X, y] = next(lrw_val_data_generator)
-        lrw_val_assessor_preds = np.append(lrw_val_assessor_preds, assessor.predict(X))
+    # eval_batch_size = 100
+    # lrw_val_data_generator = generate_assessor_data_batches(batch_size=eval_batch_size, data_dir=data_dir, collect_type="val", shuffle=False, equal_classes=False,
+    #                                                         use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
+    #                                                         grayscale_images=grayscale_images, random_crop=False, random_flip=False, verbose=False,
+    #                                                         use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word)
+    # lrw_val_assessor_preds = np.array([])
+    # for i in tqdm.tqdm(range(25000//eval_batch_size)):
+    #     [X, y] = next(lrw_val_data_generator)
+    #     lrw_val_assessor_preds = np.append(lrw_val_assessor_preds, assessor.predict(X))
     # Predict test
     eval_batch_size = 100
     lrw_test_data_generator = generate_assessor_data_batches(batch_size=eval_batch_size, data_dir=data_dir, collect_type="test", shuffle=False, equal_classes=False,
                                                              use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
                                                              grayscale_images=grayscale_images, random_crop=False, random_flip=False, verbose=False,
-                                                             use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word)
+                                                             use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word, test_number_of_words=test_number_of_words)
     lrw_test_assessor_preds = np.array([])
     for i in tqdm.tqdm(range(25000//eval_batch_size)):
         [X, y] = next(lrw_test_data_generator)
