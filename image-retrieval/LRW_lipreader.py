@@ -379,13 +379,14 @@ parallel_model.save_weights(os.path.join(save_dir, "final_parallel_weights_tl0.6
 
 ############################################################################################################
 
-#############################          Saving single_GPU model          ####################################
+#############################      Saving/Loading single_GPU model      ####################################
 
 ############################################################################################################
 
 
 parallel_model.load_weights(os.path.join(save_dir, "LRW_LIPREADER_TRAIN400offset400_VAL25OFFSET25_epoch003_tl1.1575_ta0.6702_vl1.3399_va0.6316.hdf5"))
-parallel_model.load_weights(os.path.join(save_dir, "LRW_LIPREADER_TRAIN400offset400_VAL25OFFSET25_epoch003_tl1.1575_ta0.6702_vl1.3399_va0.6316.hdf5"))
+
+model1.load_weights(os.path.join(save_dir, "LRW_LIPREADER_TRAIN400offset400_VAL25OFFSET25_epoch003_tl1.1575_ta0.6702_vl1.3399_va0.6316_singleGPU.hdf5"))
 
 
 ############################################################################################################
@@ -396,7 +397,7 @@ parallel_model.load_weights(os.path.join(save_dir, "LRW_LIPREADER_TRAIN400offset
 
 # TRAIN
 batch_size = 100
-trainY = np.empty((0, 500))
+trainY = np.empty((0))
 trainDense = np.empty((0, 1024))
 trainSoftmax = np.empty((0, 500))
 npz_name_train = os.path.join(save_dir, "LRW_train_dense_softmax_y")
@@ -414,7 +415,7 @@ k = vikram_generator(spl_filenames_train, batch_size=batch_size, skip=to_skip, s
 n_steps = len(spl_filenames_train)//batch_size
 for i in tqdm.tqdm(range(to_skip, n_steps), initial=to_skip, total=n_steps):
     (X, Y) = next(k)
-    trainY = np.vstack((trainY, Y))
+    trainY = np.append(trainY, np.argmax(Y, axis=1))
     # softmax = model1.predict(X)
     softmax = parallel_model.predict(X)
     trainSoftmax = np.vstack((trainSoftmax, softmax))
@@ -425,7 +426,7 @@ for i in tqdm.tqdm(range(to_skip, n_steps), initial=to_skip, total=n_steps):
 
 # VAL
 batch_size = 100
-valY = np.empty((0, 500))
+valY = np.empty((0))
 valDense = np.empty((0, 1024))
 valSoftmax = np.empty((0, 500))
 npz_name_val = os.path.join(save_dir, "LRW_val_dense_softmax_y")
@@ -443,7 +444,7 @@ k = vikram_generator(spl_filenames_val, batch_size=batch_size, skip=to_skip, shu
 n_steps = len(spl_filenames_val)//batch_size
 for i in tqdm.tqdm(range(to_skip, n_steps), initial=to_skip, total=n_steps):
     (X, Y) = next(k)
-    valY = np.vstack((valY, Y))
+    valY = np.append(valY, np.argmax(Y, axis=1))
     softmax = model1.predict(X)
     valSoftmax = np.vstack((valSoftmax, softmax))
     dense = denseOutput.predict(X)
@@ -454,17 +455,17 @@ for i in tqdm.tqdm(range(to_skip, n_steps), initial=to_skip, total=n_steps):
 
 # SYNCNET_TRAIN
 batch_size = 100
-syncnetTrainY = np.empty((0, 500))
-syncnetTrainDense = np.empty((0, 1024))
-syncnetTrainSoftmax = np.empty((0, 500))
-npz_name_syncnet_train = os.path.join(save_dir, "syncnet_train_dense_softmax_y")
+splTrainY = np.empty((0))
+splTrainDense = np.empty((0, 1024))
+splTrainSoftmax = np.empty((0, 500))
+npz_name_spl_train = os.path.join(save_dir, "syncnet_train_dense_softmax_y")
 to_skip = 0
-if os.path.exists(npz_name_syncnet_train+".npz"):
-    npz_val = np.load(npz_name_syncnet_train+".npz")
-    syncnetTrainDense = npz_name_syncnet_train["syncnetTrainDense"]
-    syncnetTrainSoftmax = npz_name_syncnet_train["syncnetTrainSoftmax"]
-    syncnetTrainY = npz_name_syncnet_train["syncnetTrainY"]
-    to_skip = len(syncnetTrainDense)//batch_size
+if os.path.exists(npz_name_spl_train+".npz"):
+    npz_val = np.load(npz_name_spl_train+".npz")
+    splTrainY = npz_name_spl_train["splTrainDense"]
+    splTrainSoftmax = npz_name_spl_train["splTrainSoftmax"]
+    splTrainY = npz_name_spl_train["splTrainY"]
+    to_skip = len(splTrainDense)//batch_size
 
 # k = vikram_generator(lrw_word_set_num_txt_file_names_val, batch_size=batch_size, skip=to_skip, shuffle=False, random_crop=False, random_flip=False)
 k = vikram_generator(syncnet_spl_filenames_train, batch_size=batch_size, skip=to_skip, shuffle=False, random_crop=False, random_flip=False)
@@ -472,18 +473,18 @@ k = vikram_generator(syncnet_spl_filenames_train, batch_size=batch_size, skip=to
 n_steps = len(syncnet_spl_filenames_train)//batch_size
 for i in tqdm.tqdm(range(to_skip, n_steps), initial=to_skip, total=n_steps):
     (X, Y) = next(k)
-    syncnetTrainY = np.vstack((syncnetTrainY, Y))
+    splTrainY = np.append(splTrainY, np.argmax(Y, axis=1))
     softmax = model1.predict(X)
-    syncnetTrainSoftmax = np.vstack((syncnetTrainSoftmax, softmax))
+    splTrainSoftmax = np.vstack((splTrainSoftmax, softmax))
     dense = denseOutput.predict(X)
-    syncnetTrainDense = np.vstack((syncnetTrainDense, dense))
+    splTrainDense = np.vstack((splTrainDense, dense))
     if (i+1)%10 == 0:
-        np.savez(npz_name_syncnet_train, syncnetTrainDense=syncnetTrainDense, syncnetTrainSoftmax=syncnetTrainSoftmax, syncnetTrainY=syncnetTrainY)
+        np.savez(npz_name_spl_train, splTrainDense=splTrainDense, splTrainSoftmax=splTrainSoftmax, splTrainY=splTrainY)
 
 
 # TEST
 testDense = np.empty((0, 1024))
-testSoftmax = np.empty((0, 500))
+testSoftmax = np.empty((0))
 testY = np.empty((0, 500))
 npz_name_test = os.path.join(save_dir, "LRW_test_dense_softmax_y")
 to_skip = 0
@@ -498,7 +499,7 @@ k = vikram_generator(lrw_word_set_num_txt_file_names_test, batch_size=batch_size
 n_steps = len(lrw_word_set_num_txt_file_names_test)//batch_size
 for i in tqdm.tqdm(range(to_skip, n_steps), initial=to_skip, total=n_steps):
     (X, Y) = next(k)
-    testY = np.vstack((testY, Y))
+    testY = np.append(testY, np.argmax(Y, axis=1))
     softmax = model1.predict(X)
     testSoftmax = np.vstack((testSoftmax, softmax))
     dense = denseOutput.predict(X)
