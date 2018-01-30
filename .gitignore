@@ -121,3 +121,4 @@ image-retrieval/saved_model_weights_staf*/
 
 # Big hdf5s
 *.hdf5
+*.pkl
