@@ -93,7 +93,8 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
         # Read syncnet_preds
         if mouth_nn == 'syncnet_preds':
             print("Loading LRW", collect_type, "syncnet_preds...")
-            lrw_syncnet_preds = load_syncnet_preds(collect_type=collect_type)
+            if collect_type != 'spl_train':
+                lrw_syncnet_preds = load_syncnet_preds(collect_type=collect_type)
             if use_LRW_train and collect_type == 'val':
                 print("Loading LRW train syncnet_preds...")
                 lrw_syncnet_preds_train = load_syncnet_preds(collect_type='train')
@@ -622,7 +623,7 @@ def load_dense_softmax_y(collect_type):
             lrw_lipreader_softmax = lrw_lipreader_dense_softmax_y[file]
         else:
             lrw_one_hot_y_arg = lrw_lipreader_dense_softmax_y[file]
-            if len(lrw_one_hot_y_arg) == 2:
+            if len(lrw_one_hot_y_arg.shape) == 2:
                 lrw_one_hot_y_arg = np.argmax(lrw_one_hot_y_arg, axis=1)
     return lrw_lipreader_dense, lrw_lipreader_softmax, lrw_one_hot_y_arg
 

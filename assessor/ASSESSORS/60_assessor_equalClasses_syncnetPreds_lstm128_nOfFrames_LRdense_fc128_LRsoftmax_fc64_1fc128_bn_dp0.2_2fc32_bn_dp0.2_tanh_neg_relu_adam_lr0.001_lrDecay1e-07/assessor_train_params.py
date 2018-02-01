@@ -152,6 +152,8 @@ else:
 train_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=train_collect_type, collect_by='sample')
 if use_LRW_train:
     train_steps_per_epoch = (train_samples_per_word*500 + len(train_lrw_word_set_num_txt_file_names)) // batch_size
+elif train_collect_type == 'spl_train':
+    train_steps_per_epoch = 111000//batch_size
 else:
     train_steps_per_epoch = len(train_lrw_word_set_num_txt_file_names) // batch_size
 # train_steps_per_epoch = train_steps_per_epoch // 8     # Set less value so as not to take too much time computing on full train set
