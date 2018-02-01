@@ -23,9 +23,6 @@ from syncnet_preds_functions import *
 
 mouth_input_shape = (112, 112, 5)
 
-# BATCH SIZE
-batch_size = 50
-
 # Data
 data_dir = LRW_DATA_DIR
 
@@ -66,28 +63,31 @@ syncnet_model = Model(inputs=[syncnet_input], outputs=[syncnet_output])
 # Found next 10samplesPerWord_offset40_all500words
 # Found next 10samplesPerWord_offset50_all500words
 
+# BATCH SIZE
+batch_size = 2
 samples_per_word = 50
+test_number_of_words = 191
 
 for offset in [250, 300, 350]:
     print("OFFSET", offset)
     # offset = 200
     # LRW_TRAIN, 200 per word
     train_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type="train", collect_by='sample')
-    n_batches = samples_per_word * 500 // batch_size
+    n_batches = samples_per_word * test_number_of_words // batch_size
     train_generator = generate_syncnet_pred_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type="train", shuffle=shuffle, equal_classes=equal_classes,
                                                          use_CNN_LSTM=use_CNN_LSTM, mouth_nn="syncnet", grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip, use_head_pose=use_head_pose,
                                                          use_softmax=use_softmax, use_softmax_ratios=use_softmax_ratios, verbose=verbose, skip_batches=0,
-                                                         samples_per_word=samples_per_word, offset=offset)
+                                                         samples_per_word=samples_per_word, offset=offset, test_number_of_words=test_number_of_words)
     # Y
     train_Y = np.empty((0, TIME_STEPS, 128))
     # Predict
     for batch in tqdm.tqdm(range(n_batches)):
-        ((X, _, _), _) = next(train_generator)
+        X = next(train_generator)
         y = syncnet_model.predict(X)
         train_Y = np.vstack((train_Y, y))
         if batch % 10 == 0:
-            np.save('/shared/fusor/home/voleti.vikram/LRW_train_syncnet_preds_'+str(samples_per_word)+'samplesPerWord_'+str(offset)+'offset_all500words', train_Y)
-    np.save('/shared/fusor/home/voleti.vikram/LRW_train_syncnet_preds_'+str(samples_per_word)+'samplesPerWord_'+str(offset)+'offset_all500words', train_Y)
+            np.save('/shared/fusor/home/voleti.vikram/LRW_train_syncnet_preds_'+str(samples_per_word)+'samplesPerWord_'+str(offset)+'offset_' + str(test_number_of_words) + 'words', train_Y)
+    np.save('/shared/fusor/home/voleti.vikram/LRW_train_syncnet_preds_'+str(samples_per_word)+'samplesPerWord_'+str(offset)+'offset_' + str(test_number_of_words)                + 'words', train_Y)
 
 
 def f(list_of_samples_per_word=[10]*((200-60)//10), list_of_offsets=range(60, 200, 10)):

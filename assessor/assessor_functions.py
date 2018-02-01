@@ -93,30 +93,38 @@ def generate_assessor_data_batches(batch_size=64, data_dir=LRW_DATA_DIR, collect
         # Read syncnet_preds
         if mouth_nn == 'syncnet_preds':
             print("Loading LRW", collect_type, "syncnet_preds...")
-            if collect_type != 'spl_train':
-                lrw_syncnet_preds = load_syncnet_preds(collect_type=collect_type)
+            lrw_syncnet_preds = load_syncnet_preds(collect_type=collect_type)
             if use_LRW_train and collect_type == 'val':
                 print("Loading LRW train syncnet_preds...")
                 lrw_syncnet_preds_train = load_syncnet_preds(collect_type='train')
                 lrw_syncnet_preds = np.vstack((lrw_syncnet_preds_train, lrw_syncnet_preds))
             # If using 400 samples from LRW_train + 25 samples from LRW_val
-            if collect_type == "spl_train":
-                lrw_syncnet_preds = np.empty((0, 21, 128))
-                lrw_syncnet_preds_LRW_train = load_syncnet_preds(collect_type='train')
-                lrw_syncnet_preds_LRW_val = load_syncnet_preds(collect_type='val')
-                num_of_samples_per_word_LRW_train = []
-                num_of_samples_per_word_LRW_val = []
-                for w in range(500):
-                    num_of_samples_per_word_LRW_train.append(len(lrw_word_set_num_txt_file_names_LRW_train[w]))
-                    num_of_samples_per_word_LRW_val.append(len(lrw_word_set_num_txt_file_names_LRW_val[w]))
-                start_index = 0
-                for w in range(500):
-                    lrw_syncnet_preds = np.vstack((lrw_syncnet_preds, lrw_syncnet_preds_LRW_train[start_index:(start_index + 400)]))
-                    start_index += num_of_samples_per_word_LRW_train[w]
-                start_index = 0
-                for w in range(500):
-                    lrw_syncnet_preds = np.vstack((lrw_syncnet_preds, lrw_syncnet_preds_LRW_val[start_index:(start_index + 25)]))
-                    start_index += num_of_samples_per_word_LRW_val[w]
+            # DONE AND SAVED AS "LRW_spl_train_syncnet_preds.npy"
+            # if collect_type == "spl_train":
+            #     lrw_syncnet_preds = np.empty((0, 21, 128))
+            #     print("As part of spl_train, loading LRW_train_syncnet_preds...")
+            #     lrw_syncnet_preds_LRW_train = load_syncnet_preds(collect_type='train')
+            #     print("As part of spl_train, loading LRW_val_syncnet_preds...")
+            #     lrw_syncnet_preds_LRW_val = load_syncnet_preds(collect_type='val')
+            #     num_of_samples_per_word_LRW_train = []
+            #     num_of_samples_per_word_LRW_val = []
+            #     for w in range(500):
+            #         num_of_samples_per_word_LRW_train.append(len(lrw_word_set_num_txt_file_names_LRW_train[w]))
+            #         num_of_samples_per_word_LRW_val.append(len(lrw_word_set_num_txt_file_names_LRW_val[w]))
+            #     start_index = 0
+            #     print("As part of spl_train, assembling from lrw_syncnet_preds_LRW_train...")
+            #     for w in range(500):
+            #         if len(lrw_syncnet_preds) >= len(lrw_lipreader_dense):
+            #             break
+            #         lrw_syncnet_preds = np.vstack((lrw_syncnet_preds, lrw_syncnet_preds_LRW_train[start_index:(start_index + 400)]))
+            #         start_index += num_of_samples_per_word_LRW_train[w]
+            #     start_index = 0
+            #     print("As part of spl_train, assembling from lrw_syncnet_preds_LRW_val...")
+            #     for w in range(500):
+            #         if len(lrw_syncnet_preds) >= len(lrw_lipreader_dense):
+            #             break
+            #         lrw_syncnet_preds = np.vstack((lrw_syncnet_preds, lrw_syncnet_preds_LRW_val[start_index:(start_index + 25)]))
+            #         start_index += num_of_samples_per_word_LRW_val[w]
             # If we want only some number of words in test_data (because spl_train data has not been fully generated)
             if collect_type == 'test' and test_number_of_words is not None:
                 lrw_syncnet_preds = lrw_syncnet_preds[:test_number_of_words*50]
@@ -602,10 +610,7 @@ def read_txt_file_as_list_per_vocab_word(file_name):
 
 
 def load_syncnet_preds(collect_type):
-    if collect_type == 'spl_train':
-        return None
-    else:
-        return np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_syncnet_preds.npy'))
+    return np.load(os.path.join(LRW_ASSESSOR_DIR, 'LRW_'+collect_type+'_syncnet_preds.npy'))
 
 
 #############################################################

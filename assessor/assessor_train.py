@@ -34,7 +34,8 @@ this_assessor_model_name, this_assessor_save_dir = make_this_assessor_model_name
                                                                                                    syncnet_lstm_preds_dim, contrastive, contrastive_dense_fc_1, contrastive_dropout_p1,
                                                                                                    use_tanh_not_sigmoid,
                                                                                                    optimizer_name, adam_lr=adam_lr, adam_lr_decay=adam_lr_decay,
-                                                                                                   residual_part=residual_part)
+                                                                                                   residual_part=residual_part, finetune=finetune,
+                                                                                                   train_collect_type=train_collect_type, test_number_of_words=test_number_of_words)
 
 # Make the dir if it doesn't exist
 if not os.path.exists(this_assessor_save_dir):
@@ -96,20 +97,24 @@ plot_model(assessor, to_file=os.path.join(this_assessor_save_dir, this_assessor_
 ######################################################
 
 train_data_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=train_collect_type, shuffle=shuffle, equal_classes=equal_classes,
-                                                      use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
-                                                      grayscale_images=grayscale_images, random_crop=random_crop, random_flip=random_flip, verbose=verbose,
-                                                      use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word)
+                                                      use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, grayscale_images=grayscale_images,
+                                                      random_crop=random_crop, random_flip=random_crop, use_head_pose=use_head_pose,
+                                                      use_softmax=use_softmax, use_softmax_ratios=use_softmax_ratios, verbose=verbose,
+                                                      use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word,
+                                                      test_number_of_words=test_number_of_words)
 
-val_data_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=val_collect_type, shuffle=shuffle, equal_classes=equal_classes,
-                                                    use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
-                                                    grayscale_images=grayscale_images, random_crop=False, random_flip=False, verbose=verbose,
-                                                    use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word, test_number_of_words=test_number_of_words)
+val_data_generator = generate_assessor_data_batches(batch_size=batch_size, data_dir=data_dir, collect_type=val_collect_type, shuffle=shuffle, equal_classes=False,
+                                                      use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, grayscale_images=grayscale_images,
+                                                      random_crop=False, random_flip=False, use_head_pose=use_head_pose,
+                                                      use_softmax=use_softmax, use_softmax_ratios=use_softmax_ratios, verbose=verbose,
+                                                      use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word,
+                                                      test_number_of_words=test_number_of_words)
 
 ######################################################
 # CALLBACKS
 ######################################################
 
-lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1), patience=5, verbose=1)
+lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1), patience=3, verbose=1)
 
 early_stopper = EarlyStopping(min_delta=0.001, patience=20)
 
@@ -185,9 +190,11 @@ except KeyboardInterrupt:
     # Predict test
     eval_batch_size = 100
     lrw_test_data_generator = generate_assessor_data_batches(batch_size=eval_batch_size, data_dir=data_dir, collect_type="test", shuffle=False, equal_classes=False,
-                                                             use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, use_head_pose=use_head_pose, use_softmax=use_softmax,
-                                                             grayscale_images=grayscale_images, random_crop=False, random_flip=False, verbose=False,
-                                                             use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word, test_number_of_words=test_number_of_words)
+                                                             use_CNN_LSTM=use_CNN_LSTM, mouth_nn=mouth_nn, grayscale_images=grayscale_images,
+                                                             random_crop=False, random_flip=False, use_head_pose=use_head_pose,
+                                                             use_softmax=use_softmax, use_softmax_ratios=use_softmax_ratios, verbose=False,
+                                                             use_LRW_train=use_LRW_train, train_samples_per_word=train_samples_per_word,
+                                                             test_number_of_words=test_number_of_words)
     lrw_test_assessor_preds = np.array([])
     for i in tqdm.tqdm(range(25000//eval_batch_size)):
         [X, y] = next(lrw_test_data_generator)

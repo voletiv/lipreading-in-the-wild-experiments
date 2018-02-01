@@ -609,9 +609,6 @@ np.savez('LRW_train_dense_softmax_y_200samplesPerWord',
 
 
 
-
-
-
 ## 50 samples per word
 
 for w in range(230):
@@ -646,4 +643,32 @@ np.savez('LRW_train_dense_softmax_y_50samplesPerWord',
          lrw_train_softmax=train_S_50samplesPerWord,
          lrw_correct_one_hot_arg=train_Y_50samplesPerWord)
 
+
+
+#####################################################################
+
+# Making 250 per word for 467 words
+
+a = np.load('LRW_spl_train_dense_softmax_y.npz')
+ad = a['splTrainDense']
+asm = a['splTrainSoftmax']
+ay = a['splTrainY']
+
+
+a1 = np.load('LRW_train_syncnet_preds_200samplesPerWord.npy')
+a2 = np.load('LRW_train_syncnet_preds_50samplesPerWord_200offset_all500words.npy')
+a3 = np.load('LRW_train_syncnet_preds_50samplesPerWord_250offset_all500words.npy')
+a4 = np.load('LRW_train_syncnet_preds_50samplesPerWord_300offset_all500words.npy')
+a5 = np.load('LRW_train_syncnet_preds_50samplesPerWord_350offset_all500words.npy')
+
+sp = np.empty((0, 21, 128))
+for w in tqdm.tqdm(range(468)):
+    sp = np.vstack((sp, a1[w*200:(w+1)*200]))
+    sp = np.vstack((sp, a2[w*50:(w+1)*50]))
+    sp = np.vstack((sp, a3[w*50:(w+1)*50]))
+    sp = np.vstack((sp, a4[w*50:(w+1)*50]))
+    sp = np.vstack((sp, a5[w*50:(w+1)*50]))
+
+sp_c = sp[:187000]
+np.save("LRW_spl_train_syncnet_preds", sp_c)
 

@@ -33,7 +33,7 @@ val_collect_type = "test"
 
 # Test
 # test_number_of_words = None
-test_number_of_words = 114
+test_number_of_words = 467
 
 # Training
 shuffle = True
@@ -47,7 +47,7 @@ verbose = False
 use_softmax = True
 use_softmax_ratios = False
 use_LRW_train = False
-train_samples_per_word = 200
+train_samples_per_word = 200 # In case of collect_type="val" & use_LRW_train=True
 
 # Assessor
 mouth_nn = 'syncnet_preds'
@@ -108,9 +108,9 @@ elif mouth_nn == 'syncnet_preds':
     dropout_p1 = 0.2
     dense_fc_2 = 32
     dropout_p2 = 0.2
-    residual_part=False
-    res_fc_1=4
-    res_fc_2=4
+    residual_part = True
+    res_fc_1 = 32
+    res_fc_2 = 32
     # Constants
     syncnet_lstm_preds_dim = 64
     grayscale_images = True
@@ -152,8 +152,8 @@ else:
 train_lrw_word_set_num_txt_file_names = read_lrw_word_set_num_file_names(collect_type=train_collect_type, collect_by='sample')
 if use_LRW_train:
     train_steps_per_epoch = (train_samples_per_word*500 + len(train_lrw_word_set_num_txt_file_names)) // batch_size
-elif train_collect_type == 'spl_train':
-    train_steps_per_epoch = 111000//batch_size
+if train_collect_type == 'spl_train':
+    train_steps_per_epoch = 187000//batch_size
 else:
     train_steps_per_epoch = len(train_lrw_word_set_num_txt_file_names) // batch_size
 # train_steps_per_epoch = train_steps_per_epoch // 8     # Set less value so as not to take too much time computing on full train set
@@ -197,7 +197,8 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
                                                     syncnet_lstm_preds_dim, contrastive, contrastive_dense_fc_1, contrastive_dropout_p1,
                                                     use_tanh_not_sigmoid,
                                                     optimizer_name, adam_lr=1e-3, adam_lr_decay=1e-3,
-                                                    residual_part=False, finetune=False):
+                                                    residual_part=False, finetune=False,
+                                                    train_collect_type="val", test_number_of_words=None):
     # THIS MODEL NAME
     this_assessor_model_name = str(experiment_number) + "_assessor"
 
@@ -268,6 +269,12 @@ def make_this_assessor_model_name_and_save_dir_name(experiment_number, equal_cla
     if optimizer_name == 'adam':
         this_assessor_model_name += "_lr" + str(adam_lr)
         this_assessor_model_name += "_lrDecay" + str(adam_lr_decay)
+
+    if train_collect_type == "spl_train":
+        this_assessor_model_name += "_trainedOn" + str(test_number_of_words) + "LRWtrainWords"
+
+    if test_number_of_words is not None:
+        this_assessor_model_name += "_testingOn" + str(test_number_of_words) + "Words"
 
     print("this_assessor_model_name:", this_assessor_model_name)
 
