@@ -1,9 +1,14 @@
 ## process-lrw/
 
 Codes to convert the videos in LRW Dataset to:
+
     - frames pertaining to words
-    - mouth area of those frames
+
+    - mouth region of those frames
+
     - audio 
+
+Please see `process_lrw.py` for the single function to do this.
 
 ### Requirements
 
@@ -21,7 +26,7 @@ sudo apt install ffmpeg
 
 The files contained are:
 
-- process_lrw.py
+- `process_lrw.py`
 
     - Code to automatically process the LRW dataset.
 
@@ -55,11 +60,11 @@ The files contained are:
 
         - verbose (bool): print debugging logs
 
-- process_lrw_functions.py
+- `process_lrw_functions.py`
 
     - All functions related to process_lrw
 
-- process_lrw_params.py
+- `process_lrw_params.py`
 
     - All parameters related to process_lrw
 
