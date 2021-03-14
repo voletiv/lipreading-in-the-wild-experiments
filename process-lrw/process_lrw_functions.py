@@ -331,7 +331,7 @@ def extract_and_save_frames_and_mouths(saveDir=LRW_SAVE_DIR,
     for f, frame in enumerate(videoFrames):
 
         # If frames are extracted from video, all frames are read
-        if detectAndSaveMouths:
+        if extractFramesFromMp4:
             frameNumer = f + 1
         # If frames are read from jpeg images, frame numbers are in their names
         else:
